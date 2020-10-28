@@ -388,7 +388,6 @@ impl HnswIndexer{
         
         let insert_id = self.init_item(item, data);
         let insert_level = self._id2level[insert_id];
-        let insert_data = self.get_data(insert_id);
         let mut cur_id = self._root_id;
 
         if(insert_id == 0)
@@ -424,6 +423,7 @@ impl HnswIndexer{
             let is_deleted = self.is_deleted(cur_id);
             let mut level = if insert_level < self._max_level {insert_level} else {self._max_level};
             while level>=0{
+                let insert_data = self.get_data(insert_id);
                 let mut top_candidates = self.search_laryer_default(cur_id, insert_data, level);
                 if is_deleted {
                     cur_dist = self.get_distance_from_id(cur_id, insert_id);
