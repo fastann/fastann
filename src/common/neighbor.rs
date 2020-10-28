@@ -2,12 +2,12 @@ extern crate num;
 use std::cmp::Ordering;
 #[derive(Default, Clone, PartialEq, Debug)]
 pub struct Neighbor {
-    pub _idx: i32,
+    pub _idx: usize,
     pub _distance: f64,
 }
 
 impl Neighbor {
-    pub fn new(idx: i32, distance: f64) -> Neighbor {
+    pub fn new(idx: usize, distance: f64) -> Neighbor {
         return Neighbor{
             _idx: idx,
             _distance: distance
