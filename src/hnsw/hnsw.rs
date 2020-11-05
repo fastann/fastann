@@ -32,6 +32,7 @@ impl Data {
     }
 }
 
+#[derive(Default, Debug)]
 pub struct HnswIndexer{
     _demension: usize, // dimension
     _n_items: usize, // next item count
@@ -54,6 +55,22 @@ pub struct HnswIndexer{
 
 
 impl HnswIndexer{
+    pub fn new(demension: usize) -> HnswIndexer {
+        return HnswIndexer{
+            _demension: demension,
+            _n_items: 0,
+            _max_item: 10000,
+            _n_neigh: 200,
+            _n_neigh0: 300,
+            _max_level: 10,
+            _cur_level: 0,
+            _root_id: 0,
+            _has_deletons: false,
+            _ef_default: 200,
+            ..Default::default()
+        };
+    }
+
     fn get_random_level(&self) -> usize{
         let mut rng = rand::thread_rng();
         let mut ret = 0;
@@ -119,15 +136,24 @@ impl HnswIndexer{
         if level == 0 {
             return &self._id2neigh0[id];
         }
-        return &self._id2neigh[id][level];
+        return &self._id2neigh[id][level-1];
     }
     
+    fn clear_neighbor(&mut self, id:usize, level: usize){
+        if level == 0 {
+            self._id2neigh0[id].clear();
+        }
+        else{
+            self._id2neigh[id][level-1].clear();
+        }
+    }
+
     fn set_neighbor(&mut self, id: usize, level: usize, pos: usize, neighbor_id: usize){
         if level == 0 {
             self._id2neigh0[id][pos] = neighbor_id;
         }
         else{
-            self._id2neigh[id][level][pos] = neighbor_id; 
+            self._id2neigh[id][level-1][pos] = neighbor_id; 
         }
     }
 
@@ -136,7 +162,7 @@ impl HnswIndexer{
             self._id2neigh0[id].push(neighbor_id);
         }
         else{
-            self._id2neigh[id][level].push(neighbor_id); 
+            self._id2neigh[id][level-1].push(neighbor_id); 
         }
     }
 
@@ -151,6 +177,7 @@ impl HnswIndexer{
         if top_candidates.len() > n_neigh {
             return Err("Should be not be more than M_ candidates returned by the heuristic");
         }
+        // println!("{:?}",top_candidates);
         
         let mut selected_neighbors: Vec<usize> = Vec::new();
         while !top_candidates.is_empty() { // can remove for efficience
@@ -163,67 +190,69 @@ impl HnswIndexer{
         {
             //only one mutable borrow || several immutable borrow
             let neighbor = self.get_neighbor(cur_id, level);
-            if neighbor.len() == 0 && !is_update {
-                return Err("The newly inserted element should have blank link list");
-            }
+            // if neighbor.len() == 0 && !is_update {
+            //     return Err("The newly inserted element should have blank link list");
+            // }
 
-            for i in 0..selected_neighbors.len() {
-                if neighbor[i] != 0 && !is_update {
-                    return Err("Possible memory corruption");
-                }
-                if level > self.get_level(selected_neighbors[i]) {
-                    return Err("Trying to make a link on a non-existent level");
-                }
-            }
+            // for i in 0..selected_neighbors.len() {
+            //     if neighbor[i] != 0 && !is_update {
+            //         return Err("Possible memory corruption");
+            //     }
+            //     if level > self.get_level(selected_neighbors[i]) {
+            //         return Err("Trying to make a link on a non-existent level");
+            //     }
+            // }
 
+            self.clear_neighbor(cur_id, level);
             for i in 0..selected_neighbors.len() {
-                self.set_neighbor(cur_id, level,i, selected_neighbors[i]);
+                self.push_neighbor(cur_id, level, selected_neighbors[i]);
             }
         }
         
-        if(is_update){
-            for selected_neighbor in selected_neighbors {
-                let neighbor_of_selected_neighbors = self.get_neighbor(selected_neighbor, level);
-                if neighbor_of_selected_neighbors.len() > n_neigh {
-                    return Err("Bad Value of neighbor_of_selected_neighbors");
-                }
-                if selected_neighbor == cur_id {
-                    return  Err("Trying to connect an element to itself");
-                }
+        for selected_neighbor in selected_neighbors {
+            let neighbor_of_selected_neighbors = self.get_neighbor(selected_neighbor, level);
+            if neighbor_of_selected_neighbors.len() > n_neigh {
+                return Err("Bad Value of neighbor_of_selected_neighbors");
+            }
+            if selected_neighbor == cur_id {
+                return  Err("Trying to connect an element to itself");
+            }
 
-                let mut is_cur_id_present = false;
-                
+            let mut is_cur_id_present = false;
+            
+            if is_update {
                 for j in 0..neighbor_of_selected_neighbors.len() {
                     if neighbor_of_selected_neighbors[j] == cur_id {
                         is_cur_id_present = true;
                         break;
                     }
                 }
+            }
 
-                if(!is_cur_id_present) {
-                    if neighbor_of_selected_neighbors.len() < n_neigh {
-                        // neighbor_of_selected_neighbors.push(cur_id);
-                        self.push_neighbor(selected_neighbor, level, cur_id)
+            if !is_cur_id_present {
+                if neighbor_of_selected_neighbors.len() < n_neigh {
+                    // neighbor_of_selected_neighbors.push(cur_id);
+                    self.push_neighbor(selected_neighbor, level, cur_id)
+                }
+                else {
+                    let d_max = self.get_distance_from_id(cur_id, selected_neighbor);
+
+                    let mut candidates: BinaryHeap<Neighbor> = BinaryHeap::new();
+                    candidates.push(Neighbor::new(cur_id, d_max));
+                    for neighbor_id in neighbor_of_selected_neighbors {
+                        let d_neigh = self.get_distance_from_id(*neighbor_id, selected_neighbor);
+                        candidates.push(Neighbor::new(*neighbor_id, d_neigh));
                     }
-                    else {
-                        let d_max = self.get_distance_from_id(cur_id, selected_neighbor);
 
-                        let mut candidates: BinaryHeap<Neighbor> = BinaryHeap::new();
-                        candidates.push(Neighbor::new(cur_id, d_max));
-                        for neighbor_id in neighbor_of_selected_neighbors {
-                            let d_neigh = self.get_distance_from_id(*neighbor_id, selected_neighbor);
-                            candidates.push(Neighbor::new(*neighbor_id, d_neigh));
-                        }
-
-                        self.get_neighbors_by_heuristic2(&mut candidates, n_neigh);
-                        
-                        for k in 0..n_neigh {
-                            // selected_neighbor = candidates.peek().unwrap()._idx;
-                            self.set_neighbor(selected_neighbor, level, k, candidates.peek().unwrap()._idx);
-                            candidates.pop();
-                        }
-
+                    self.get_neighbors_by_heuristic2(&mut candidates, n_neigh);
+                    
+                    self.clear_neighbor(selected_neighbor, level);
+                    for k in 0..n_neigh {
+                        // selected_neighbor = candidates.peek().unwrap()._idx;
+                        self.push_neighbor(selected_neighbor, level, candidates.peek().unwrap()._idx);
+                        candidates.pop();
                     }
+
                 }
             }
         }
@@ -232,7 +261,7 @@ impl HnswIndexer{
     }
 
     pub fn delete_id(&mut self, id: usize)-> Result<(),&'static str>{
-        if id < 0 || id > self._n_items {
+        if id > self._n_items {
             return  Err("Invalid delete id");
         }
         if self.is_deleted(id) {
@@ -259,7 +288,8 @@ impl HnswIndexer{
         return calc::enclidean_distance(self.get_data(x), self.get_data(y)).unwrap();
     } 
 
-    pub fn search_laryer(&self, root: usize, search_data: &Vec<f64>, level: usize, ef: usize, has_deletion: bool) -> BinaryHeap<Neighbor>{
+    //find ef nearist nodes to search data from root at level
+    pub fn search_laryer(&self, root: usize, search_data: &Vec<f64>, level: usize, ef: usize, has_deletion: bool) -> BinaryHeap<Neighbor>{ 
         let mut visted_id: HashSet<usize> = HashSet::new();
         let mut top_candidates: BinaryHeap<Neighbor> = BinaryHeap::new();
         let mut candidates:  BinaryHeap<Neighbor> = BinaryHeap::new();
@@ -272,7 +302,7 @@ impl HnswIndexer{
             lower_bound = dist;
         }
         else{
-            lower_bound = f64::MAX;
+            lower_bound = f64::MAX;//max dist in top_candidates
             candidates.push(Neighbor::new(root, -lower_bound))
         }
         visted_id.insert(root);
@@ -324,8 +354,8 @@ impl HnswIndexer{
         }
         let mut cur_id = self._root_id;
         let mut cur_dist = self.get_distance_from_vec(self.get_data(cur_id), search_data);
-        let mut cur_level:i32 = self._cur_level as i32;
-        while cur_level>=0 {
+        let mut cur_level = self._cur_level;
+        loop {
             let mut changed = true;
             while changed {
                 changed = false;
@@ -341,6 +371,9 @@ impl HnswIndexer{
                         changed = true;
                     }
                 }
+            }
+            if cur_level == 0 {
+                break;
             }
             cur_level -= 1;
         }
@@ -362,11 +395,12 @@ impl HnswIndexer{
             let level_neigh: Vec<usize> = Vec::new();
             neigh.push(level_neigh);
         }
+        self._datas.push(data.to_vec());
         self._id2neigh0.push(neigh0);
         self._id2neigh.push(neigh);
         self._id2level.push(cur_level);
         self._item2id.insert(item, cur_id);
-
+        self._n_items += 1;
         return cur_id;
     }
 
@@ -375,8 +409,7 @@ impl HnswIndexer{
             return Err("dimension is different");
         }
         {
-            if(self._item2id.contains_key(&item))
-            {
+            if self._item2id.contains_key(&item) {
                 //to_do update point
                 return Ok(self._item2id[&item]);
             }
@@ -389,17 +422,17 @@ impl HnswIndexer{
         let insert_id = self.init_item(item, data);
         let insert_level = self._id2level[insert_id];
         let mut cur_id = self._root_id;
+        // println!("insert_id {:?}, insert_level {:?} ", insert_id, insert_level);
 
-        if(insert_id == 0)
-        {
+        if insert_id == 0 {
             self._root_id = 0;
-            self._max_level = self._id2level[insert_id];
+            self._cur_level = self._id2level[insert_id];
             return Ok(0)
         }
 
-        if insert_level < self._max_level {
+        if insert_level < self._cur_level {
             let mut cur_dist = self.get_distance_from_id(cur_id, insert_id);
-            let mut cur_level = self._max_level;
+            let mut cur_level = self._cur_level;
             while cur_level > insert_level {
                 let mut changed = true;
                 while changed {
@@ -419,24 +452,33 @@ impl HnswIndexer{
                 }
                 cur_level -= 1;
             }
+        }
 
-            let is_deleted = self.is_deleted(cur_id);
-            let mut level = if insert_level < self._max_level {insert_level} else {self._max_level};
-            while level>=0{
-                let insert_data = self.get_data(insert_id);
-                let mut top_candidates = self.search_laryer_default(cur_id, insert_data, level);
-                if is_deleted {
-                    cur_dist = self.get_distance_from_id(cur_id, insert_id);
-                    top_candidates.push(Neighbor::new(cur_id, cur_dist) );
-                    if top_candidates.len() > self._ef_default {
-                        top_candidates.pop();
-                    }
+        let is_deleted = self.is_deleted(cur_id);
+        let mut level = if insert_level < self._cur_level {insert_level} else {self._cur_level};
+        loop {
+            let insert_data = self.get_data(insert_id);
+            let mut top_candidates = self.search_laryer_default(cur_id, insert_data, level);
+            if is_deleted {
+                let cur_dist = self.get_distance_from_id(cur_id, insert_id);
+                top_candidates.push(Neighbor::new(cur_id, cur_dist) );
+                if top_candidates.len() > self._ef_default {
+                    top_candidates.pop();
                 }
-                cur_id = self.connect_neighbor(cur_id, &mut top_candidates, level, false).unwrap();
-
-                level -= 1;
             }
+            // println!("cur_id {:?}", insert_id);
+            // println!("{:?}", top_candidates);
+            cur_id = self.connect_neighbor(insert_id, &mut top_candidates, level, false).unwrap();
+            
+            if level == 0 {
+                break;
+            }
+            level -= 1;
+        }
 
+        if insert_level > self._cur_level {
+            self._root_id = insert_id;
+            self._cur_level = insert_level;
         }
 
         return Ok(insert_id);

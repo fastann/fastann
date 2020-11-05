@@ -1,8 +1,9 @@
 mod annoy;
 mod common;
+mod hnsw;
 use crate::annoy::annoy::AnnoyIndexer;
 
-fn main() {
+fn test_annoy() {
     let a = vec![1.2, 2.3, 3.0];
     let b = vec![4.1, 5.0, 6.5];
 
@@ -42,4 +43,22 @@ fn main() {
         println!("{:?} {:?}",i, aix.nodes[i]);
     }
     println!("{:?}", aix.get_all_nns(&f, 2, 2));
+}
+
+fn test_hnsw(){
+    let mut indexer = hnsw::hnsw::HnswIndexer::new(2);
+    for i in 1..10{
+        let f = vec![i as f64, i as f64];
+        indexer.add_item(i, &f);
+    }
+    let ret = indexer.search_knn(&vec![0.0,0.0], 3).unwrap();
+    for neigh in ret{
+        println!("{:?}  {:?}", neigh._idx, neigh._distance);
+    }
+}
+
+
+fn main() {
+    println!("hello world");
+    test_hnsw();
 }
