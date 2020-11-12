@@ -43,6 +43,21 @@ where
     return Result::Ok(res);
 }
 
+pub fn enclidean_distance_range<T>(vec1: &[T], vec2: &[T], begin: usize, end: usize) -> Result<T, &'static str>
+where
+    T: Default + std::ops::Mul<Output = T> + std::ops::AddAssign + Copy + num::Signed,
+{
+    if vec1.len() != vec2.len() {
+        return Result::Err("different dimensions");
+    }
+    let mut res = T::default();
+    for i in begin..end {
+        let diff = vec1[i] - vec2[i];
+        res += diff * diff;
+    }
+    return Result::Ok(res);
+}
+
 pub fn get_norm<T>(vec1: &[T]) -> T
 where
     T: Default + std::ops::Mul<Output = T> + std::ops::AddAssign + Copy + num::Float,

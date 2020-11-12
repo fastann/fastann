@@ -189,7 +189,7 @@ impl HnswIndexer{
         
         {
             //only one mutable borrow || several immutable borrow
-            let neighbor = self.get_neighbor(cur_id, level);
+            // let neighbor = self.get_neighbor(cur_id, level);
             // if neighbor.len() == 0 && !is_update {
             //     return Err("The newly inserted element should have blank link list");
             // }
