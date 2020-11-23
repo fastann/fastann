@@ -36,27 +36,26 @@ fn test_annoy() {
     }
 
     println!("{:?}", aix.build(1));
-    println!("{:?}", aix.get_node(2));
+    println!("{:?}", aix.get_leaf(2));
     let f = vec![1.0, 1.0];
     println!("{:?}", aix);
-    for i in 0..aix.nodes.len() {
-        println!("{:?} {:?}",i, aix.nodes[i]);
+    for i in 0..aix.leaves.len() {
+        println!("{:?} {:?}", i, aix.leaves[i]);
     }
     println!("{:?}", aix.get_all_nns(&f, 2, 2));
 }
 
-fn test_hnsw(){
+fn test_hnsw() {
     let mut indexer = hnsw::hnsw::HnswIndexer::new(2);
-    for i in 1..10{
+    for i in 1..10 {
         let f = vec![i as f64, i as f64];
         indexer.add_item(i, &f);
     }
-    let ret = indexer.search_knn(&vec![0.0,0.0], 3).unwrap();
-    for neigh in ret{
+    let ret = indexer.search_knn(&vec![0.0, 0.0], 3).unwrap();
+    for neigh in ret {
         println!("{:?}  {:?}", neigh._idx, neigh._distance);
     }
 }
-
 
 fn main() {
     println!("hello world");

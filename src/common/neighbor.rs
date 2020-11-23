@@ -8,9 +8,9 @@ pub struct Neighbor {
 
 impl Neighbor {
     pub fn new(idx: usize, distance: f64) -> Neighbor {
-        return Neighbor{
+        return Neighbor {
             _idx: idx,
-            _distance: distance
+            _distance: distance,
         };
     }
 }

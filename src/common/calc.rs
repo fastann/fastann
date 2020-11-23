@@ -1,8 +1,10 @@
 extern crate num;
+use crate::common::node::Element;
+use crate::common::node::FloatElement;
 
 pub fn dot<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
 where
-    T: Default + std::ops::Mul<Output = T> + std::ops::AddAssign + Copy,
+    T: FloatElement,
 {
     if vec1.len() != vec2.len() {
         return Result::Err("different dimensions");
@@ -16,7 +18,7 @@ where
 
 pub fn manhanttan_distance<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
 where
-    T: Default + std::ops::Mul<Output = T> + std::ops::AddAssign + Copy + num::Signed,
+    T: Element,
 {
     if vec1.len() != vec2.len() {
         return Result::Err("different dimensions");
@@ -30,7 +32,7 @@ where
 
 pub fn enclidean_distance<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
 where
-    T: Default + std::ops::Mul<Output = T> + std::ops::AddAssign + Copy + num::Signed,
+    T: Element,
 {
     if vec1.len() != vec2.len() {
         return Result::Err("different dimensions");
@@ -43,7 +45,12 @@ where
     return Result::Ok(res);
 }
 
-pub fn enclidean_distance_range<T>(vec1: &[T], vec2: &[T], begin: usize, end: usize) -> Result<T, &'static str>
+pub fn enclidean_distance_range<T>(
+    vec1: &[T],
+    vec2: &[T],
+    begin: usize,
+    end: usize,
+) -> Result<T, &'static str>
 where
     T: Default + std::ops::Mul<Output = T> + std::ops::AddAssign + Copy + num::Signed,
 {
@@ -60,7 +67,7 @@ where
 
 pub fn get_norm<T>(vec1: &[T]) -> T
 where
-    T: Default + std::ops::Mul<Output = T> + std::ops::AddAssign + Copy + num::Float,
+    T: FloatElement,
 {
     match dot(&vec1, &vec1) {
         Ok(x) => x.sqrt(),

@@ -5,11 +5,11 @@ use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
 
-// TODO: node as a trait with getter setter function
+// TODO: leaf as a trait with getter setter function
 #[derive(Default, Clone, PartialEq, Debug)]
-pub struct Node {
+pub struct Leaf {
     n_descendants: i32, // tot n_descendants
-    children: Vec<i32>, // left and right and if it's a leaf node, children would be very large (depend on _K)
+    children: Vec<i32>, // left and right and if it's a leaf leaf, children would be very large (depend on _K)
     v: Vec<f64>,
 
     // biz field
@@ -19,16 +19,16 @@ pub struct Node {
     has_init: bool,
 }
 
-impl Node {
-    fn new() -> Node {
-        Node {
+impl Leaf {
+    fn new() -> Leaf {
+        Leaf {
             children: vec![0, 0],
             ..Default::default()
         }
     }
 
-    fn new_with_vectors(_v: &[f64]) -> Node {
-        Node {
+    fn new_with_vectors(_v: &[f64]) -> Leaf {
+        Leaf {
             children: vec![0, 0],
             v: _v.to_vec(),
             ..Default::default()
@@ -43,7 +43,7 @@ impl Node {
         self.children = vec![0, 0];
     }
 
-    fn copy(dst: &mut Node, src: &Node) {
+    fn copy(dst: &mut Leaf, src: &Leaf) {
         dst.n_descendants = src.n_descendants.clone();
         dst.children = src.children.clone();
         dst.v = src.v.clone();
@@ -79,14 +79,14 @@ impl PartialOrd for Neighbor {
 impl Eq for Neighbor {}
 
 pub fn two_means<D: Distance + Base>(
-    nodes: &[Node],
+    leaves: &[Leaf],
     use_cosine: bool,
     distance: &D,
-) -> Result<(Node, Node), &'static str> {
-    if nodes.len() < 2 {
-        return Err("empty nodes");
+) -> Result<(Leaf, Leaf), &'static str> {
+    if leaves.len() < 2 {
+        return Err("empty leaves");
     }
-    let count = nodes.len();
+    let count = leaves.len();
     let i = random::index(count);
     let mut j = random::index(count - 1);
 
@@ -94,25 +94,25 @@ pub fn two_means<D: Distance + Base>(
         j += 1;
     }
 
-    let mut p = distance.copy_node(&nodes[i]);
-    let mut q = distance.copy_node(&nodes[j]);
+    let mut p = distance.copy_leaf(&leaves[i]);
+    let mut q = distance.copy_leaf(&leaves[j]);
 
     if use_cosine {
         distance.normalize(&mut p);
         distance.normalize(&mut q);
     }
-    distance.init_node(&mut p);
-    distance.init_node(&mut q);
+    distance.init_leaf(&mut p);
+    distance.init_leaf(&mut q);
 
     let mut ic: f64 = 1.0;
     let mut jc: f64 = 1.0;
 
     for _z in 0..def::ITERATION_STEPS {
         let k = random::index(count);
-        let di = ic * distance.distance(&p, &nodes[k])?;
-        let dj = jc * distance.distance(&q, &nodes[k])?;
+        let di = ic * distance.distance(&p, &leaves[k])?;
+        let dj = jc * distance.distance(&q, &leaves[k])?;
         let norm = if use_cosine {
-            calc::get_norm(&nodes[k].v)
+            calc::get_norm(&leaves[k].v)
         } else {
             1.0
         };
@@ -123,15 +123,15 @@ pub fn two_means<D: Distance + Base>(
 
         if di < dj {
             for l in 0..q.v.len() {
-                p.v[l] = (p.v[l] * ic + nodes[k].v[l] / norm) / (ic + 1.0);
+                p.v[l] = (p.v[l] * ic + leaves[k].v[l] / norm) / (ic + 1.0);
             }
-            distance.init_node(&mut p);
+            distance.init_leaf(&mut p);
             ic += 1.0;
         } else {
             for l in 0..q.v.len() {
-                q.v[l] = (q.v[l] * ic + nodes[k].v[l] / norm) / (ic + 1.0);
+                q.v[l] = (q.v[l] * ic + leaves[k].v[l] / norm) / (ic + 1.0);
             }
-            distance.init_node(&mut q);
+            distance.init_leaf(&mut q);
             jc += 1.0;
         }
     }
@@ -141,39 +141,39 @@ pub fn two_means<D: Distance + Base>(
 
 pub trait Base: Default {
     // TODO:
-    fn preprocess(&self, nodes: &[Node]) {}
+    fn preprocess(&self, leaves: &[Leaf]) {}
 
-    fn zero_value(&self, src: &mut Node) {}
-    fn copy_node(&self, src: &Node) -> Node {
-        return Node {
+    fn zero_value(&self, src: &mut Leaf) {}
+    fn copy_leaf(&self, src: &Leaf) -> Leaf {
+        return Leaf {
             n_descendants: src.n_descendants.clone(),
             v: src.v.clone(),
             children: src.children.clone(),
             ..Default::default()
         };
     }
-    fn normalize(&self, node: &mut Node) {
-        let norm = calc::get_norm(&node.v);
+    fn normalize(&self, leaf: &mut Leaf) {
+        let norm = calc::get_norm(&leaf.v);
         if norm > 0.0 {
-            for i in 0..node.v.len() {
-                node.v[i] /= norm;
+            for i in 0..leaf.v.len() {
+                leaf.v[i] /= norm;
             }
         }
     }
 }
 
 pub trait Distance {
-    fn init_node(&self, node: &mut Node) {}
-    fn distance(&self, src: &Node, dst: &Node) -> Result<f64, &'static str>;
-    fn create_split(&self, nodes: &[Node], n: &mut Node) -> Result<(), &'static str>;
+    fn init_leaf(&self, leaf: &mut Leaf) {}
+    fn distance(&self, src: &Leaf, dst: &Leaf) -> Result<f64, &'static str>;
+    fn create_split(&self, leaves: &[Leaf], n: &mut Leaf) -> Result<(), &'static str>;
     fn pq_initial_value(&self) -> f64 {
         return f64::MAX;
     }
-    fn side(&self, src: &Node, dst: &[f64]) -> bool {
+    fn side(&self, src: &Leaf, dst: &[f64]) -> bool {
         return false;
     }
 
-    fn margin(&self, src: &Node, dst: &[f64]) -> Result<f64, &'static str> {
+    fn margin(&self, src: &Leaf, dst: &[f64]) -> Result<f64, &'static str> {
         return Ok(0.0);
     }
 
@@ -186,13 +186,13 @@ pub trait Distance {
 pub struct Angular {}
 
 impl Base for Angular {
-    fn copy_node(&self, src: &Node) -> Node {
+    fn copy_leaf(&self, src: &Leaf) -> Leaf {
         return src.clone();
     }
 }
 
 impl Distance for Angular {
-    fn distance(&self, src: &Node, dst: &Node) -> Result<f64, &'static str> {
+    fn distance(&self, src: &Leaf, dst: &Leaf) -> Result<f64, &'static str> {
         let left = if src.norm != 0.0 {
             src.norm
         } else {
@@ -212,11 +212,11 @@ impl Distance for Angular {
         }
     }
 
-    fn margin(&self, src: &Node, dst: &[f64]) -> Result<f64, &'static str> {
+    fn margin(&self, src: &Leaf, dst: &[f64]) -> Result<f64, &'static str> {
         return calc::dot(&src.v, &dst);
     }
 
-    fn side(&self, src: &Node, dst: &[f64]) -> bool {
+    fn side(&self, src: &Leaf, dst: &[f64]) -> bool {
         match self.margin(&src, &dst) {
             Ok(x) => {
                 return x > 0.0;
@@ -227,11 +227,11 @@ impl Distance for Angular {
         }
     }
 
-    fn create_split(&self, nodes: &[Node], n: &mut Node) -> Result<(), &'static str> {
-        let (p, q) = two_means(&nodes, true, self)?;
+    fn create_split(&self, leaves: &[Leaf], n: &mut Leaf) -> Result<(), &'static str> {
+        let (p, q) = two_means(&leaves, true, self)?;
 
         if n.v.len() != 0 && n.v.len() != p.v.len() {
-            return Err("empty node input");
+            return Err("empty leaf input");
         }
 
         let is_initial = if n.v.len() == 0 { true } else { false };
@@ -246,10 +246,10 @@ impl Distance for Angular {
         return Ok(());
     }
 
-    fn init_node(&self, node: &mut Node) {
-        match calc::dot(&node.v, &node.v) {
+    fn init_leaf(&self, leaf: &mut Leaf) {
+        match calc::dot(&leaf.v, &leaf.v) {
             Ok(dot) => {
-                node.norm = dot;
+                leaf.norm = dot;
             }
             Err(e) => return, // do nothing
         }
@@ -290,15 +290,15 @@ pub struct DotProduct {
 }
 
 impl Distance for DotProduct {
-    fn distance(&self, src: &Node, dst: &Node) -> Result<f64, &'static str> {
+    fn distance(&self, src: &Leaf, dst: &Leaf) -> Result<f64, &'static str> {
         return Ok(-calc::dot(&src.v, &dst.v)?);
     }
 
-    fn create_split(&self, nodes: &[Node], n: &mut Node) -> Result<(), &'static str> {
-        return Ok(self.angular.create_split(&nodes, n)?);
+    fn create_split(&self, leaves: &[Leaf], n: &mut Leaf) -> Result<(), &'static str> {
+        return Ok(self.angular.create_split(&leaves, n)?);
     }
 
-    fn init_node(&self, node: &mut Node) {}
+    fn init_leaf(&self, leaf: &mut Leaf) {}
 }
 
 impl Base for DotProduct {}
@@ -354,13 +354,13 @@ pub trait AnnoyIndexer<D: Distance + Base> {
 #[derive(Default, Debug)]
 pub struct AnnoyIndex<D: Distance + Base> {
     _f: usize, // dimension
-    // _s: i32,       // node size
+    // _s: i32,       // leaf size
     _n_items: i32, // add items count
-    // _nodes;
-    _n_nodes: i32, // nodes count
-    // _nodes_size: i32, // in source code, this means the memory which has been allocated, and we can use node's size to get data
+    // _leaves;
+    _n_leaves: i32, // leaves count
+    // _leaves_size: i32, // in source code, this means the memory which has been allocated, and we can use leaf's size to get data
     _roots: Vec<i32>, // dummy root's children
-    _K: i32,          // max number of n_descendants to fit into node
+    _K: i32,          // max number of n_descendants to fit into leaf
     _is_seeded: bool,
     _seed: i32,
     _loaded: bool,
@@ -368,7 +368,7 @@ pub struct AnnoyIndex<D: Distance + Base> {
     _fd: i32,
     _on_disk: bool,
     _built: bool,
-    pub nodes: Vec<Node>,
+    pub leaves: Vec<Leaf>,
 
     distance: D,
 }
@@ -382,23 +382,23 @@ impl<D: Distance + Base> AnnoyIndexer<D> for AnnoyIndex<D> {
             return Err("you can't add an item to a loaded index");
         }
 
-        let mut nn = Node::new();
+        let mut nn = Leaf::new();
 
         d.zero_value(&mut nn);
 
         nn.children[0] = 0;
         nn.children[1] = 0;
-        nn.n_descendants = 1; // only the node itself
+        nn.n_descendants = 1; // only the leaf itself
 
         for i in 0..self._f {
             nn.v.push(w[i]);
         }
 
-        d.init_node(&mut nn);
+        d.init_leaf(&mut nn);
 
         self._n_items += 1;
 
-        self.nodes.push(nn);
+        self.leaves.push(nn);
 
         return Ok(());
     }
@@ -408,9 +408,9 @@ impl<D: Distance + Base> AnnoyIndexer<D> for AnnoyIndex<D> {
             return Err("has built");
         }
 
-        self.distance.preprocess(&self.nodes);
+        self.distance.preprocess(&self.leaves);
 
-        self._n_nodes = self._n_items;
+        self._n_leaves = self._n_items;
         self.thread_build(q);
         self._built = true;
         return Ok(());
@@ -418,17 +418,17 @@ impl<D: Distance + Base> AnnoyIndexer<D> for AnnoyIndex<D> {
 
     fn unbuild(&mut self) -> Result<(), &'static str> {
         self._roots.clear();
-        self._n_nodes = self._n_items;
+        self._n_leaves = self._n_items;
         self._built = false;
         return Ok(());
     }
     fn get_distance(&self, i: i32, j: i32) -> Result<f64, &'static str> {
-        let ni = match self.get_node(i) {
-            Some(node) => node,
+        let ni = match self.get_leaf(i) {
+            Some(leaf) => leaf,
             None => return Err("not existing"),
         };
-        let nj = match self.get_node(j) {
-            Some(node) => node,
+        let nj = match self.get_leaf(j) {
+            Some(leaf) => leaf,
             None => return Err("not existing"),
         };
         return Ok(self.distance.distance(&ni, &nj)?);
@@ -440,8 +440,8 @@ impl<D: Distance + Base> AnnoyIndexer<D> for AnnoyIndex<D> {
         n: usize,
         search_k: i32,
     ) -> Result<(Vec<i32>, Vec<f64>), &'static str> {
-        match self.get_node(idx) {
-            Some(node) => self.get_all_nns(&node.v, n, search_k),
+        match self.get_leaf(idx) {
+            Some(leaf) => self.get_all_nns(&leaf.v, n, search_k),
             None => return Err("invalid idx"),
         }
     }
@@ -485,28 +485,28 @@ impl<D: Distance + Base> AnnoyIndex<D> {
         self._f
     }
 
-    pub fn get_node_mut(&mut self, i: i32) -> &mut Node {
-        if self.nodes.len() <= i as usize {
-            self.extent_nodes(i as usize);
+    pub fn get_leaf_mut(&mut self, i: i32) -> &mut Leaf {
+        if self.leaves.len() <= i as usize {
+            self.extent_leaves(i as usize);
         }
-        return &mut self.nodes[i as usize];
+        return &mut self.leaves[i as usize];
     }
 
-    pub fn get_node(&self, i: i32) -> Option<&Node> {
-        if self.nodes.len() < i as usize {
+    pub fn get_leaf(&self, i: i32) -> Option<&Leaf> {
+        if self.leaves.len() < i as usize {
             return None;
         }
-        if self.nodes[i as usize].is_empty() {
+        if self.leaves[i as usize].is_empty() {
             return None;
         }
-        return Some(&self.nodes[i as usize]);
+        return Some(&self.leaves[i as usize]);
     }
 
-    fn extent_nodes(&mut self, i: usize) {
-        let diff = i - self.nodes.len() + 1;
+    fn extent_leaves(&mut self, i: usize) {
+        let diff = i - self.leaves.len() + 1;
         if diff > 0 {
             for i in 0..diff {
-                self.nodes.push(Node::new());
+                self.leaves.push(Leaf::new());
             }
         }
     }
@@ -519,12 +519,12 @@ impl<D: Distance + Base> AnnoyIndex<D> {
 
         loop {
             if q == -1 {
-                self.thread_lock_nodes();
-                if self._n_nodes >= 2 * self._n_items {
-                    self.thread_unlock_nodes();
+                self.thread_lock_leaves();
+                if self._n_leaves >= 2 * self._n_items {
+                    self.thread_unlock_leaves();
                     break;
                 }
-                self.thread_unlock_nodes();
+                self.thread_unlock_leaves();
             } else {
                 if thread_root.len() >= (q as usize) {
                     break;
@@ -532,20 +532,20 @@ impl<D: Distance + Base> AnnoyIndex<D> {
             }
 
             let mut indices: Vec<i32> = Vec::new();
-            self.thread_lock_nodes();
-            for i in 0..self._n_nodes {
-                match self.get_node(i) {
-                    Some(node) => {
-                        println!("hello {:?} {:?} ", i, self.nodes.len());
+            self.thread_lock_leaves();
+            for i in 0..self._n_leaves {
+                match self.get_leaf(i) {
+                    Some(leaf) => {
+                        println!("hello {:?} {:?} ", i, self.leaves.len());
 
-                        if node.n_descendants >= 1 {
+                        if leaf.n_descendants >= 1 {
                             indices.push(i as i32);
                         }
                     }
                     None => continue, // TODO: log
                 }
             }
-            self.thread_unlock_nodes();
+            self.thread_unlock_leaves();
 
             match self.make_tree(&indices, true) {
                 Ok(tree) => thread_root.push(tree),
@@ -557,9 +557,9 @@ impl<D: Distance + Base> AnnoyIndex<D> {
         self._roots.extend_from_slice(&thread_root);
     }
 
-    fn thread_lock_nodes(&self) {}
+    fn thread_lock_leaves(&self) {}
 
-    fn thread_unlock_nodes(&self) {}
+    fn thread_unlock_leaves(&self) {}
 
     fn make_tree(&mut self, indices: &[i32], is_root: bool) -> Result<i32, &'static str> {
         if indices.len() == 0 {
@@ -572,37 +572,36 @@ impl<D: Distance + Base> AnnoyIndex<D> {
         if (indices.len() as i32) <= self._K
             && (!is_root || self._n_items <= self._K || indices.len() == 1)
         {
-            self._n_nodes += 1;
-            let item = self._n_nodes;
-            let mut n = self.get_node_mut(item);
+            self._n_leaves += 1;
+            let item = self._n_leaves;
+            let mut n = self.get_leaf_mut(item);
             if n.is_empty() {
                 n.init();
             }
             n.n_descendants = if is_root { item } else { indices.len() as i32 };
             for i in 0..indices.len() {
-                println!("{:?} {:?}",i , indices.len());
+                println!("{:?} {:?}", i, indices.len());
                 if n.children.len() == i {
                     n.children.push(indices[i].clone());
-                }else {
+                } else {
                     n.children[i] = indices[i].clone();
                 }
-                
             }
             return Ok(item);
         }
 
-        let mut children: Vec<Node> = Vec::new();
+        let mut children: Vec<Leaf> = Vec::new();
         for i in 0..indices.len() {
             let j = indices[i];
-            match self.get_node(j) {
+            match self.get_leaf(j) {
                 None => continue,
-                Some(node) => {
-                    children.push(node.clone());
+                Some(leaf) => {
+                    children.push(leaf.clone());
                 }
             }
         }
 
-        let mut m = Node::new();
+        let mut m = Leaf::new();
         let mut children_indices: [Vec<i32>; 2] = [Vec::new(), Vec::new()];
 
         const attempt: usize = 3;
@@ -613,9 +612,9 @@ impl<D: Distance + Base> AnnoyIndex<D> {
 
             for i in 0..indices.len() {
                 let j = indices[i];
-                match self.get_node(i as i32) {
-                    Some(node) => {
-                        let side = self.distance.side(&m, &node.v);
+                match self.get_leaf(i as i32) {
+                    Some(leaf) => {
+                        let side = self.distance.side(&m, &leaf.v);
                         children_indices[(side as usize)].push(j);
                     }
                     None => continue,
@@ -661,12 +660,12 @@ impl<D: Distance + Base> AnnoyIndex<D> {
             }
         }
 
-        self.nodes.push(m);
-        self._n_nodes += 1;
-        // let mut mn = self.get_node_mut(self._n_nodes);
-        // Node::copy(&mut mn, &m);
+        self.leaves.push(m);
+        self._n_leaves += 1;
+        // let mut mn = self.get_leaf_mut(self._n_leaves);
+        // leaf::copy(&mut mn, &m);
 
-        return Ok((self.nodes.len() - 1) as i32);
+        return Ok((self.leaves.len() - 1) as i32);
     }
 
     fn split_imbalanced(&self, left_indices: &[i32], right_indices: &[i32]) -> f64 {
@@ -686,15 +685,15 @@ impl<D: Distance + Base> AnnoyIndex<D> {
         n: usize,
         mut search_k: i32,
     ) -> Result<(Vec<i32>, Vec<f64>), &'static str> {
-        let mut v_node = Node::new();
-        self.distance.zero_value(&mut v_node);
-        v_node.v = vectors.to_vec();
-        self.distance.init_node(&mut v_node);
+        let mut v_leaf = Leaf::new();
+        self.distance.zero_value(&mut v_leaf);
+        v_leaf.v = vectors.to_vec();
+        self.distance.init_leaf(&mut v_leaf);
 
         if self._roots.len() == 0 {
             return Err("empty tree");
         }
-        let node = Node::new();
+        let leaf = Leaf::new();
 
         if search_k == -1 {
             search_k = (n * self._roots.len()) as i32;
@@ -713,9 +712,9 @@ impl<D: Distance + Base> AnnoyIndex<D> {
             let top = heap.peek().unwrap();
             let d = top.distance;
             let i = top.idx;
-            println!("hello {:?} {:?}", self.nodes.len(), top);
+            println!("hello {:?} {:?}", self.leaves.len(), top);
 
-            let nd = self.get_node(i).unwrap();
+            let nd = self.get_leaf(i).unwrap();
             heap.pop();
 
             if nd.n_descendants == 1 && i < self._n_items {
@@ -744,10 +743,10 @@ impl<D: Distance + Base> AnnoyIndex<D> {
                 continue;
             }
             last = j;
-            let node = self.get_node(j).unwrap();
-            if node.n_descendants == 1 {
+            let leaf = self.get_leaf(j).unwrap();
+            if leaf.n_descendants == 1 {
                 nns_dist.push(Neighbor {
-                    distance: self.distance.distance(&v_node, &node)?,
+                    distance: self.distance.distance(&v_leaf, &leaf)?,
                     idx: j,
                 })
             }
@@ -768,8 +767,8 @@ impl<D: Distance + Base> AnnoyIndex<D> {
 
         println!("{:?}", self._roots);
 
-        for i in 0..self.nodes.len() {
-            println!("{:?} {:?}", i, self.nodes[i]);
+        for i in 0..self.leaves.len() {
+            println!("{:?} {:?}", i, self.leaves[i]);
         }
 
         return Ok((result, distance_result));

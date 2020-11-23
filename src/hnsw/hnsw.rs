@@ -1,14 +1,14 @@
 use crate::common::calc;
 use crate::common::neighbor::Neighbor;
+use rand::prelude::*;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use rand::prelude::*;
 
 #[derive(Default, Clone, PartialEq, Debug)]
 pub struct Data {
     _demension: i32,
-    _val: Vec<f64>
+    _val: Vec<f64>,
 }
 
 impl Data {
@@ -25,7 +25,7 @@ impl Data {
             _val: val.to_vec(),
         }
     }
-    
+
     fn distance(&self, data: &Data) -> Result<f64, &str> {
         let ret = calc::enclidean_distance(&(self._val), &(data._val));
         ret
@@ -33,30 +33,28 @@ impl Data {
 }
 
 #[derive(Default, Debug)]
-pub struct HnswIndexer{
+pub struct HnswIndexer {
     _demension: usize, // dimension
-    _n_items: usize, // next item count
+    _n_items: usize,   // next item count
     _max_item: usize,
-    _n_neigh: usize, // neighbor num except level 0
-    _n_neigh0: usize, // neight num of level 0
-    _max_level: usize, //max level
-    _cur_level: usize, //current level
+    _n_neigh: usize,                 // neighbor num except level 0
+    _n_neigh0: usize,                // neight num of level 0
+    _max_level: usize,               //max level
+    _cur_level: usize,               //current level
     _id2neigh: Vec<Vec<Vec<usize>>>, //neight_id from level 1 to level _max_level
-    _id2neigh0: Vec<Vec<usize>>, //neigh_id at level 0
-    _datas: Vec<Vec<f64>>, // data saver
-    _item2id: HashMap<i32, usize>, //item_id to id in Hnsw
-    _root_id: usize, //root of hnsw
+    _id2neigh0: Vec<Vec<usize>>,     //neigh_id at level 0
+    _datas: Vec<Vec<f64>>,           // data saver
+    _item2id: HashMap<i32, usize>,   //item_id to id in Hnsw
+    _root_id: usize,                 //root of hnsw
     _id2level: Vec<usize>,
     _has_deletons: bool,
-    _ef_default : usize,// num of max candidates when searching
+    _ef_default: usize,          // num of max candidates when searching
     _delete_ids: HashSet<usize>, //save deleted ids
 }
 
-
-
-impl HnswIndexer{
+impl HnswIndexer {
     pub fn new(demension: usize) -> HnswIndexer {
-        return HnswIndexer{
+        return HnswIndexer {
             _demension: demension,
             _n_items: 0,
             _max_item: 10000,
@@ -71,15 +69,13 @@ impl HnswIndexer{
         };
     }
 
-    fn get_random_level(&self) -> usize{
+    fn get_random_level(&self) -> usize {
         let mut rng = rand::thread_rng();
         let mut ret = 0;
-        while(ret < self._max_level)
-        {
+        while (ret < self._max_level) {
             if rng.gen_range(0.0, 1.0) > 0.5 {
                 ret += 1;
-            }
-            else{
+            } else {
                 break;
             }
         }
@@ -88,14 +84,18 @@ impl HnswIndexer{
         }
         return ret;
     }
-    //input top_candidate as max top heap 
+    //input top_candidate as max top heap
     //return min top heap in top_candidates, delete part candidate
-    fn get_neighbors_by_heuristic2(&self, top_candidates: &mut BinaryHeap<Neighbor>, ret_size: usize) -> Result<(), &'static str> {
+    fn get_neighbors_by_heuristic2(
+        &self,
+        top_candidates: &mut BinaryHeap<Neighbor>,
+        ret_size: usize,
+    ) -> Result<(), &'static str> {
         if top_candidates.len() < ret_size {
             return Ok(());
         }
         let mut queue_closest: BinaryHeap<Neighbor> = BinaryHeap::new();
-        let mut return_list : Vec<Neighbor> = Vec::new();
+        let mut return_list: Vec<Neighbor> = Vec::new();
         while !top_candidates.is_empty() {
             let cand = top_candidates.peek().unwrap();
             queue_closest.push(Neighbor::new(cand._idx, -cand._distance));
@@ -103,7 +103,7 @@ impl HnswIndexer{
         }
 
         while !queue_closest.is_empty() {
-            if return_list.len() >= ret_size{
+            if return_list.len() >= ret_size {
                 break;
             }
             let cur = queue_closest.peek().unwrap();
@@ -111,7 +111,7 @@ impl HnswIndexer{
             let distance = -cur._distance;
             queue_closest.pop();
             let mut good = true;
-            
+
             for ret_neighbor in &return_list {
                 let cur2ret_dis = self.get_distance_from_id(idx, ret_neighbor._idx);
                 if cur2ret_dis < distance {
@@ -132,61 +132,68 @@ impl HnswIndexer{
         return Ok(());
     }
 
-    fn get_neighbor(&self, id: usize, level: usize) -> &Vec<usize>{
+    fn get_neighbor(&self, id: usize, level: usize) -> &Vec<usize> {
         if level == 0 {
             return &self._id2neigh0[id];
         }
-        return &self._id2neigh[id][level-1];
+        return &self._id2neigh[id][level - 1];
     }
-    
-    fn clear_neighbor(&mut self, id:usize, level: usize){
+
+    fn clear_neighbor(&mut self, id: usize, level: usize) {
         if level == 0 {
             self._id2neigh0[id].clear();
-        }
-        else{
-            self._id2neigh[id][level-1].clear();
+        } else {
+            self._id2neigh[id][level - 1].clear();
         }
     }
 
-    fn set_neighbor(&mut self, id: usize, level: usize, pos: usize, neighbor_id: usize){
+    fn set_neighbor(&mut self, id: usize, level: usize, pos: usize, neighbor_id: usize) {
         if level == 0 {
             self._id2neigh0[id][pos] = neighbor_id;
-        }
-        else{
-            self._id2neigh[id][level-1][pos] = neighbor_id; 
+        } else {
+            self._id2neigh[id][level - 1][pos] = neighbor_id;
         }
     }
 
-    fn push_neighbor(&mut self, id: usize, level: usize, neighbor_id: usize){
+    fn push_neighbor(&mut self, id: usize, level: usize, neighbor_id: usize) {
         if level == 0 {
             self._id2neigh0[id].push(neighbor_id);
-        }
-        else{
-            self._id2neigh[id][level-1].push(neighbor_id); 
+        } else {
+            self._id2neigh[id][level - 1].push(neighbor_id);
         }
     }
 
-    fn get_level(&self, id:usize) -> usize{
+    fn get_level(&self, id: usize) -> usize {
         return self._id2level[id];
     }
 
-    fn connect_neighbor(&mut self, cur_id: usize, top_candidates: &mut BinaryHeap<Neighbor>, level: usize, is_update: bool) -> Result<usize, &'static str>
-    {
-        let n_neigh = if level == 0 {self._n_neigh0} else {self._n_neigh};
+    fn connect_neighbor(
+        &mut self,
+        cur_id: usize,
+        top_candidates: &mut BinaryHeap<Neighbor>,
+        level: usize,
+        is_update: bool,
+    ) -> Result<usize, &'static str> {
+        let n_neigh = if level == 0 {
+            self._n_neigh0
+        } else {
+            self._n_neigh
+        };
         self.get_neighbors_by_heuristic2(top_candidates, n_neigh);
         if top_candidates.len() > n_neigh {
             return Err("Should be not be more than M_ candidates returned by the heuristic");
         }
         // println!("{:?}",top_candidates);
-        
+
         let mut selected_neighbors: Vec<usize> = Vec::new();
-        while !top_candidates.is_empty() { // can remove for efficience
+        while !top_candidates.is_empty() {
+            // can remove for efficience
             selected_neighbors.push(top_candidates.peek().unwrap()._idx);
             top_candidates.pop();
         }
-        
+
         let next_closest_entry_point = selected_neighbors[0];
-        
+
         {
             //only one mutable borrow || several immutable borrow
             // let neighbor = self.get_neighbor(cur_id, level);
@@ -208,18 +215,18 @@ impl HnswIndexer{
                 self.push_neighbor(cur_id, level, selected_neighbors[i]);
             }
         }
-        
+
         for selected_neighbor in selected_neighbors {
             let neighbor_of_selected_neighbors = self.get_neighbor(selected_neighbor, level);
             if neighbor_of_selected_neighbors.len() > n_neigh {
                 return Err("Bad Value of neighbor_of_selected_neighbors");
             }
             if selected_neighbor == cur_id {
-                return  Err("Trying to connect an element to itself");
+                return Err("Trying to connect an element to itself");
             }
 
             let mut is_cur_id_present = false;
-            
+
             if is_update {
                 for j in 0..neighbor_of_selected_neighbors.len() {
                     if neighbor_of_selected_neighbors[j] == cur_id {
@@ -233,8 +240,7 @@ impl HnswIndexer{
                 if neighbor_of_selected_neighbors.len() < n_neigh {
                     // neighbor_of_selected_neighbors.push(cur_id);
                     self.push_neighbor(selected_neighbor, level, cur_id)
-                }
-                else {
+                } else {
                     let d_max = self.get_distance_from_id(cur_id, selected_neighbor);
 
                     let mut candidates: BinaryHeap<Neighbor> = BinaryHeap::new();
@@ -245,14 +251,17 @@ impl HnswIndexer{
                     }
 
                     self.get_neighbors_by_heuristic2(&mut candidates, n_neigh);
-                    
+
                     self.clear_neighbor(selected_neighbor, level);
                     for k in 0..n_neigh {
                         // selected_neighbor = candidates.peek().unwrap()._idx;
-                        self.push_neighbor(selected_neighbor, level, candidates.peek().unwrap()._idx);
+                        self.push_neighbor(
+                            selected_neighbor,
+                            level,
+                            candidates.peek().unwrap()._idx,
+                        );
                         candidates.pop();
                     }
-
                 }
             }
         }
@@ -260,9 +269,9 @@ impl HnswIndexer{
         return Ok(next_closest_entry_point);
     }
 
-    pub fn delete_id(&mut self, id: usize)-> Result<(),&'static str>{
+    pub fn delete_id(&mut self, id: usize) -> Result<(), &'static str> {
         if id > self._n_items {
-            return  Err("Invalid delete id");
+            return Err("Invalid delete id");
         }
         if self.is_deleted(id) {
             return Err("id has deleted");
@@ -271,28 +280,34 @@ impl HnswIndexer{
         return Ok(());
     }
 
-    pub fn is_deleted(&self, id: usize) -> bool{
-        
+    pub fn is_deleted(&self, id: usize) -> bool {
         return self._delete_ids.contains(&id);
     }
 
     pub fn get_data(&self, id: usize) -> &Vec<f64> {
-        return  &self._datas[id];
+        return &self._datas[id];
     }
 
-    pub fn get_distance_from_vec(&self, x: &Vec<f64>, y: &Vec<f64>) -> f64{
-        return calc::enclidean_distance(x,y).unwrap();
+    pub fn get_distance_from_vec(&self, x: &Vec<f64>, y: &Vec<f64>) -> f64 {
+        return calc::enclidean_distance(x, y).unwrap();
     }
 
     pub fn get_distance_from_id(&self, x: usize, y: usize) -> f64 {
         return calc::enclidean_distance(self.get_data(x), self.get_data(y)).unwrap();
-    } 
+    }
 
     //find ef nearist nodes to search data from root at level
-    pub fn search_laryer(&self, root: usize, search_data: &Vec<f64>, level: usize, ef: usize, has_deletion: bool) -> BinaryHeap<Neighbor>{ 
+    pub fn search_laryer(
+        &self,
+        root: usize,
+        search_data: &Vec<f64>,
+        level: usize,
+        ef: usize,
+        has_deletion: bool,
+    ) -> BinaryHeap<Neighbor> {
         let mut visted_id: HashSet<usize> = HashSet::new();
         let mut top_candidates: BinaryHeap<Neighbor> = BinaryHeap::new();
-        let mut candidates:  BinaryHeap<Neighbor> = BinaryHeap::new();
+        let mut candidates: BinaryHeap<Neighbor> = BinaryHeap::new();
         let mut lower_bound: f64;
 
         if !has_deletion || !self.is_deleted(root) {
@@ -300,13 +315,12 @@ impl HnswIndexer{
             top_candidates.push(Neighbor::new(root, dist));
             candidates.push(Neighbor::new(root, -dist));
             lower_bound = dist;
-        }
-        else{
-            lower_bound = f64::MAX;//max dist in top_candidates
+        } else {
+            lower_bound = f64::MAX; //max dist in top_candidates
             candidates.push(Neighbor::new(root, -lower_bound))
         }
         visted_id.insert(root);
-        
+
         while !candidates.is_empty() {
             let cur_neigh = candidates.peek().unwrap();
             let cur_dist = cur_neigh._distance;
@@ -316,16 +330,16 @@ impl HnswIndexer{
                 break;
             }
             let cur_neighbors = self.get_neighbor(cur_id, level);
-            for neigh in cur_neighbors{
+            for neigh in cur_neighbors {
                 if visted_id.contains(neigh) {
                     continue;
                 }
                 visted_id.insert(*neigh);
                 let dist = self.get_distance_from_vec(self.get_data(*neigh), search_data);
-                if  top_candidates.len() < ef || dist < lower_bound {
+                if top_candidates.len() < ef || dist < lower_bound {
                     candidates.push(Neighbor::new(*neigh, dist));
-                    
-                    if !self.is_deleted(*neigh){
+
+                    if !self.is_deleted(*neigh) {
                         top_candidates.push(Neighbor::new(*neigh, dist))
                     }
 
@@ -343,13 +357,22 @@ impl HnswIndexer{
         return top_candidates;
     }
 
-    pub fn search_laryer_default(&self, root:usize, search_data: &Vec<f64>, level: usize) -> BinaryHeap<Neighbor>{
+    pub fn search_laryer_default(
+        &self,
+        root: usize,
+        search_data: &Vec<f64>,
+        level: usize,
+    ) -> BinaryHeap<Neighbor> {
         return self.search_laryer(root, search_data, level, self._ef_default, false);
     }
 
-    pub fn search_knn(&self, search_data: &Vec<f64>, k: usize) -> Result< BinaryHeap<Neighbor>, &'static str>{
+    pub fn search_knn(
+        &self,
+        search_data: &Vec<f64>,
+        k: usize,
+    ) -> Result<BinaryHeap<Neighbor>, &'static str> {
         let mut top_candidate: BinaryHeap<Neighbor> = BinaryHeap::new();
-        if self._n_items==0{
+        if self._n_items == 0 {
             return Ok(top_candidate);
         }
         let mut cur_id = self._root_id;
@@ -381,12 +404,12 @@ impl HnswIndexer{
         top_candidate = self.search_laryer(cur_id, search_data, 0, k, self._has_deletons);
         while top_candidate.len() > k {
             top_candidate.pop();
-        } 
+        }
 
         return Ok(top_candidate);
     }
 
-    pub fn init_item(&mut self, item:i32, data: &[f64]) -> usize{
+    pub fn init_item(&mut self, item: i32, data: &[f64]) -> usize {
         let cur_id = self._n_items;
         let cur_level = self.get_random_level();
         let mut neigh0: Vec<usize> = Vec::new();
@@ -418,7 +441,7 @@ impl HnswIndexer{
                 return Err("The number of elements exceeds the specified limit");
             }
         }
-        
+
         let insert_id = self.init_item(item, data);
         let insert_level = self._id2level[insert_id];
         let mut cur_id = self._root_id;
@@ -427,7 +450,7 @@ impl HnswIndexer{
         if insert_id == 0 {
             self._root_id = 0;
             self._cur_level = self._id2level[insert_id];
-            return Ok(0)
+            return Ok(0);
         }
 
         if insert_level < self._cur_level {
@@ -455,21 +478,27 @@ impl HnswIndexer{
         }
 
         let is_deleted = self.is_deleted(cur_id);
-        let mut level = if insert_level < self._cur_level {insert_level} else {self._cur_level};
+        let mut level = if insert_level < self._cur_level {
+            insert_level
+        } else {
+            self._cur_level
+        };
         loop {
             let insert_data = self.get_data(insert_id);
             let mut top_candidates = self.search_laryer_default(cur_id, insert_data, level);
             if is_deleted {
                 let cur_dist = self.get_distance_from_id(cur_id, insert_id);
-                top_candidates.push(Neighbor::new(cur_id, cur_dist) );
+                top_candidates.push(Neighbor::new(cur_id, cur_dist));
                 if top_candidates.len() > self._ef_default {
                     top_candidates.pop();
                 }
             }
             // println!("cur_id {:?}", insert_id);
             // println!("{:?}", top_candidates);
-            cur_id = self.connect_neighbor(insert_id, &mut top_candidates, level, false).unwrap();
-            
+            cur_id = self
+                .connect_neighbor(insert_id, &mut top_candidates, level, false)
+                .unwrap();
+
             if level == 0 {
                 break;
             }
@@ -482,5 +511,5 @@ impl HnswIndexer{
         }
 
         return Ok(insert_id);
-    } 
+    }
 }
