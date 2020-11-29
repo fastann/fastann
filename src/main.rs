@@ -2,6 +2,9 @@ mod annoy;
 mod common;
 mod hnsw;
 use crate::annoy::annoy::AnnoyIndexer;
+use rand::distributions::{Alphanumeric, StandardNormal, Uniform};
+use rand::distributions::{Distribution, Normal};
+use rand::{thread_rng, Rng};
 
 fn test_annoy() {
     let a = vec![1.2, 2.3, 3.0];
@@ -57,7 +60,56 @@ fn test_hnsw() {
     }
 }
 
+fn make_normal_distribution_clustering(
+    clustering_n: usize,
+    node_n: usize,
+    dimension: usize,
+) -> (Vec<Vec<f64>>, Vec<Vec<f64>>) {
+    let mut rng = rand::thread_rng();
+
+    let mut bases: Vec<Vec<f64>> = Vec::new();
+    let mut ns: Vec<Vec<f64>> = Vec::new();
+    for i in 0..clustering_n {
+        let mut base: Vec<f64> = Vec::new();
+        for i in 0..dimension {
+            let n: f64 = rng.gen_range(0.0, 100.0); // base number
+            base.push(n);
+        }
+
+        let mut v: Vec<f64> = Vec::new();
+        for i in 0..node_n {
+            let v_iter: Vec<f64> = rng.sample_iter(&StandardNormal).take(dimension).collect();
+            let mut vec_item = Vec::new();
+            for i in 0..dimension {
+                let vv = v_iter[i] + base[i]; // add normal distribution noise
+                vec_item.push(vv);
+            }
+            ns.push(vec_item);
+        }
+        bases.push(base);
+    }
+
+    return (bases, ns);
+}
+
+fn make_test_data() {
+    let dimension = 2;
+    let nodes = 5;
+    let cluster = 3;
+
+    let (base, vectors) = make_normal_distribution_clustering(cluster, nodes, dimension);
+    for i in 0..vectors.len() {
+        if i % nodes == 0 {
+            println!("base: {:?}", base[i / nodes]);
+        }
+        println!("{:?}", vectors[i]);
+    }
+}
+
 fn main() {
     println!("hello world");
-    test_hnsw();
+
+    make_test_data();
+
+    // test_hnsw();
 }
