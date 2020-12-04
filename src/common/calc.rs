@@ -16,7 +16,7 @@ where
     return Result::Ok(res);
 }
 
-pub fn manhanttan_distance<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
+pub fn manhattan_distance<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
 where
     T: Element,
 {
@@ -30,7 +30,7 @@ where
     return Result::Ok(res);
 }
 
-pub fn enclidean_distance<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
+pub fn euclidean_distance<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
 where
     T: Element,
 {
@@ -45,14 +45,14 @@ where
     return Result::Ok(res);
 }
 
-pub fn enclidean_distance_range<T>(
+pub fn euclidean_distance_range<T>(
     vec1: &[T],
     vec2: &[T],
     begin: usize,
     end: usize,
 ) -> Result<T, &'static str>
 where
-    T: Default + std::ops::Mul<Output = T> + std::ops::AddAssign + Copy + num::Signed,
+    T: Element,
 {
     if vec1.len() != vec2.len() {
         return Result::Err("different dimensions");

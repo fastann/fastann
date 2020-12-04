@@ -1,4 +1,5 @@
 extern crate num;
+use crate::common::node;
 use std::cmp::Ordering;
 #[derive(Default, Clone, PartialEq, Debug)]
 pub struct Neighbor {

@@ -4,9 +4,10 @@ mod hnsw;
 use crate::annoy::annoy::AnnoyIndexer;
 use rand::distributions::{Alphanumeric, StandardNormal, Uniform};
 use rand::distributions::{Distribution, Normal};
+use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
 
-fn test_annoy() {
+fn test_distance_calc() {
     let a = vec![1.2, 2.3, 3.0];
     let b = vec![4.1, 5.0, 6.5];
 
@@ -15,33 +16,33 @@ fn test_annoy() {
         Err(e) => println!("{}", e),
     }
 
-    match common::calc::manhanttan_distance(&a, &b) {
+    match common::calc::manhattan_distance(&a, &b) {
         Ok(x) => println!("{}", x),
         Err(e) => println!("{}", e),
     }
 
-    match common::calc::enclidean_distance(&a, &b) {
+    match common::calc::euclidean_distance(&a, &b) {
         Ok(x) => println!("{}", x),
         Err(e) => println!("{}", e),
     }
 
     println!("{}", common::calc::get_norm(&a));
+}
 
-    let angular = annoy::annoy::Angular {};
+fn test_annoy() {
+    let angular = annoy::annoy::Angular::new();
     let mut aix = annoy::annoy::AnnoyIndex::new(2, angular);
 
-    let x: Vec<f64> = vec![1.1, 1.2, 60.6, 77.7, 88.8, 1.3, 1.4, 61.6, 78.7, 89.8];
-    let y: Vec<f64> = vec![1.1, 1.2, 60.6, 77.7, 88.8, 1.3, 1.4, 61.6, 78.7, 89.8];
-
-    for i in 0..x.len() {
-        let f = vec![x[i], y[i]];
+    let (base, mut vectors) = make_test_data();
+    vectors.shuffle(&mut thread_rng());
+    for i in 0..vectors.len() {
+        let f = vec![vectors[i][0], vectors[i][1]];
         aix.add_item(i as i32, &f, angular);
     }
 
     println!("{:?}", aix.build(1));
-    println!("{:?}", aix.get_leaf(2));
-    let f = vec![1.0, 1.0];
-    println!("{:?}", aix);
+    aix.show_trees();
+    let f = &base[0];
     for i in 0..aix.leaves.len() {
         println!("{:?} {:?}", i, aix.leaves[i]);
     }
@@ -92,9 +93,9 @@ fn make_normal_distribution_clustering(
     return (bases, ns);
 }
 
-fn make_test_data() {
+fn make_test_data() -> (Vec<Vec<f64>>, Vec<Vec<f64>>) {
     let dimension = 2;
-    let nodes = 5;
+    let nodes = 50;
     let cluster = 3;
 
     let (base, vectors) = make_normal_distribution_clustering(cluster, nodes, dimension);
@@ -104,12 +105,13 @@ fn make_test_data() {
         }
         println!("{:?}", vectors[i]);
     }
+    return (base, vectors);
 }
 
 fn main() {
     println!("hello world");
 
-    make_test_data();
+    test_annoy();
 
     // test_hnsw();
 }

@@ -27,7 +27,7 @@ impl Data {
     }
 
     fn distance(&self, data: &Data) -> Result<f64, &str> {
-        let ret = calc::enclidean_distance(&(self._val), &(data._val));
+        let ret = calc::euclidean_distance(&(self._val), &(data._val));
         ret
     }
 }
@@ -55,7 +55,7 @@ impl KmeansIndexer {
     }
 
     pub fn get_distance_from_vec(&self, x: &Vec<f64>, y: &Vec<f64>) -> f64 {
-        return calc::enclidean_distance_range(x, y, self._data_range_begin, self._data_range_end)
+        return calc::euclidean_distance_range(x, y, self._data_range_begin, self._data_range_end)
             .unwrap();
     }
 
@@ -323,7 +323,7 @@ impl PQIndexer {
         begin: usize,
         end: usize,
     ) -> f64 {
-        return calc::enclidean_distance_range(x, y, begin, end).unwrap();
+        return calc::euclidean_distance_range(x, y, begin, end).unwrap();
     }
 
     pub fn search_knn_ADC(

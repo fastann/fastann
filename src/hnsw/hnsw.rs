@@ -27,7 +27,7 @@ impl Data {
     }
 
     fn distance(&self, data: &Data) -> Result<f64, &str> {
-        let ret = calc::enclidean_distance(&(self._val), &(data._val));
+        let ret = calc::euclidean_distance(&(self._val), &(data._val));
         ret
     }
 }
@@ -289,11 +289,11 @@ impl HnswIndexer {
     }
 
     pub fn get_distance_from_vec(&self, x: &Vec<f64>, y: &Vec<f64>) -> f64 {
-        return calc::enclidean_distance(x, y).unwrap();
+        return calc::euclidean_distance(x, y).unwrap();
     }
 
     pub fn get_distance_from_id(&self, x: usize, y: usize) -> f64 {
-        return calc::enclidean_distance(self.get_data(x), self.get_data(y)).unwrap();
+        return calc::euclidean_distance(self.get_data(x), self.get_data(y)).unwrap();
     }
 
     //find ef nearist nodes to search data from root at level
