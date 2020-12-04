@@ -88,14 +88,14 @@ impl HnswIndexer {
     //return min top heap in top_candidates, delete part candidate
     fn get_neighbors_by_heuristic2(
         &self,
-        top_candidates: &mut BinaryHeap<Neighbor>,
+        top_candidates: &mut BinaryHeap<Neighbor<f64>>,
         ret_size: usize,
     ) -> Result<(), &'static str> {
         if top_candidates.len() < ret_size {
             return Ok(());
         }
-        let mut queue_closest: BinaryHeap<Neighbor> = BinaryHeap::new();
-        let mut return_list: Vec<Neighbor> = Vec::new();
+        let mut queue_closest: BinaryHeap<Neighbor<f64>> = BinaryHeap::new();
+        let mut return_list: Vec<Neighbor<f64>> = Vec::new();
         while !top_candidates.is_empty() {
             let cand = top_candidates.peek().unwrap();
             queue_closest.push(Neighbor::new(cand._idx, -cand._distance));
@@ -170,7 +170,7 @@ impl HnswIndexer {
     fn connect_neighbor(
         &mut self,
         cur_id: usize,
-        top_candidates: &mut BinaryHeap<Neighbor>,
+        top_candidates: &mut BinaryHeap<Neighbor<f64>>,
         level: usize,
         is_update: bool,
     ) -> Result<usize, &'static str> {
@@ -243,7 +243,7 @@ impl HnswIndexer {
                 } else {
                     let d_max = self.get_distance_from_id(cur_id, selected_neighbor);
 
-                    let mut candidates: BinaryHeap<Neighbor> = BinaryHeap::new();
+                    let mut candidates: BinaryHeap<Neighbor<f64>> = BinaryHeap::new();
                     candidates.push(Neighbor::new(cur_id, d_max));
                     for neighbor_id in neighbor_of_selected_neighbors {
                         let d_neigh = self.get_distance_from_id(*neighbor_id, selected_neighbor);
@@ -304,10 +304,10 @@ impl HnswIndexer {
         level: usize,
         ef: usize,
         has_deletion: bool,
-    ) -> BinaryHeap<Neighbor> {
+    ) -> BinaryHeap<Neighbor<f64>> {
         let mut visted_id: HashSet<usize> = HashSet::new();
-        let mut top_candidates: BinaryHeap<Neighbor> = BinaryHeap::new();
-        let mut candidates: BinaryHeap<Neighbor> = BinaryHeap::new();
+        let mut top_candidates: BinaryHeap<Neighbor<f64>> = BinaryHeap::new();
+        let mut candidates: BinaryHeap<Neighbor<f64>> = BinaryHeap::new();
         let mut lower_bound: f64;
 
         if !has_deletion || !self.is_deleted(root) {
@@ -362,7 +362,7 @@ impl HnswIndexer {
         root: usize,
         search_data: &Vec<f64>,
         level: usize,
-    ) -> BinaryHeap<Neighbor> {
+    ) -> BinaryHeap<Neighbor<f64>> {
         return self.search_laryer(root, search_data, level, self._ef_default, false);
     }
 
@@ -370,8 +370,8 @@ impl HnswIndexer {
         &self,
         search_data: &Vec<f64>,
         k: usize,
-    ) -> Result<BinaryHeap<Neighbor>, &'static str> {
-        let mut top_candidate: BinaryHeap<Neighbor> = BinaryHeap::new();
+    ) -> Result<BinaryHeap<Neighbor<f64>>, &'static str> {
+        let mut top_candidate: BinaryHeap<Neighbor<f64>> = BinaryHeap::new();
         if self._n_items == 0 {
             return Ok(top_candidate);
         }

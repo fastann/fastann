@@ -330,7 +330,7 @@ impl PQIndexer {
         &self,
         search_data: &Vec<f64>,
         k: usize,
-    ) -> Result<BinaryHeap<Neighbor>, &'static str> {
+    ) -> Result<BinaryHeap<Neighbor<f64>>, &'static str> {
         let mut dis2centers: Vec<Vec<f64>> = Vec::new();
         for i in 0..self._n_sub {
             let mut sub_dis: Vec<f64> = Vec::new();
@@ -345,7 +345,7 @@ impl PQIndexer {
             dis2centers.push(sub_dis);
         }
 
-        let mut top_candidate: BinaryHeap<Neighbor> = BinaryHeap::new();
+        let mut top_candidate: BinaryHeap<Neighbor<f64>> = BinaryHeap::new();
         for i in 0..self._n_items {
             let mut distance = 0.0;
             for j in 0..self._n_sub {

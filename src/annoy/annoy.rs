@@ -7,43 +7,6 @@ use std::collections::BinaryHeap;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
-//  TODO: remove
-#[derive(Default, Clone, PartialEq, Debug)]
-pub struct Neighbor<E: node::Element> {
-    pub _idx: usize,
-    pub _distance: E,
-}
-
-impl<E: node::Element> Neighbor<E> {
-    pub fn new(idx: usize, distance: E) -> Neighbor<E> {
-        return Neighbor {
-            _idx: idx,
-            _distance: distance,
-        };
-    }
-}
-
-impl<E: node::Element> Ord for Neighbor<E> {
-    fn cmp(&self, other: &Neighbor<E>) -> Ordering {
-        let ord = if self._distance > other._distance {
-            Ordering::Greater
-        } else if self._distance < other._distance {
-            Ordering::Less
-        } else {
-            Ordering::Equal
-        };
-        return ord;
-    }
-}
-
-impl<E: node::Element> PartialOrd for Neighbor<E> {
-    fn partial_cmp(&self, other: &Neighbor<E>) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl<E: node::Element> Eq for Neighbor<E> {}
-
 const ITERATION_STEPS: usize = 200;
 
 // TODO: leaf as a trait with getter setter function
@@ -692,7 +655,6 @@ impl<E: node::FloatElement, D: Distance<E> + Base<E>> AnnoyIndex<E, D> {
         } else {
             indices.len() as i32
         };
-        
 
         for side in 0..2 {
             match self.make_tree(&children_indices[side ^ (flip as usize)], false) {
@@ -742,9 +704,9 @@ impl<E: node::FloatElement, D: Distance<E> + Base<E>> AnnoyIndex<E, D> {
             search_k = (n * self._roots.len()) as i32;
         }
 
-        let mut heap: BinaryHeap<Neighbor<E>> = BinaryHeap::new();
+        let mut heap: BinaryHeap<neighbor::Neighbor<E>> = BinaryHeap::new();
         for i in 0..self._roots.len() {
-            heap.push(Neighbor {
+            heap.push(neighbor::Neighbor {
                 _distance: self.distance.pq_initial_value(),
                 _idx: self._roots[i] as usize,
             });
@@ -765,11 +727,11 @@ impl<E: node::FloatElement, D: Distance<E> + Base<E>> AnnoyIndex<E, D> {
                 nns.extend_from_slice(&nd.children);
             } else {
                 let margin = self.distance.margin(&nd, vectors)?;
-                heap.push(Neighbor {
+                heap.push(neighbor::Neighbor {
                     _distance: self.distance.pq_distance(d, margin, 1),
                     _idx: nd.children[1] as usize,
                 });
-                heap.push(Neighbor {
+                heap.push(neighbor::Neighbor {
                     _distance: self.distance.pq_distance(d, margin, 0),
                     _idx: nd.children[0] as usize,
                 });
@@ -777,7 +739,7 @@ impl<E: node::FloatElement, D: Distance<E> + Base<E>> AnnoyIndex<E, D> {
         }
 
         nns.sort();
-        let mut nns_dist: Vec<Neighbor<E>> = Vec::new();
+        let mut nns_dist: Vec<neighbor::Neighbor<E>> = Vec::new();
         let mut last = -1;
         for i in 0..nns.len() {
             let j = nns[i];
@@ -787,7 +749,7 @@ impl<E: node::FloatElement, D: Distance<E> + Base<E>> AnnoyIndex<E, D> {
             last = j;
             let leaf = self.get_leaf(j).unwrap();
             if leaf.n_descendants == 1 {
-                nns_dist.push(Neighbor {
+                nns_dist.push(neighbor::Neighbor {
                     _distance: self.distance.distance(&v_leaf, &leaf)?,
                     _idx: j as usize,
                 })
