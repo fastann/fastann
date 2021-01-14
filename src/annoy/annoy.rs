@@ -51,6 +51,10 @@ impl<E: node::FloatElement> Leaf<E> {
         dst.node = src.node.clone();
         dst.norm = src.norm.clone();
     }
+
+    pub fn get_literal(&self) -> String {
+        format!("{{ \"n_descendants\": {:?}, \"children\": {:?}, \"norm\": {:?}, \"has_init\": {:?} }}",self.n_descendants,self.children,self.norm,self.has_init)
+    }
 }
 
 pub fn two_means<D: Distance<E> + Base<E>, E: node::FloatElement>(
