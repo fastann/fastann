@@ -4,5 +4,5 @@ mod demo;
 mod hnsw;
 
 fn main() {
-  demo::demo::run_demo();
+    demo::demo::run_demo();
 }
