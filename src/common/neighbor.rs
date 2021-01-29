@@ -14,6 +14,14 @@ impl<E: node::Element> Neighbor<E> {
             _distance: distance,
         };
     }
+
+    pub fn idx(&self) -> usize {
+        self._idx
+    }
+
+    pub fn distance(&self) -> E {
+        self._distance
+    }
 }
 
 impl<E: node::Element> Ord for Neighbor<E> {
@@ -25,7 +33,7 @@ impl<E: node::Element> Ord for Neighbor<E> {
         } else {
             Ordering::Equal
         };
-        return ord;
+        panic!("invalid distance {:?}", self._distance);
     }
 }
 

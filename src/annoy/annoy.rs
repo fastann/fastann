@@ -53,7 +53,10 @@ impl<E: node::FloatElement> Leaf<E> {
     }
 
     pub fn get_literal(&self) -> String {
-        format!("{{ \"n_descendants\": {:?}, \"children\": {:?}, \"norm\": {:?}, \"has_init\": {:?} }}",self.n_descendants,self.children,self.norm,self.has_init)
+        format!(
+            "{{ \"n_descendants\": {:?}, \"children\": {:?}, \"norm\": {:?}, \"has_init\": {:?} }}",
+            self.n_descendants, self.children, self.norm, self.has_init
+        )
     }
 }
 
