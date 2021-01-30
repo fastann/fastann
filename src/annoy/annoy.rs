@@ -1,5 +1,5 @@
 use crate::annoy::random;
-use crate::common::calc;
+use crate::common::metrics;
 use crate::common::neighbor;
 use crate::common::node;
 use std::cmp::Ordering;
@@ -94,7 +94,7 @@ pub fn two_means<D: Distance<E> + Base<E>, E: node::FloatElement>(
         let di = ic * distance.distance(&p, &leaves[k])?;
         let dj = jc * distance.distance(&q, &leaves[k])?;
         let norm = if use_cosine {
-            calc::get_norm(&leaves[k].node.vectors())
+            metrics::get_norm(&leaves[k].node.vectors())
         } else {
             E::one()
         };
@@ -139,7 +139,7 @@ pub trait Base<E: node::FloatElement>: Default {
         };
     }
     fn normalize(&self, leaf: &mut Leaf<E>) {
-        let norm = calc::get_norm(&leaf.node.vectors());
+        let norm = metrics::get_norm(&leaf.node.vectors());
         if norm > E::float_zero() {
             for i in 0..leaf.node.len() {
                 leaf.node.mut_vectors()[i] /= norm;
@@ -188,21 +188,21 @@ impl<E: node::FloatElement> Base<E> for Angular<E> {
 }
 
 impl<E: node::FloatElement> Distance<E> for Angular<E> {
-    // want to calculate (a/|a| - b/|b|)^2
+    // want to metricsulate (a/|a| - b/|b|)^2
     // = a^2 / a^2 + b^2 / b^2 - 2ab/|a||b|
     // = 2 - 2cos
     fn distance(&self, src: &Leaf<E>, dst: &Leaf<E>) -> Result<E, &'static str> {
         let left = if src.norm != E::float_zero() {
             src.norm
         } else {
-            calc::dot(&src.node.vectors(), &src.node.vectors())?
+            metrics::dot(&src.node.vectors(), &src.node.vectors())?
         };
         let right = if dst.norm != E::float_zero() {
             dst.norm
         } else {
-            calc::dot(&dst.node.vectors(), &dst.node.vectors())?
+            metrics::dot(&dst.node.vectors(), &dst.node.vectors())?
         };
-        let dot_val = calc::dot(&src.node.vectors(), &dst.node.vectors())?;
+        let dot_val = metrics::dot(&src.node.vectors(), &dst.node.vectors())?;
         let inner_val = right * left;
         let two = E::from_f32(2.0).unwrap();
         if inner_val > E::float_zero() {
@@ -213,7 +213,7 @@ impl<E: node::FloatElement> Distance<E> for Angular<E> {
     }
 
     fn margin(&self, src: &Leaf<E>, dst: &[E]) -> Result<E, &'static str> {
-        return calc::dot(&src.node.vectors(), &dst);
+        return metrics::dot(&src.node.vectors(), &dst);
     }
 
     fn side(&self, src: &Leaf<E>, dst: &[E]) -> bool {
@@ -250,7 +250,7 @@ impl<E: node::FloatElement> Distance<E> for Angular<E> {
     }
 
     fn init_leaf(&self, leaf: &mut Leaf<E>) {
-        match calc::dot(&leaf.node.vectors(), &leaf.node.vectors()) {
+        match metrics::dot(&leaf.node.vectors(), &leaf.node.vectors()) {
             Ok(dot) => {
                 leaf.norm = dot;
             }
@@ -294,7 +294,7 @@ pub struct DotProduct<E: node::FloatElement> {
 
 impl<E: node::FloatElement> Distance<E> for DotProduct<E> {
     fn distance(&self, src: &Leaf<E>, dst: &Leaf<E>) -> Result<E, &'static str> {
-        return Ok(-calc::dot(&src.node.vectors(), &dst.node.vectors())?);
+        return Ok(-metrics::dot(&src.node.vectors(), &dst.node.vectors())?);
     }
 
     fn create_split(&self, leaves: &[Leaf<E>], n: &mut Leaf<E>) -> Result<(), &'static str> {

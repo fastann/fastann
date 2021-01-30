@@ -1,7 +1,7 @@
 use node::Node;
 
 use crate::annoy::random;
-use crate::common::calc;
+use crate::common::metrics;
 use crate::common::neighbor;
 use crate::common::node;
 use std::collections::BinaryHeap;

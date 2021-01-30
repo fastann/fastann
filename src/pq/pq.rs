@@ -1,4 +1,4 @@
-use crate::common::calc;
+use crate::common::metrics;
 use crate::common::neighbor::Neighbor;
 use rand::prelude::*;
 use std::collections::BinaryHeap;
@@ -27,7 +27,7 @@ impl Data {
     }
 
     fn distance(&self, data: &Data) -> Result<f64, &str> {
-        let ret = calc::euclidean_distance(&(self._val), &(data._val));
+        let ret = metrics::euclidean_distance(&(self._val), &(data._val));
         ret
     }
 }
@@ -55,8 +55,13 @@ impl KmeansIndexer {
     }
 
     pub fn get_distance_from_vec(&self, x: &Vec<f64>, y: &Vec<f64>) -> f64 {
-        return calc::euclidean_distance_range(x, y, self._data_range_begin, self._data_range_end)
-            .unwrap();
+        return metrics::euclidean_distance_range(
+            x,
+            y,
+            self._data_range_begin,
+            self._data_range_end,
+        )
+        .unwrap();
     }
 
     pub fn init_center(&mut self, batch_size: usize, batch_data: &Vec<Vec<f64>>) {
@@ -323,7 +328,7 @@ impl PQIndexer {
         begin: usize,
         end: usize,
     ) -> f64 {
-        return calc::euclidean_distance_range(x, y, begin, end).unwrap();
+        return metrics::euclidean_distance_range(x, y, begin, end).unwrap();
     }
 
     pub fn search_knn_ADC(
