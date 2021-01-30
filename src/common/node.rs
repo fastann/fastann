@@ -2,7 +2,7 @@ use crate::common::metrics::manhattan_distance;
 use crate::common::metrics;
 use num::traits::{FromPrimitive, NumAssign};
 
-pub trait Element:
+trait Element:
     FromPrimitive
     + Sized
     + Default
@@ -50,21 +50,17 @@ macro_rules! to_float_element {
 
 to_element!(f64);
 to_element!(f32);
-to_element!(i64);
-to_element!(i32);
-to_element!(i8);
-to_element!(i16);
 to_float_element!(f64);
 to_float_element!(f32);
 
 #[derive(Clone, Debug, Default)]
-pub struct Node<E: Element> {
+pub struct Node<E: FloatElement> {
     vectors: Vec<E>,
     dimensions: usize,
     id: Option<usize>,
 }
 
-impl<E: Element> Node<E> {
+impl<E: FloatElement> Node<E> {
     pub fn new(vectors: &[E]) -> Node<E> {
         Node {
             vectors: vectors.to_vec(),
@@ -127,13 +123,6 @@ fn node_test() {
     // f64
     let v = vec![0.1, 0.2];
     let v2 = vec![0.2, 0.1];
-    let n = Node::new(&v);
-    let n2 = Node::new(&v2);
-    n.distance(&n2, manhattan_distance).unwrap();
-
-    // int
-    let v = vec![1, 1];
-    let v2 = vec![2, 1];
     let n = Node::new(&v);
     let n2 = Node::new(&v2);
     n.distance(&n2, manhattan_distance).unwrap();

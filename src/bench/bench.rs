@@ -63,7 +63,6 @@ fn make_baseline(emb: Vec<Vec<f64>>, flat_idx: &mut flat::flat::FlatIndex<f64>) 
     flat_idx.train();
 }
 
-#[cfg(test)]
 pub fn run_demo() {
     let (base, ns, ts) = make_normal_distribution_clustering(5, 1000, 1, 2, 100.0);
     let mut flat_idx = flat::flat::FlatIndex::<f64>::new();

@@ -1,6 +1,6 @@
 use crate::common::node;
 use crate::common::metrics;
-trait AnnIndex<E: node::Element> {
+trait AnnIndex<E: node::FloatElement> {
     fn construct(&self); // construct algorithm structure
     fn add(&mut self, item: &node::Node<E>);
     fn once_constructed(&self) -> bool; // has already been constructed?
