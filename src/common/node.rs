@@ -1,4 +1,4 @@
-use crate::common::calc::manhattan_distance;
+use crate::common::metrics::manhattan_distance;
 use num::traits::{FromPrimitive, NumAssign};
 
 pub trait Element:

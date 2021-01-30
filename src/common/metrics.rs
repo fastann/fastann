@@ -2,6 +2,8 @@ extern crate num;
 use crate::common::node::Element;
 use crate::common::node::FloatElement;
 
+// TODO: SIMD support
+
 pub fn dot<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
 where
     T: FloatElement,

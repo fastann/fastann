@@ -7,26 +7,26 @@ use rand::distributions::{Distribution, Normal};
 use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
 
-fn test_distance_calc() {
+fn test_distance_metrics() {
     let a = vec![1.2, 2.3, 3.0];
     let b = vec![4.1, 5.0, 6.5];
 
-    match common::calc::dot(&a, &b) {
+    match common::metrics::dot(&a, &b) {
         Ok(x) => println!("{}", x),
         Err(e) => println!("{}", e),
     }
 
-    match common::calc::manhattan_distance(&a, &b) {
+    match common::metrics::manhattan_distance(&a, &b) {
         Ok(x) => println!("{}", x),
         Err(e) => println!("{}", e),
     }
 
-    match common::calc::euclidean_distance(&a, &b) {
+    match common::metrics::euclidean_distance(&a, &b) {
         Ok(x) => println!("{}", x),
         Err(e) => println!("{}", e),
     }
 
-    println!("{}", common::calc::get_norm(&a));
+    println!("{}", common::metrics::get_norm(&a));
 }
 
 fn test_annoy() -> String {
