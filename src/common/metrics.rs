@@ -13,7 +13,7 @@ where
 {
     return match m {
         Manhattan => manhattan_distance(vec1, vec2),
-        // Dot => dot(vec1, vec2),
+        Dot => dot(vec1, vec2),
         Euclidean => euclidean_distance(vec1, vec2),
         Default => Result::Err("unknown method"),
     };
@@ -61,7 +61,7 @@ where
         let diff = vec1[i] - vec2[i];
         res += diff * diff;
     }
-    return Result::Ok(res);
+    return Result::Ok(res.sqrt());
 }
 
 pub fn euclidean_distance_range<T>(
@@ -81,7 +81,7 @@ where
         let diff = vec1[i] - vec2[i];
         res += diff * diff;
     }
-    return Result::Ok(res);
+    return Result::Ok(res.sqrt());
 }
 
 pub fn get_norm<T>(vec1: &[T]) -> T
