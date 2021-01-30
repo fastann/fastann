@@ -1,5 +1,4 @@
 extern crate num;
-use crate::common::node::Element;
 use crate::common::node::FloatElement;
 
 pub enum MetricType {
@@ -10,7 +9,7 @@ pub enum MetricType {
 
 pub fn metric<T>(vec1: &[T], vec2: &[T], m: MetricType) -> Result<T, &'static str>
 where
-    T: Element,
+    T: FloatElement,
 {
     return match m {
         Manhattan => manhattan_distance(vec1, vec2),
@@ -38,7 +37,7 @@ where
 
 pub fn manhattan_distance<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
 where
-    T: Element,
+    T: FloatElement,
 {
     if vec1.len() != vec2.len() {
         return Result::Err("different dimensions");
@@ -52,7 +51,7 @@ where
 
 pub fn euclidean_distance<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
 where
-    T: Element,
+    T: FloatElement,
 {
     if vec1.len() != vec2.len() {
         return Result::Err("different dimensions");
@@ -72,7 +71,7 @@ pub fn euclidean_distance_range<T>(
     end: usize,
 ) -> Result<T, &'static str>
 where
-    T: Element,
+    T: FloatElement,
 {
     if vec1.len() != vec2.len() {
         return Result::Err("different dimensions");
