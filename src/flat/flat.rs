@@ -1,16 +1,16 @@
-use node::Node;
-
 use crate::annoy::random;
 use crate::common::metrics;
 use crate::common::neighbor;
 use crate::common::node;
+use node::Node;
 use std::collections::BinaryHeap;
+
 pub struct FlatIndex<E: node::FloatElement> {
     nodes: Vec<Box<node::Node<E>>>,
 }
 
 impl<E: node::FloatElement> FlatIndex<E> {
-    fn new() -> FlatIndex<E> {
+    pub fn new() -> FlatIndex<E> {
         FlatIndex::<E> { nodes: Vec::new() }
     }
     pub fn train(&self) {}
@@ -41,11 +41,11 @@ impl<E: node::FloatElement> FlatIndex<E> {
         result
     }
 
-    pub fn search_k<F>(&self, is: &[E], k: usize, metrics: &F) -> Vec<(Vec<E>, E)>
+    pub fn search_k<F>(&self, item: &[E], k: usize, metrics: &F) -> Vec<(Vec<E>, E)>
     where
         F: Fn(&[E], &[E]) -> Result<E, &'static str>,
     {
-        let n = Node::new(is);
+        let n = Node::new(item);
         let mut heap = BinaryHeap::new();
         for i in 0..self.nodes.len() {
             heap.push(neighbor::Neighbor::new(

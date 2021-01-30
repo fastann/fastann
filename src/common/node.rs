@@ -1,4 +1,5 @@
 use crate::common::metrics::manhattan_distance;
+use crate::common::metrics;
 use num::traits::{FromPrimitive, NumAssign};
 
 pub trait Element:
@@ -60,6 +61,7 @@ to_float_element!(f32);
 pub struct Node<E: Element> {
     vectors: Vec<E>,
     dimensions: usize,
+    id: Option<usize>,
 }
 
 impl<E: Element> Node<E> {
@@ -67,6 +69,15 @@ impl<E: Element> Node<E> {
         Node {
             vectors: vectors.to_vec(),
             dimensions: vectors.len(),
+            id: Option::None,
+        }
+    }
+
+    pub fn new_with_id(vectors: &[E], id: usize) -> Node<E> {
+        Node {
+            vectors: vectors.to_vec(),
+            dimensions: vectors.len(),
+            id: Option::Some(id),
         }
     }
 
@@ -75,6 +86,11 @@ impl<E: Element> Node<E> {
         F: Fn(&[E], &[E]) -> Result<E, &'static str>,
     {
         cal(&self.vectors, &other.vectors)
+    }
+
+    pub fn metric<F>(&self, other: &Node<E>, t: metrics::MetricType) -> Result<E, &'static str>
+    {
+        metrics::metric(&self.vectors, &other.vectors, t)
     }
 
     // const value
@@ -96,6 +112,10 @@ impl<E: Element> Node<E> {
 
     pub fn len(&self) -> usize {
         self.vectors.len()
+    }
+
+    pub fn id(&self) -> Option<usize> {
+        self.id
     }
 }
 

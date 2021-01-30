@@ -2,8 +2,26 @@ extern crate num;
 use crate::common::node::Element;
 use crate::common::node::FloatElement;
 
-// TODO: SIMD support
+pub enum MetricType {
+    Manhattan,
+    Dot,
+    Euclidean,
+}
 
+pub fn metric<T>(vec1: &[T], vec2: &[T], m: MetricType) -> Result<T, &'static str>
+where
+    T: Element,
+{
+    return match m {
+        Manhattan => manhattan_distance(vec1, vec2),
+        // Dot => dot(vec1, vec2),
+        Euclidean => euclidean_distance(vec1, vec2),
+        Default => Result::Err("unknown method"),
+    };
+}
+
+// TODO: SIMD support
+// TODO: make these func private
 pub fn dot<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
 where
     T: FloatElement,

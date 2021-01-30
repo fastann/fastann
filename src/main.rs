@@ -1,8 +1,9 @@
 mod annoy;
+mod bench;
 mod common;
-mod demo;
+mod flat;
 mod hnsw;
 
 fn main() {
-    demo::demo::run_demo();
+    bench::bench::run_demo();
 }

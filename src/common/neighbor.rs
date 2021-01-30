@@ -26,14 +26,7 @@ impl<E: node::Element> Neighbor<E> {
 
 impl<E: node::Element> Ord for Neighbor<E> {
     fn cmp(&self, other: &Neighbor<E>) -> Ordering {
-        let ord = if self._distance > other._distance {
-            Ordering::Greater
-        } else if self._distance < other._distance {
-            Ordering::Less
-        } else {
-            Ordering::Equal
-        };
-        panic!("invalid distance {:?}", self._distance);
+        self._distance.partial_cmp(&other._distance).unwrap()
     }
 }
 

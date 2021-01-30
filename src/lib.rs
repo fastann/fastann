@@ -1,6 +1,6 @@
 mod annoy;
+pub mod bench;
 mod common;
-pub mod demo;
 mod fastann;
 mod flat;
 mod hnsw;
