@@ -88,7 +88,7 @@ impl<E: FloatElement> Node<E> {
         cal(&self.vectors, &other.vectors)
     }
 
-    pub fn metric<F>(&self, other: &Node<E>, t: metrics::MetricType) -> Result<E, &'static str> {
+    pub fn metric(&self, other: &Node<E>, t: &metrics::MetricType) -> Result<E, &'static str> {
         metrics::metric(&self.vectors, &other.vectors, t)
     }
 
@@ -122,7 +122,7 @@ impl<E: FloatElement> Node<E> {
     }
 }
 
-impl <E: FloatElement>std::fmt::Display for Node<E> {
+impl<E: FloatElement> std::fmt::Display for Node<E> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "(id: {:#?}, vectors: {:#?})", self.id, self.vectors)
     }

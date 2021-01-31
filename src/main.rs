@@ -5,5 +5,5 @@ mod flat;
 mod hnsw;
 
 fn main() {
-    bench::bench::run_demo();
+    bench::bench::run_word_emb_demo();
 }

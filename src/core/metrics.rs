@@ -24,7 +24,7 @@ where
     Result::Ok(())
 }
 
-pub fn metric<T>(vec1: &[T], vec2: &[T], m: MetricType) -> Result<T, &'static str>
+pub fn metric<T>(vec1: &[T], vec2: &[T], m: &MetricType) -> Result<T, &'static str>
 where
     T: FloatElement,
 {
