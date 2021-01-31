@@ -1,4 +1,4 @@
 /target
 .vscode
-/bench/*.txt
-/bench/*.zip
+/src/bench/*.txt
+/src/bench/*.zip
