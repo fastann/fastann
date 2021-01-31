@@ -1,5 +1,5 @@
-use crate::common::metrics;
-use crate::common::neighbor::Neighbor;
+use crate::core::metrics;
+use crate::core::neighbor::Neighbor;
 use rand::prelude::*;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;

@@ -1,6 +1,6 @@
 mod annoy;
 mod bench;
-mod common;
+mod core;
 mod flat;
 mod hnsw;
 

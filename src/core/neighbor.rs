@@ -1,5 +1,5 @@
 extern crate num;
-use crate::common::node;
+use crate::core::node;
 use std::cmp::Ordering;
 #[derive(Default, Clone, PartialEq, Debug)]
 pub struct Neighbor<E: node::FloatElement> {

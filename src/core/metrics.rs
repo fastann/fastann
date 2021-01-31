@@ -1,10 +1,27 @@
 extern crate num;
-use crate::common::node::FloatElement;
+use crate::core::node::FloatElement;
 
 pub enum MetricType {
     Manhattan,
     Dot,
     Euclidean,
+    Unknown,
+}
+
+impl Default for MetricType {
+    fn default() -> Self {
+        MetricType::Unknown
+    }
+}
+
+fn same_dimension<T>(vec1: &[T], vec2: &[T]) -> Result<(), &'static str>
+where
+    T: FloatElement,
+{
+    if vec1.len() != vec2.len() {
+        return Result::Err("different dimensions");
+    }
+    Result::Ok(())
 }
 
 pub fn metric<T>(vec1: &[T], vec2: &[T], m: MetricType) -> Result<T, &'static str>
@@ -15,7 +32,7 @@ where
         Manhattan => manhattan_distance(vec1, vec2),
         Dot => dot(vec1, vec2),
         Euclidean => euclidean_distance(vec1, vec2),
-        Default => Result::Err("unknown method"),
+        Unknown => Result::Err("unknown method"),
     };
 }
 
@@ -25,37 +42,31 @@ pub fn dot<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
 where
     T: FloatElement,
 {
-    if vec1.len() != vec2.len() {
-        return Result::Err("different dimensions");
-    }
+    same_dimension(vec1, vec2)?;
     let mut res = T::default();
     for i in 0..vec1.len() {
         res += vec1[i] * vec2[i];
     }
-    return Result::Ok(res);
+    return Result::Ok(res.abs());
 }
 
 pub fn manhattan_distance<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
 where
     T: FloatElement,
 {
-    if vec1.len() != vec2.len() {
-        return Result::Err("different dimensions");
-    }
+    same_dimension(vec1, vec2)?;
     let mut res = T::default();
     for i in 0..vec1.len() {
         res += vec1[i].abs() - vec2[i].abs();
     }
-    return Result::Ok(res);
+    return Result::Ok(res.abs());
 }
 
 pub fn euclidean_distance<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
 where
     T: FloatElement,
 {
-    if vec1.len() != vec2.len() {
-        return Result::Err("different dimensions");
-    }
+    same_dimension(vec1, vec2)?;
     let mut res = T::default();
     for i in 0..vec1.len() {
         let diff = vec1[i] - vec2[i];
@@ -73,9 +84,7 @@ pub fn euclidean_distance_range<T>(
 where
     T: FloatElement,
 {
-    if vec1.len() != vec2.len() {
-        return Result::Err("different dimensions");
-    }
+    same_dimension(vec1, vec2)?;
     let mut res = T::default();
     for i in begin..end {
         let diff = vec1[i] - vec2[i];

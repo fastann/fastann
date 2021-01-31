@@ -1,6 +1,7 @@
-use crate::common::metrics::manhattan_distance;
-use crate::common::metrics;
+use crate::core::metrics;
+use crate::core::metrics::manhattan_distance;
 use num::traits::{FromPrimitive, NumAssign};
+use std::fmt::Display;
 
 trait Element:
     FromPrimitive
@@ -56,15 +57,19 @@ to_float_element!(f32);
 #[derive(Clone, Debug, Default)]
 pub struct Node<E: FloatElement> {
     vectors: Vec<E>,
-    dimensions: usize,
     id: Option<usize>,
 }
 
 impl<E: FloatElement> Node<E> {
+    // TODO: make it Result
     pub fn new(vectors: &[E]) -> Node<E> {
+        vectors.iter().map(|x| {
+            if (Node::valid_elements(x)) {
+                // TODO: do somthing
+            }
+        });
         Node {
             vectors: vectors.to_vec(),
-            dimensions: vectors.len(),
             id: Option::None,
         }
     }
@@ -72,7 +77,6 @@ impl<E: FloatElement> Node<E> {
     pub fn new_with_id(vectors: &[E], id: usize) -> Node<E> {
         Node {
             vectors: vectors.to_vec(),
-            dimensions: vectors.len(),
             id: Option::Some(id),
         }
     }
@@ -84,8 +88,7 @@ impl<E: FloatElement> Node<E> {
         cal(&self.vectors, &other.vectors)
     }
 
-    pub fn metric<F>(&self, other: &Node<E>, t: metrics::MetricType) -> Result<E, &'static str>
-    {
+    pub fn metric<F>(&self, other: &Node<E>, t: metrics::MetricType) -> Result<E, &'static str> {
         metrics::metric(&self.vectors, &other.vectors, t)
     }
 
@@ -112,6 +115,16 @@ impl<E: FloatElement> Node<E> {
 
     pub fn id(&self) -> Option<usize> {
         self.id
+    }
+
+    fn valid_elements(e: &E) -> bool {
+        e.is_nan() || e.is_infinite() || !e.is_normal()
+    }
+}
+
+impl <E: FloatElement>std::fmt::Display for Node<E> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "(id: {:#?}, vectors: {:#?})", self.id, self.vectors)
     }
 }
 

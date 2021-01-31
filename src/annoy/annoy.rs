@@ -1,7 +1,7 @@
 use crate::annoy::random;
-use crate::common::metrics;
-use crate::common::neighbor;
-use crate::common::node;
+use crate::core::metrics;
+use crate::core::neighbor;
+use crate::core::node;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;

@@ -1,6 +1,8 @@
 use crate::annoy;
 use crate::annoy::annoy::AnnoyIndexer;
-use crate::common;
+use crate::core;
+use crate::core::ann_index::AnnIndex;
+use crate::core::parameters;
 use crate::flat;
 use crate::hnsw;
 use rand::distributions::{Alphanumeric, StandardNormal, Uniform};
@@ -56,21 +58,21 @@ fn make_normal_distribution_clustering(
     return (bases, ns, ts);
 }
 
-fn make_baseline(emb: Vec<Vec<f64>>, flat_idx: &mut flat::flat::FlatIndex<f64>) {
-    for i in emb.iter() {
-        flat_idx.add(&common::node::Node::<f64>::new(i));
+fn make_baseline(embs: Vec<Vec<f64>>, flat_idx: &mut flat::flat::FlatIndex<f64>) {
+    for i in 0..embs.len() {
+        flat_idx.add(&core::node::Node::<f64>::new_with_id(&embs[i], i));
     }
-    flat_idx.train();
+    flat_idx.construct();
 }
 
 pub fn run_demo() {
     let (base, ns, ts) = make_normal_distribution_clustering(5, 1000, 1, 2, 100.0);
-    let mut flat_idx = flat::flat::FlatIndex::<f64>::new();
+    let mut flat_idx = flat::flat::FlatIndex::<f64>::new(parameters::Parameters::default());
     make_baseline(ns, &mut flat_idx);
     for i in ts.iter() {
-        let result = flat_idx.search_k(i, 5, &common::metrics::manhattan_distance);
+        let result = flat_idx.search(i, 5, &core::metrics::manhattan_distance);
         for j in result.iter() {
-            println!("base: {:?} neighbor: {:?}", i, j);
+            println!("test base: {:?} neighbor: {:?}", i, j);
         }
     }
 }
