@@ -24,6 +24,10 @@ pub trait FloatElement:
     fn float_zero() -> Self {
         return Self::from_f32(0.0).unwrap();
     }
+
+    fn zero_patch_num() -> Self {
+        return Self::from_f32(1.34e-6_f32).unwrap();
+    }
 }
 
 #[macro_export]
@@ -36,12 +40,12 @@ macro_rules! to_float_element {
 to_float_element!(f64);
 to_float_element!(f32);
 
-pub trait KeyType: Sized + Clone + Default + std::fmt::Debug + Eq + Ord {}
+pub trait IdxType: Sized + Clone + Default + std::fmt::Debug + Eq + Ord {}
 
 #[macro_export]
 macro_rules! to_key_type {
     (  $x:ident  ) => {
-        impl KeyType for $x {}
+        impl IdxType for $x {}
     };
 }
 
@@ -49,14 +53,20 @@ to_key_type!(String);
 to_key_type!(usize);
 to_key_type!(i64);
 to_key_type!(i32);
+to_key_type!(i128);
+to_key_type!(i16);
+to_key_type!(u16);
+to_key_type!(u32);
+to_key_type!(u64);
+to_key_type!(u128);
 
 #[derive(Clone, Debug, Default)]
-pub struct Node<E: FloatElement, T: KeyType> {
+pub struct Node<E: FloatElement, T: IdxType> {
     vectors: Vec<E>,
     key: Option<T>,
 }
 
-impl<E: FloatElement, T: KeyType> Node<E, T> {
+impl<E: FloatElement, T: IdxType> Node<E, T> {
     // TODO: make it Result
     pub fn new(vectors: &[E]) -> Node<E, T> {
         vectors.iter().map(|x| {
@@ -77,11 +87,11 @@ impl<E: FloatElement, T: KeyType> Node<E, T> {
         }
     }
 
-    pub fn distance<F>(&self, other: &Node<E, T>, cal: F) -> Result<E, &'static str>
+    pub fn distance<F>(&self, other: &Node<E, T>, calc: F) -> Result<E, &'static str>
     where
         F: Fn(&[E], &[E]) -> Result<E, &'static str>,
     {
-        cal(&self.vectors, &other.vectors)
+        calc(&self.vectors, &other.vectors)
     }
 
     pub fn metric(&self, other: &Node<E, T>, t: metrics::MetricType) -> Result<E, &'static str> {
@@ -121,7 +131,7 @@ impl<E: FloatElement, T: KeyType> Node<E, T> {
     }
 }
 
-impl<E: FloatElement, T: KeyType> std::fmt::Display for Node<E, T> {
+impl<E: FloatElement, T: IdxType> std::fmt::Display for Node<E, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "(key: {:#?}, vectors: {:#?})", self.key, self.vectors)
     }

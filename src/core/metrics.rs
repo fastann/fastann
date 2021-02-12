@@ -7,6 +7,7 @@ pub enum MetricType {
     Manhattan,
     Dot,
     Euclidean,
+    CosineSimilarity,
 }
 
 impl Default for MetricType {
@@ -33,6 +34,7 @@ where
         MetricType::Euclidean => euclidean_distance(vec1, vec2),
         MetricType::Manhattan => manhattan_distance(vec1, vec2),
         MetricType::Dot => dot(vec1, vec2),
+        MetricType::CosineSimilarity => cosine_similarity(vec1, vec2),
         MetricType::Unknown => Result::Err("unknown method"),
     };
     return x;
@@ -49,8 +51,6 @@ where
     for i in 0..vec1.len() {
         res += vec1[i] * vec2[i];
     }
-
-    // in this situation ,dot is more big, more related, so use the negative value to transform the target.
     return Result::Ok(res);
 }
 
@@ -79,6 +79,14 @@ where
     return Result::Ok(res.sqrt());
 }
 
+pub fn cosine_similarity<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
+where
+    T: FloatElement,
+{
+    same_dimension(vec1, vec2)?;
+    Result::Ok(dot(vec1, vec2).unwrap() / (get_norm(vec1).unwrap() * get_norm(vec2).unwrap()))
+}
+
 pub fn euclidean_distance_range<T>(
     vec1: &[T],
     vec2: &[T],
@@ -97,12 +105,12 @@ where
     return Result::Ok(res.sqrt());
 }
 
-pub fn get_norm<T>(vec1: &[T]) -> T
+pub fn get_norm<T>(vec1: &[T]) -> Result<T, &'static str>
 where
     T: FloatElement,
 {
-    match dot(&vec1, &vec1) {
-        Ok(x) => x.sqrt(),
-        _ => T::default(),
-    }
+    return match dot(&vec1, &vec1) {
+        Ok(val) => Ok(val.sqrt()),
+        Err(err) => Err(err),
+    };
 }

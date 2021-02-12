@@ -69,6 +69,19 @@ fn make_baseline(embs: Vec<Vec<f64>>, flat_idx: &mut flat::flat::FlatIndex<f64, 
     flat_idx.construct();
 }
 
+fn make_baseline_for_word_emb(
+    embs: &HashMap<String, Vec<f64>>,
+    flat_idx: &mut flat::flat::FlatIndex<f64, String>,
+) {
+    for (key, value) in embs {
+        flat_idx.add(&core::node::Node::<f64, String>::new_with_key(
+            &value,
+            key.to_string(),
+        ));
+    }
+    flat_idx.construct();
+}
+
 // fn make_annoy_idx(embs: Vec<Vec<f64>>, aix: &mut annoy::annoy::AnnoyIndex<f64, annoy::annoy::Angular>) -> String {
 
 //     let (base, mut vectors) = make_test_data();
@@ -99,7 +112,7 @@ pub fn run_demo() {
     let mut flat_idx = flat::flat::FlatIndex::<f64, usize>::new(parameters::Parameters::default());
     make_baseline(ns, &mut flat_idx);
     for i in ts.iter() {
-        let result = flat_idx.search(i, 5, core::metrics::MetricType::Dot);
+        let result = flat_idx.search(i, 5, core::metrics::MetricType::CosineSimilarity);
         for j in result.iter() {
             println!("test base: {:?} neighbor: {:?}", i, j);
         }
@@ -117,10 +130,12 @@ where
 // run for exist embedding file
 pub fn run_word_emb_demo() {
     let mut words = HashMap::new();
+    let mut word_idxs = HashMap::new();
     let mut words_vec = Vec::new();
     let mut train_data = Vec::new();
+    let mut words_train_data = HashMap::new();
     if let Ok(lines) = read_lines("src/bench/glove.6B.50d.txt") {
-        let mut idx = 1;
+        let mut idx = 0;
         for line in lines {
             if let Ok(l) = line {
                 let split_line = l.split(" ").collect::<Vec<&str>>();
@@ -130,7 +145,9 @@ pub fn run_word_emb_demo() {
                     vecs.push(split_line[i].parse::<f64>().unwrap());
                 }
                 words.insert(word.to_string(), idx.clone());
+                word_idxs.insert(idx.clone(), word.to_string());
                 words_vec.push(word.to_string());
+                words_train_data.insert(word.to_string(), vecs.clone());
                 idx += 1;
                 train_data.push(vecs.clone());
                 if (idx % 100000 == 0) {
@@ -170,11 +187,8 @@ pub fn run_word_emb_demo() {
     ];
     for tw in test_words.iter() {
         if let Some(w) = words.get(&tw.to_string()) {
-            let result = flat_idx.search(
-                &train_data[*w as usize],
-                5,
-                core::metrics::MetricType::Euclidean,
-            );
+            let result =
+                flat_idx.search(&train_data[*w as usize], 10, core::metrics::MetricType::Dot);
             for (n, d) in result.iter() {
                 println!(
                     "target word: {}, neighbor: {:?}, distance: {:?}",

@@ -6,17 +6,17 @@ use crate::core::parameters;
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 
-pub struct FlatIndex<E: node::FloatElement, T: node::KeyType> {
+pub struct FlatIndex<E: node::FloatElement, T: node::IdxType> {
     nodes: Vec<Box<node::Node<E, T>>>,
 }
 
-impl<E: node::FloatElement, T: node::KeyType> FlatIndex<E, T> {
+impl<E: node::FloatElement, T: node::IdxType> FlatIndex<E, T> {
     pub fn new(p: parameters::Parameters) -> FlatIndex<E, T> {
         FlatIndex::<E, T> { nodes: Vec::new() }
     }
 }
 
-impl<E: node::FloatElement, T: node::KeyType> ann_index::AnnIndex<E, T> for FlatIndex<E, T> {
+impl<E: node::FloatElement, T: node::IdxType> ann_index::AnnIndex<E, T> for FlatIndex<E, T> {
     fn construct(&self) {}
     fn add(&mut self, item: &node::Node<E, T>) {
         self.nodes.push(Box::new(item.clone()));
@@ -32,48 +32,35 @@ impl<E: node::FloatElement, T: node::KeyType> ann_index::AnnIndex<E, T> for Flat
         mt: metrics::MetricType,
     ) -> Vec<(node::Node<E, T>, E)> {
         let mut heap = BinaryHeap::new();
+        let mut base = E::default();
         for i in 0..self.nodes.len() {
-            heap.push(neighbor::Neighbor::new(
+            heap.push(Reverse(neighbor::Neighbor::new(
                 // use max heap, and every time pop out the greatest one in the heap
                 i,
                 item.metric(&self.nodes[i], mt).unwrap(),
-            ));
+            )));
             if heap.len() > k {
-                heap.pop();
+                let Reverse(xp) = heap.pop().unwrap();
+                if xp.distance() > base {
+                    base = xp.distance();
+                }
             }
         }
 
         let mut result = Vec::new();
-        for neighbor_rev in heap.iter().rev() {
+        for Reverse(neighbor_rev) in heap.iter().rev() {
             result.push((
                 *self.nodes[neighbor_rev.key()].clone(),
                 neighbor_rev.distance(),
             ))
         }
+        println!("hello: {:?}", base);
         result
     }
 
     fn search(&self, item: &[E], k: usize, mt: metrics::MetricType) -> Vec<(node::Node<E, T>, E)> {
         let n = node::Node::new(item);
-        let mut heap = BinaryHeap::new();
-        for i in 0..self.nodes.len() {
-            heap.push(neighbor::Neighbor::new(
-                i,
-                n.metric(&self.nodes[i], mt).unwrap(),
-            ));
-            if heap.len() > k {
-                heap.pop();
-            }
-        }
-
-        let mut result = Vec::new();
-        for neighbor_rev in heap.iter().rev() {
-            result.push((
-                *self.nodes[neighbor_rev.key()].clone(),
-                neighbor_rev.distance(),
-            ))
-        }
-        result
+        self.search_node(&n, k, mt)
     }
 
     fn load(&self, path: &str) -> Result<(), &'static str> {
