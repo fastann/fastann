@@ -3,7 +3,7 @@ use crate::core::metrics::manhattan_distance;
 use num::traits::{FromPrimitive, NumAssign};
 use std::fmt::Display;
 
-pub trait Element:
+pub trait FloatElement:
     FromPrimitive
     + Sized
     + Default
@@ -15,17 +15,8 @@ pub trait Element:
     + PartialOrd
     + NumAssign
     + num::Signed
+    + num::Float
 {
-    fn int_one() -> Self {
-        return Self::from_i8(1).unwrap();
-    }
-
-    fn int_zero() -> Self {
-        return Self::from_i8(1).unwrap();
-    }
-}
-
-pub trait FloatElement: Element + num::Float {
     fn float_one() -> Self {
         return Self::from_f32(1.0).unwrap();
     }
@@ -36,25 +27,16 @@ pub trait FloatElement: Element + num::Float {
 }
 
 #[macro_export]
-macro_rules! to_element {
-    (  $x:ident  ) => {
-        impl Element for $x {}
-    };
-}
-
-#[macro_export]
 macro_rules! to_float_element {
     (  $x:ident  ) => {
         impl FloatElement for $x {}
     };
 }
 
-to_element!(f64);
-to_element!(f32);
 to_float_element!(f64);
 to_float_element!(f32);
 
-pub trait KeyType: Sized + Clone + Default + std::fmt::Debug {}
+pub trait KeyType: Sized + Clone + Default + std::fmt::Debug + Eq + Ord {}
 
 #[macro_export]
 macro_rules! to_key_type {
@@ -153,7 +135,7 @@ fn node_test() {
     // f64
     let v = vec![0.1, 0.2];
     let v2 = vec![0.2, 0.1];
-    let n = Node::new(&v);
-    let n2 = Node::new(&v2);
+    let n = Node::<f64, usize>::new(&v);
+    let n2 = Node::<f64, usize>::new(&v2);
     n.distance(&n2, manhattan_distance).unwrap();
 }

@@ -46,7 +46,7 @@ impl<E: node::FloatElement, T: node::KeyType> ann_index::AnnIndex<E, T> for Flat
         let mut result = Vec::new();
         for neighbor_rev in heap.iter().rev() {
             result.push((
-                *self.nodes[neighbor_rev.idx()].clone(),
+                *self.nodes[neighbor_rev.key()].clone(),
                 neighbor_rev.distance(),
             ))
         }
@@ -69,7 +69,7 @@ impl<E: node::FloatElement, T: node::KeyType> ann_index::AnnIndex<E, T> for Flat
         let mut result = Vec::new();
         for neighbor_rev in heap.iter().rev() {
             result.push((
-                *self.nodes[neighbor_rev.idx()].clone(),
+                *self.nodes[neighbor_rev.key()].clone(),
                 neighbor_rev.distance(),
             ))
         }
