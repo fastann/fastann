@@ -48,13 +48,15 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::AnnIndex<E, T> for Flat
         }
 
         let mut result = Vec::new();
-        for Reverse(neighbor_rev) in heap.iter().rev() {
+        while !heap.is_empty() {
+            let Reverse(neighbor_rev) = heap.pop().unwrap();
             result.push((
-                *self.nodes[neighbor_rev.key()].clone(),
+                *self.nodes[neighbor_rev.idx()].clone(),
                 neighbor_rev.distance(),
             ))
         }
         println!("hello: {:?}", base);
+        result.reverse();
         result
     }
 

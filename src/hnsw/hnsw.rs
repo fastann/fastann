@@ -98,7 +98,7 @@ impl HnswIndexer {
         let mut return_list: Vec<Neighbor<f64, usize>> = Vec::new();
         while !top_candidates.is_empty() {
             let cand = top_candidates.peek().unwrap();
-            queue_closest.push(Neighbor::new(cand.key(), -cand._distance));
+            queue_closest.push(Neighbor::new(cand.idx(), -cand._distance));
             top_candidates.pop();
         }
 
@@ -107,13 +107,13 @@ impl HnswIndexer {
                 break;
             }
             let cur = queue_closest.peek().unwrap();
-            let idx = cur.key();
+            let idx = cur.idx();
             let distance = -cur._distance;
             queue_closest.pop();
             let mut good = true;
 
             for ret_neighbor in &return_list {
-                let cur2ret_dis = self.get_distance_from_id(idx, ret_neighbor.key());
+                let cur2ret_dis = self.get_distance_from_id(idx, ret_neighbor.idx());
                 if cur2ret_dis < distance {
                     good = false;
                     break;
@@ -126,7 +126,7 @@ impl HnswIndexer {
         }
 
         for ret_neighbor in &return_list {
-            top_candidates.push(Neighbor::new(ret_neighbor.key(), -ret_neighbor._distance));
+            top_candidates.push(Neighbor::new(ret_neighbor.idx(), -ret_neighbor._distance));
         }
 
         return Ok(());
@@ -188,7 +188,7 @@ impl HnswIndexer {
         let mut selected_neighbors: Vec<usize> = Vec::new();
         while !top_candidates.is_empty() {
             // can remove for efficience
-            selected_neighbors.push(top_candidates.peek().unwrap().key());
+            selected_neighbors.push(top_candidates.peek().unwrap().idx());
             top_candidates.pop();
         }
 
@@ -254,11 +254,11 @@ impl HnswIndexer {
 
                     self.clear_neighbor(selected_neighbor, level);
                     for k in 0..n_neigh {
-                        // selected_neighbor = candidates.peek().unwrap().key();
+                        // selected_neighbor = candidates.peek().unwrap().idx();
                         self.push_neighbor(
                             selected_neighbor,
                             level,
-                            candidates.peek().unwrap().key(),
+                            candidates.peek().unwrap().idx(),
                         );
                         candidates.pop();
                     }
@@ -324,7 +324,7 @@ impl HnswIndexer {
         while !candidates.is_empty() {
             let cur_neigh = candidates.peek().unwrap();
             let cur_dist = cur_neigh._distance;
-            let cur_id = cur_neigh.key();
+            let cur_id = cur_neigh.idx();
             candidates.pop();
             if cur_dist > lower_bound {
                 break;

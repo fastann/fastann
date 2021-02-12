@@ -64,7 +64,7 @@ fn make_normal_distribution_clustering(
 
 fn make_baseline(embs: Vec<Vec<f64>>, flat_idx: &mut flat::flat::FlatIndex<f64, usize>) {
     for i in 0..embs.len() {
-        flat_idx.add(&core::node::Node::<f64, usize>::new_with_key(&embs[i], i));
+        flat_idx.add(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
     }
     flat_idx.construct();
 }
@@ -74,7 +74,7 @@ fn make_baseline_for_word_emb(
     flat_idx: &mut flat::flat::FlatIndex<f64, String>,
 ) {
     for (key, value) in embs {
-        flat_idx.add(&core::node::Node::<f64, String>::new_with_key(
+        flat_idx.add(&core::node::Node::<f64, String>::new_with_idx(
             &value,
             key.to_string(),
         ));
@@ -171,12 +171,12 @@ pub fn run_word_emb_demo() {
         let target_word: usize = rng.gen_range(1, words_vec.len());
         let w = words.get(&words_vec[target_word]).unwrap();
 
-        let result = flat_idx.search(&train_data[*w as usize], 5, core::metrics::MetricType::Dot);
+        let result = flat_idx.search(&train_data[*w as usize], 20, core::metrics::MetricType::Dot);
         for (n, d) in result.iter() {
             println!(
                 "target word: {}, neighbor: {:?}, distance: {:?}",
                 words_vec[target_word],
-                words_vec[n.key().unwrap()],
+                words_vec[n.idx().unwrap()],
                 d
             );
         }
@@ -188,12 +188,12 @@ pub fn run_word_emb_demo() {
     for tw in test_words.iter() {
         if let Some(w) = words.get(&tw.to_string()) {
             let result =
-                flat_idx.search(&train_data[*w as usize], 10, core::metrics::MetricType::Dot);
+                flat_idx.search(&train_data[*w as usize], 20, core::metrics::MetricType::CosineSimilarity);
             for (n, d) in result.iter() {
                 println!(
                     "target word: {}, neighbor: {:?}, distance: {:?}",
                     tw,
-                    words_vec[n.key().unwrap()],
+                    words_vec[n.idx().unwrap()],
                     d
                 );
             }

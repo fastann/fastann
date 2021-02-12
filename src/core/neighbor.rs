@@ -3,20 +3,20 @@ use crate::core::node;
 use std::cmp::Ordering;
 #[derive(Default, Clone, PartialEq, Debug)]
 pub struct Neighbor<E: node::FloatElement, T: node::IdxType> {
-    pub _key: T,
+    pub _idx: T,
     pub _distance: E,
 }
 
 impl<E: node::FloatElement, T: node::IdxType> Neighbor<E, T> {
-    pub fn new(key: T, distance: E) -> Neighbor<E, T> {
+    pub fn new(idx: T, distance: E) -> Neighbor<E, T> {
         return Neighbor {
-            _key: key,
+            _idx: idx,
             _distance: distance,
         };
     }
 
-    pub fn key(&self) -> T {
-        self._key.clone()
+    pub fn idx(&self) -> T {
+        self._idx.clone()
     }
 
     pub fn distance(&self) -> E {

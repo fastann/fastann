@@ -43,27 +43,27 @@ to_float_element!(f32);
 pub trait IdxType: Sized + Clone + Default + std::fmt::Debug + Eq + Ord {}
 
 #[macro_export]
-macro_rules! to_key_type {
+macro_rules! to_idx_type {
     (  $x:ident  ) => {
         impl IdxType for $x {}
     };
 }
 
-to_key_type!(String);
-to_key_type!(usize);
-to_key_type!(i64);
-to_key_type!(i32);
-to_key_type!(i128);
-to_key_type!(i16);
-to_key_type!(u16);
-to_key_type!(u32);
-to_key_type!(u64);
-to_key_type!(u128);
+to_idx_type!(String);
+to_idx_type!(usize);
+to_idx_type!(i64);
+to_idx_type!(i32);
+to_idx_type!(i128);
+to_idx_type!(i16);
+to_idx_type!(u16);
+to_idx_type!(u32);
+to_idx_type!(u64);
+to_idx_type!(u128);
 
 #[derive(Clone, Debug, Default)]
 pub struct Node<E: FloatElement, T: IdxType> {
     vectors: Vec<E>,
-    key: Option<T>,
+    idx: Option<T>,
 }
 
 impl<E: FloatElement, T: IdxType> Node<E, T> {
@@ -76,14 +76,14 @@ impl<E: FloatElement, T: IdxType> Node<E, T> {
         });
         Node {
             vectors: vectors.to_vec(),
-            key: Option::None,
+            idx: Option::None,
         }
     }
 
-    pub fn new_with_key(vectors: &[E], id: T) -> Node<E, T> {
+    pub fn new_with_idx(vectors: &[E], id: T) -> Node<E, T> {
         Node {
             vectors: vectors.to_vec(),
-            key: Option::Some(id),
+            idx: Option::Some(id),
         }
     }
 
@@ -119,8 +119,8 @@ impl<E: FloatElement, T: IdxType> Node<E, T> {
         self.vectors.len()
     }
 
-    pub fn key(&self) -> Option<T> {
-        match &self.key {
+    pub fn idx(&self) -> Option<T> {
+        match &self.idx {
             Some(k) => Some(k.clone()),
             None => None,
         }
@@ -133,7 +133,7 @@ impl<E: FloatElement, T: IdxType> Node<E, T> {
 
 impl<E: FloatElement, T: IdxType> std::fmt::Display for Node<E, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "(key: {:#?}, vectors: {:#?})", self.key, self.vectors)
+        write!(f, "(key: {:#?}, vectors: {:#?})", self.idx, self.vectors)
     }
 }
 
