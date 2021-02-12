@@ -187,8 +187,11 @@ pub fn run_word_emb_demo() {
     ];
     for tw in test_words.iter() {
         if let Some(w) = words.get(&tw.to_string()) {
-            let result =
-                flat_idx.search(&train_data[*w as usize], 20, core::metrics::MetricType::CosineSimilarity);
+            let result = flat_idx.search(
+                &train_data[*w as usize],
+                20,
+                core::metrics::MetricType::CosineSimilarity,
+            );
             for (n, d) in result.iter() {
                 println!(
                     "target word: {}, neighbor: {:?}, distance: {:?}",

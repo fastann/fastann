@@ -1,4 +1,4 @@
-use crate::annoy::random;
+use crate::bforest::random;
 use crate::core::metrics;
 use crate::core::neighbor;
 use crate::core::node;
@@ -11,7 +11,7 @@ const ITERATION_STEPS: usize = 200;
 
 // TODO: leaf as a trait with getter setter function
 #[derive(Default, Clone, Debug)]
-pub struct Leaf<E: node::FloatElement, T: Sized> {
+pub struct Leaf<E: node::FloatElement, T: node::IdxType> {
     n_descendants: i32, // tot n_descendants
     children: Vec<i32>, // left and right and if it's a leaf leaf, children would be very large (depend on _K)
     node: Box<node::Node<E, T>>,
@@ -21,7 +21,7 @@ pub struct Leaf<E: node::FloatElement, T: Sized> {
     has_init: bool,
 }
 
-impl<E: node::FloatElement, T: Sized> Leaf<E, T> {
+impl<E: node::FloatElement, T: node::IdxType> Leaf<E, T> {
     fn new() -> Leaf<E, T> {
         Leaf {
             children: vec![0, 0],
@@ -60,7 +60,7 @@ impl<E: node::FloatElement, T: Sized> Leaf<E, T> {
     }
 }
 
-pub fn two_means<D: Distance<E, T> + Base<E, T>, E: node::FloatElement, T: Sized>(
+pub fn two_means<D: Distance<E, T> + Base<E, T>, E: node::FloatElement, T: node::IdxType>(
     leaves: &[Leaf<E, T>],
     use_cosine: bool,
     distance: &D,
@@ -94,9 +94,9 @@ pub fn two_means<D: Distance<E, T> + Base<E, T>, E: node::FloatElement, T: Sized
         let di = ic * distance.distance(&p, &leaves[k])?;
         let dj = jc * distance.distance(&q, &leaves[k])?;
         let norm = if use_cosine {
-            metrics::get_norm(&leaves[k].node.vectors())
+            metrics::get_norm(&leaves[k].node.vectors()).unwrap()
         } else {
-            E::one()
+            E::float_one()
         };
 
         if !(norm > E::float_zero()) {
@@ -125,7 +125,7 @@ pub fn two_means<D: Distance<E, T> + Base<E, T>, E: node::FloatElement, T: Sized
     return Ok((p, q));
 }
 
-pub trait Base<E: node::FloatElement, T: Sized>: Default {
+pub trait Base<E: node::FloatElement, T: node::IdxType>: Default {
     // TODO:
     fn preprocess(&self, leaves: &[Leaf<E, T>]) {}
 
@@ -139,7 +139,7 @@ pub trait Base<E: node::FloatElement, T: Sized>: Default {
         };
     }
     fn normalize(&self, leaf: &mut Leaf<E, T>) {
-        let norm = metrics::get_norm(&leaf.node.vectors());
+        let norm = metrics::get_norm(&leaf.node.vectors()).unwrap();
         if norm > E::float_zero() {
             for i in 0..leaf.node.len() {
                 leaf.node.mut_vectors()[i] /= norm;
@@ -148,7 +148,7 @@ pub trait Base<E: node::FloatElement, T: Sized>: Default {
     }
 }
 
-pub trait Distance<E: node::FloatElement, T: Sized> {
+pub trait Distance<E: node::FloatElement, T: node::IdxType> {
     fn init_leaf(&self, leaf: &mut Leaf<E, T>) {}
     fn distance(&self, src: &Leaf<E, T>, dst: &Leaf<E, T>) -> Result<E, &'static str>;
     fn create_split(&self, leaves: &[Leaf<E, T>], n: &mut Leaf<E, T>) -> Result<(), &'static str>;
@@ -181,13 +181,13 @@ impl<E: node::FloatElement> Angular<E> {
     }
 }
 
-impl<E: node::FloatElement, T: Sized> Base<E, T> for Angular<E> {
+impl<E: node::FloatElement, T: node::IdxType> Base<E, T> for Angular<E> {
     fn copy_leaf(&self, src: &Leaf<E, T>) -> Leaf<E, T> {
         return src.clone();
     }
 }
 
-impl<E: node::FloatElement, T: Sized> Distance<E, T> for Angular<E> {
+impl<E: node::FloatElement, T: node::IdxType> Distance<E, T> for Angular<E> {
     // want to metricsulate (a/|a| - b/|b|)^2
     // = a^2 / a^2 + b^2 / b^2 - 2ab/|a||b|
     // = 2 - 2cos
@@ -292,7 +292,7 @@ pub struct DotProduct<E: node::FloatElement> {
     angular: Angular<E>,
 }
 
-impl<E: node::FloatElement, T: Sized> Distance<E,T> for DotProduct<E> {
+impl<E: node::FloatElement, T: node::IdxType> Distance<E, T> for DotProduct<E> {
     fn distance(&self, src: &Leaf<E, T>, dst: &Leaf<E, T>) -> Result<E, &'static str> {
         return Ok(-metrics::dot(&src.node.vectors(), &dst.node.vectors())?);
     }
@@ -304,12 +304,12 @@ impl<E: node::FloatElement, T: Sized> Distance<E,T> for DotProduct<E> {
     fn init_leaf(&self, leaf: &mut Leaf<E, T>) {}
 }
 
-impl<E: node::FloatElement, T:Sized> Base<E, T> for DotProduct<E> {}
+impl<E: node::FloatElement, T: node::IdxType> Base<E, T> for DotProduct<E> {}
 
 // TODO: implement
 impl<E: node::FloatElement> DotProduct<E> {}
 
-pub trait AnnoyIndexer<E: node::FloatElement, T:Sized, D: Distance<E,T> + Base<E,T>, > {
+pub trait BinaryForestIndexer<E: node::FloatElement, T: node::IdxType, D: Distance<E, T> + Base<E, T>> {
     fn add_item(&mut self, item: i32, w: &[E], d: D) -> Result<(), &'static str>;
     fn build(&mut self, q: i32) -> Result<(), &'static str>;
     fn unbuild(&mut self) -> Result<(), &'static str> {
@@ -355,7 +355,7 @@ pub trait AnnoyIndexer<E: node::FloatElement, T:Sized, D: Distance<E,T> + Base<E
 }
 
 #[derive(Default, Debug)]
-pub struct AnnoyIndex<E: node::FloatElement, T:Sized, D: Distance<E,T> + Base<E,T>> {
+pub struct BinaryForestIndex<E: node::FloatElement, T: node::IdxType, D: Distance<E, T> + Base<E, T>> {
     _f: usize, // dimension
     // _s: i32,       // leaf size
     _tot_items_cnt: i32, // add items count, means the physically the item count, _tot_items_cnt == leaves.size()
@@ -376,7 +376,9 @@ pub struct AnnoyIndex<E: node::FloatElement, T:Sized, D: Distance<E,T> + Base<E,
     distance: D,
 }
 
-impl<E: node::FloatElement, T: Sized, D: Distance<E, T> + Base<E, T>> AnnoyIndexer<E, D> for AnnoyIndex<E, D> {
+impl<E: node::FloatElement, T: node::IdxType, D: Distance<E, T> + Base<E, T>> BinaryForestIndexer<E, T, D>
+    for BinaryForestIndex<E, T, D>
+{
     fn add_item(&mut self, item: i32, w: &[E], d: D) -> Result<(), &'static str> {
         // TODO: remove
         if w.len() != self._f {
@@ -467,9 +469,9 @@ impl<E: node::FloatElement, T: Sized, D: Distance<E, T> + Base<E, T>> AnnoyIndex
     }
 }
 
-impl<E: node::FloatElement, T:Sized, D: Distance<E,T> + Base<E,T>> AnnoyIndex<E, T, D> {
-    pub fn new(f: usize, d: D) -> AnnoyIndex<E,T, D> {
-        return AnnoyIndex {
+impl<E: node::FloatElement, T: node::IdxType, D: Distance<E, T> + Base<E, T>> BinaryForestIndex<E, T, D> {
+    pub fn new(f: usize, d: D) -> BinaryForestIndex<E, T, D> {
+        return BinaryForestIndex {
             _verbose: false,
             _built: false,
             _f: f,
@@ -711,7 +713,7 @@ impl<E: node::FloatElement, T:Sized, D: Distance<E,T> + Base<E,T>> AnnoyIndex<E,
             search_k = (n * self._roots.len()) as i32;
         }
 
-        let mut heap: BinaryHeap<neighbor::Neighbor<E>> = BinaryHeap::new();
+        let mut heap: BinaryHeap<neighbor::Neighbor<E, usize>> = BinaryHeap::new();
         for i in 0..self._roots.len() {
             heap.push(neighbor::Neighbor {
                 _distance: self.distance.pq_initial_value(),
@@ -746,7 +748,7 @@ impl<E: node::FloatElement, T:Sized, D: Distance<E,T> + Base<E,T>> AnnoyIndex<E,
         }
 
         nns.sort();
-        let mut nns_dist: Vec<neighbor::Neighbor<E>> = Vec::new();
+        let mut nns_dist: Vec<neighbor::Neighbor<E, usize>> = Vec::new();
         let mut last = -1;
         for i in 0..nns.len() {
             let j = nns[i];

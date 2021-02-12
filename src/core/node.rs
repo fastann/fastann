@@ -30,17 +30,14 @@ pub trait FloatElement:
     }
 }
 
+pub trait IdxType: Sized + Clone + Default + std::fmt::Debug + Eq + Ord {}
+
 #[macro_export]
 macro_rules! to_float_element {
     (  $x:ident  ) => {
         impl FloatElement for $x {}
     };
 }
-
-to_float_element!(f64);
-to_float_element!(f32);
-
-pub trait IdxType: Sized + Clone + Default + std::fmt::Debug + Eq + Ord {}
 
 #[macro_export]
 macro_rules! to_idx_type {
@@ -49,12 +46,15 @@ macro_rules! to_idx_type {
     };
 }
 
+to_float_element!(f64);
+to_float_element!(f32);
+
 to_idx_type!(String);
 to_idx_type!(usize);
-to_idx_type!(i64);
-to_idx_type!(i32);
-to_idx_type!(i128);
 to_idx_type!(i16);
+to_idx_type!(i32);
+to_idx_type!(i64);
+to_idx_type!(i128);
 to_idx_type!(u16);
 to_idx_type!(u32);
 to_idx_type!(u64);
@@ -62,8 +62,8 @@ to_idx_type!(u128);
 
 #[derive(Clone, Debug, Default)]
 pub struct Node<E: FloatElement, T: IdxType> {
-    vectors: Vec<E>,
-    idx: Option<T>,
+    vectors: Vec<E>, // the vectors;
+    idx: Option<T>, // data id, it can be any type;
 }
 
 impl<E: FloatElement, T: IdxType> Node<E, T> {
