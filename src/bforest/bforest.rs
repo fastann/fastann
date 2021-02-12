@@ -1,5 +1,6 @@
 use crate::bforest::random;
 use crate::core::metrics;
+use crate::core::calc;
 use crate::core::neighbor;
 use crate::core::node;
 use std::cmp::Ordering;
@@ -94,7 +95,7 @@ pub fn two_means<D: Distance<E, T> + Base<E, T>, E: node::FloatElement, T: node:
         let di = ic * distance.distance(&p, &leaves[k])?;
         let dj = jc * distance.distance(&q, &leaves[k])?;
         let norm = if use_cosine {
-            metrics::get_norm(&leaves[k].node.vectors()).unwrap()
+            calc::get_norm(&leaves[k].node.vectors()).unwrap()
         } else {
             E::float_one()
         };
@@ -139,7 +140,7 @@ pub trait Base<E: node::FloatElement, T: node::IdxType>: Default {
         };
     }
     fn normalize(&self, leaf: &mut Leaf<E, T>) {
-        let norm = metrics::get_norm(&leaf.node.vectors()).unwrap();
+        let norm = calc::get_norm(&leaf.node.vectors()).unwrap();
         if norm > E::float_zero() {
             for i in 0..leaf.node.len() {
                 leaf.node.mut_vectors()[i] /= norm;

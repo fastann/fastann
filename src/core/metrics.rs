@@ -84,7 +84,7 @@ where
     T: FloatElement,
 {
     same_dimension(vec1, vec2)?;
-    Result::Ok(dot(vec1, vec2).unwrap() / (get_norm(vec1).unwrap() * get_norm(vec2).unwrap()))
+    Result::Ok(dot(vec1, vec2).unwrap() / (dot(vec1, vec1).unwrap().sqrt() * dot(vec2, vec2).unwrap().sqrt()))
 }
 
 pub fn euclidean_distance_range<T>(
@@ -105,12 +105,4 @@ where
     return Result::Ok(res.sqrt());
 }
 
-pub fn get_norm<T>(vec1: &[T]) -> Result<T, &'static str>
-where
-    T: FloatElement,
-{
-    return match dot(&vec1, &vec1) {
-        Ok(val) => Ok(val.sqrt()),
-        Err(err) => Err(err),
-    };
-}
+
