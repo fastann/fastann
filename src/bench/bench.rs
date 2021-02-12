@@ -1,5 +1,5 @@
-use crate::annoy;
-use crate::annoy::annoy::AnnoyIndexer;
+// use crate::annoy;
+// use crate::annoy::annoy::AnnoyIndexer;
 use crate::core;
 use crate::core::ann_index::AnnIndex;
 use crate::core::parameters;
@@ -62,15 +62,14 @@ fn make_normal_distribution_clustering(
     return (bases, ns, ts);
 }
 
-fn make_baseline(embs: Vec<Vec<f64>>, flat_idx: &mut flat::flat::FlatIndex<f64>) {
+fn make_baseline(embs: Vec<Vec<f64>>, flat_idx: &mut flat::flat::FlatIndex<f64, usize>) {
     for i in 0..embs.len() {
-        flat_idx.add(&core::node::Node::<f64>::new_with_id(&embs[i], i));
+        flat_idx.add(&core::node::Node::<f64, usize>::new_with_key(&embs[i], i));
     }
     flat_idx.construct();
 }
 
 // fn make_annoy_idx(embs: Vec<Vec<f64>>, aix: &mut annoy::annoy::AnnoyIndex<f64, annoy::annoy::Angular>) -> String {
-
 
 //     let (base, mut vectors) = make_test_data();
 //     vectors.shuffle(&mut thread_rng());
@@ -97,10 +96,10 @@ fn make_baseline(embs: Vec<Vec<f64>>, flat_idx: &mut flat::flat::FlatIndex<f64>)
 // run for normal distribution test data
 pub fn run_demo() {
     let (base, ns, ts) = make_normal_distribution_clustering(5, 1000, 1, 2, 100.0);
-    let mut flat_idx = flat::flat::FlatIndex::<f64>::new(parameters::Parameters::default());
+    let mut flat_idx = flat::flat::FlatIndex::<f64, usize>::new(parameters::Parameters::default());
     make_baseline(ns, &mut flat_idx);
     for i in ts.iter() {
-        let result = flat_idx.search(i, 5, core::metrics::MetricType::Manhattan);
+        let result = flat_idx.search(i, 5, core::metrics::MetricType::Dot);
         for j in result.iter() {
             println!("test base: {:?} neighbor: {:?}", i, j);
         }
@@ -114,7 +113,6 @@ where
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }
-
 
 // run for exist embedding file
 pub fn run_word_emb_demo() {
@@ -142,7 +140,7 @@ pub fn run_word_emb_demo() {
         }
     }
 
-    let mut flat_idx = flat::flat::FlatIndex::<f64>::new(parameters::Parameters::default());
+    let mut flat_idx = flat::flat::FlatIndex::<f64, usize>::new(parameters::Parameters::default());
     make_baseline(train_data.clone(), &mut flat_idx);
 
     // annoy
@@ -156,16 +154,12 @@ pub fn run_word_emb_demo() {
         let target_word: usize = rng.gen_range(1, words_vec.len());
         let w = words.get(&words_vec[target_word]).unwrap();
 
-        let result = flat_idx.search(
-            &train_data[*w as usize],
-            5,
-            core::metrics::MetricType::Manhattan,
-        );
+        let result = flat_idx.search(&train_data[*w as usize], 5, core::metrics::MetricType::Dot);
         for (n, d) in result.iter() {
             println!(
                 "target word: {}, neighbor: {:?}, distance: {:?}",
                 words_vec[target_word],
-                words_vec[n.id().unwrap()],
+                words_vec[n.key().unwrap()],
                 d
             );
         }
@@ -185,7 +179,7 @@ pub fn run_word_emb_demo() {
                 println!(
                     "target word: {}, neighbor: {:?}, distance: {:?}",
                     tw,
-                    words_vec[n.id().unwrap()],
+                    words_vec[n.key().unwrap()],
                     d
                 );
             }

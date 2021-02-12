@@ -3,7 +3,7 @@ use crate::core::metrics::manhattan_distance;
 use num::traits::{FromPrimitive, NumAssign};
 use std::fmt::Display;
 
-trait Element:
+pub trait Element:
     FromPrimitive
     + Sized
     + Default
@@ -54,41 +54,55 @@ to_element!(f32);
 to_float_element!(f64);
 to_float_element!(f32);
 
-#[derive(Clone, Debug, Default)]
-pub struct Node<E: FloatElement> {
-    vectors: Vec<E>,
-    id: Option<usize>,
+pub trait KeyType: Sized + Clone + Default + std::fmt::Debug {}
+
+#[macro_export]
+macro_rules! to_key_type {
+    (  $x:ident  ) => {
+        impl KeyType for $x {}
+    };
 }
 
-impl<E: FloatElement> Node<E> {
+to_key_type!(String);
+to_key_type!(usize);
+to_key_type!(i64);
+to_key_type!(i32);
+
+#[derive(Clone, Debug, Default)]
+pub struct Node<E: FloatElement, T: KeyType> {
+    vectors: Vec<E>,
+    key: Option<T>,
+}
+
+impl<E: FloatElement, T: KeyType> Node<E, T> {
     // TODO: make it Result
-    pub fn new(vectors: &[E]) -> Node<E> {
+    pub fn new(vectors: &[E]) -> Node<E, T> {
         vectors.iter().map(|x| {
-            if (Node::valid_elements(x)) {
+            if Node::<E, T>::valid_elements(x) {
                 // TODO: do somthing
             }
         });
         Node {
             vectors: vectors.to_vec(),
-            id: Option::None,
+            key: Option::None,
         }
     }
 
-    pub fn new_with_id(vectors: &[E], id: usize) -> Node<E> {
+    pub fn new_with_key(vectors: &[E], id: T) -> Node<E, T> {
         Node {
             vectors: vectors.to_vec(),
-            id: Option::Some(id),
+            key: Option::Some(id),
         }
     }
 
-    pub fn distance<F>(&self, other: &Node<E>, cal: F) -> Result<E, &'static str>
+    pub fn distance<F>(&self, other: &Node<E, T>, cal: F) -> Result<E, &'static str>
     where
         F: Fn(&[E], &[E]) -> Result<E, &'static str>,
     {
         cal(&self.vectors, &other.vectors)
     }
 
-    pub fn metric(&self, other: &Node<E>, t: &metrics::MetricType) -> Result<E, &'static str> {
+    pub fn metric(&self, other: &Node<E, T>, t: metrics::MetricType) -> Result<E, &'static str> {
         metrics::metric(&self.vectors, &other.vectors, t)
     }
 
@@ -113,8 +127,11 @@ impl<E: FloatElement> Node<E> {
         self.vectors.len()
     }
 
-    pub fn id(&self) -> Option<usize> {
-        self.id
+    pub fn key(&self) -> Option<T> {
+        match &self.key {
+            Some(k) => Some(k.clone()),
+            None => None,
+        }
     }
 
     fn valid_elements(e: &E) -> bool {
@@ -122,9 +139,9 @@ impl<E: FloatElement> Node<E> {
     }
 }
 
-impl<E: FloatElement> std::fmt::Display for Node<E> {
+impl<E: FloatElement, T: KeyType> std::fmt::Display for Node<E, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "(id: {:#?}, vectors: {:#?})", self.id, self.vectors)
+        write!(f, "(key: {:#?}, vectors: {:#?})", self.key, self.vectors)
     }
 }
 

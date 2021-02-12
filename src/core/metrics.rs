@@ -1,11 +1,12 @@
 extern crate num;
 use crate::core::node::FloatElement;
 
+#[derive(Debug, Clone, Copy)]
 pub enum MetricType {
+    Unknown,
     Manhattan,
     Dot,
     Euclidean,
-    Unknown,
 }
 
 impl Default for MetricType {
@@ -24,16 +25,17 @@ where
     Result::Ok(())
 }
 
-pub fn metric<T>(vec1: &[T], vec2: &[T], m: &MetricType) -> Result<T, &'static str>
+pub fn metric<T>(vec1: &[T], vec2: &[T], mt: MetricType) -> Result<T, &'static str>
 where
     T: FloatElement,
 {
-    return match m {
-        Manhattan => manhattan_distance(vec1, vec2),
-        Dot => dot(vec1, vec2),
-        Euclidean => euclidean_distance(vec1, vec2),
-        Unknown => Result::Err("unknown method"),
+    let x = match mt {
+        MetricType::Euclidean => euclidean_distance(vec1, vec2),
+        MetricType::Manhattan => manhattan_distance(vec1, vec2),
+        MetricType::Dot => dot(vec1, vec2),
+        MetricType::Unknown => Result::Err("unknown method"),
     };
+    return x;
 }
 
 // TODO: SIMD support
@@ -47,7 +49,9 @@ where
     for i in 0..vec1.len() {
         res += vec1[i] * vec2[i];
     }
-    return Result::Ok(res.abs());
+
+    // in this situation ,dot is more big, more related, so use the negative value to transform the target.
+    return Result::Ok(res);
 }
 
 pub fn manhattan_distance<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>

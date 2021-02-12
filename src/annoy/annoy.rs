@@ -11,25 +11,25 @@ const ITERATION_STEPS: usize = 200;
 
 // TODO: leaf as a trait with getter setter function
 #[derive(Default, Clone, Debug)]
-pub struct Leaf<E: node::FloatElement> {
+pub struct Leaf<E: node::FloatElement, T: Sized> {
     n_descendants: i32, // tot n_descendants
     children: Vec<i32>, // left and right and if it's a leaf leaf, children would be very large (depend on _K)
-    node: Box<node::Node<E>>,
+    node: Box<node::Node<E, T>>,
 
     // biz field
     norm: E,
     has_init: bool,
 }
 
-impl<E: node::FloatElement> Leaf<E> {
-    fn new() -> Leaf<E> {
+impl<E: node::FloatElement, T: Sized> Leaf<E, T> {
+    fn new() -> Leaf<E, T> {
         Leaf {
             children: vec![0, 0],
             ..Default::default()
         }
     }
 
-    fn new_with_vectors(_v: &[E]) -> Leaf<E> {
+    fn new_with_vectors(_v: &[E]) -> Leaf<E, T> {
         Leaf {
             children: vec![0, 0],
             node: Box::new(node::Node::new(_v)),
@@ -45,7 +45,7 @@ impl<E: node::FloatElement> Leaf<E> {
         self.children = vec![0, 0];
     }
 
-    fn copy(dst: &mut Leaf<E>, src: &Leaf<E>) {
+    fn copy(dst: &mut Leaf<E, T>, src: &Leaf<E, T>) {
         dst.n_descendants = src.n_descendants.clone();
         dst.children = src.children.clone();
         dst.node = src.node.clone();
@@ -60,11 +60,11 @@ impl<E: node::FloatElement> Leaf<E> {
     }
 }
 
-pub fn two_means<D: Distance<E> + Base<E>, E: node::FloatElement>(
-    leaves: &[Leaf<E>],
+pub fn two_means<D: Distance<E, T> + Base<E, T>, E: node::FloatElement, T: Sized>(
+    leaves: &[Leaf<E, T>],
     use_cosine: bool,
     distance: &D,
-) -> Result<(Leaf<E>, Leaf<E>), &'static str> {
+) -> Result<(Leaf<E, T>, Leaf<E, T>), &'static str> {
     if leaves.len() < 2 {
         return Err("empty leaves");
     }
@@ -125,12 +125,12 @@ pub fn two_means<D: Distance<E> + Base<E>, E: node::FloatElement>(
     return Ok((p, q));
 }
 
-pub trait Base<E: node::FloatElement>: Default {
+pub trait Base<E: node::FloatElement, T: Sized>: Default {
     // TODO:
-    fn preprocess(&self, leaves: &[Leaf<E>]) {}
+    fn preprocess(&self, leaves: &[Leaf<E, T>]) {}
 
-    fn zero_value(&self, src: &mut Leaf<E>) {}
-    fn copy_leaf(&self, src: &Leaf<E>) -> Leaf<E> {
+    fn zero_value(&self, src: &mut Leaf<E, T>) {}
+    fn copy_leaf(&self, src: &Leaf<E, T>) -> Leaf<E, T> {
         return Leaf {
             n_descendants: src.n_descendants.clone(),
             node: src.node.clone(),
@@ -138,7 +138,7 @@ pub trait Base<E: node::FloatElement>: Default {
             ..Default::default()
         };
     }
-    fn normalize(&self, leaf: &mut Leaf<E>) {
+    fn normalize(&self, leaf: &mut Leaf<E, T>) {
         let norm = metrics::get_norm(&leaf.node.vectors());
         if norm > E::float_zero() {
             for i in 0..leaf.node.len() {
@@ -148,18 +148,18 @@ pub trait Base<E: node::FloatElement>: Default {
     }
 }
 
-pub trait Distance<E: node::FloatElement> {
-    fn init_leaf(&self, leaf: &mut Leaf<E>) {}
-    fn distance(&self, src: &Leaf<E>, dst: &Leaf<E>) -> Result<E, &'static str>;
-    fn create_split(&self, leaves: &[Leaf<E>], n: &mut Leaf<E>) -> Result<(), &'static str>;
+pub trait Distance<E: node::FloatElement, T: Sized> {
+    fn init_leaf(&self, leaf: &mut Leaf<E, T>) {}
+    fn distance(&self, src: &Leaf<E, T>, dst: &Leaf<E, T>) -> Result<E, &'static str>;
+    fn create_split(&self, leaves: &[Leaf<E, T>], n: &mut Leaf<E, T>) -> Result<(), &'static str>;
     fn pq_initial_value(&self) -> E {
         return E::max_value();
     }
-    fn side(&self, src: &Leaf<E>, dst: &[E]) -> bool {
+    fn side(&self, src: &Leaf<E, T>, dst: &[E]) -> bool {
         return false;
     }
 
-    fn margin(&self, src: &Leaf<E>, dst: &[E]) -> Result<E, &'static str> {
+    fn margin(&self, src: &Leaf<E, T>, dst: &[E]) -> Result<E, &'static str> {
         return Ok(E::float_zero());
     }
 
@@ -181,17 +181,17 @@ impl<E: node::FloatElement> Angular<E> {
     }
 }
 
-impl<E: node::FloatElement> Base<E> for Angular<E> {
-    fn copy_leaf(&self, src: &Leaf<E>) -> Leaf<E> {
+impl<E: node::FloatElement, T: Sized> Base<E, T> for Angular<E> {
+    fn copy_leaf(&self, src: &Leaf<E, T>) -> Leaf<E, T> {
         return src.clone();
     }
 }
 
-impl<E: node::FloatElement> Distance<E> for Angular<E> {
+impl<E: node::FloatElement, T: Sized> Distance<E, T> for Angular<E> {
     // want to metricsulate (a/|a| - b/|b|)^2
     // = a^2 / a^2 + b^2 / b^2 - 2ab/|a||b|
     // = 2 - 2cos
-    fn distance(&self, src: &Leaf<E>, dst: &Leaf<E>) -> Result<E, &'static str> {
+    fn distance(&self, src: &Leaf<E, T>, dst: &Leaf<E, T>) -> Result<E, &'static str> {
         let left = if src.norm != E::float_zero() {
             src.norm
         } else {
@@ -212,11 +212,11 @@ impl<E: node::FloatElement> Distance<E> for Angular<E> {
         }
     }
 
-    fn margin(&self, src: &Leaf<E>, dst: &[E]) -> Result<E, &'static str> {
+    fn margin(&self, src: &Leaf<E, T>, dst: &[E]) -> Result<E, &'static str> {
         return metrics::dot(&src.node.vectors(), &dst);
     }
 
-    fn side(&self, src: &Leaf<E>, dst: &[E]) -> bool {
+    fn side(&self, src: &Leaf<E, T>, dst: &[E]) -> bool {
         match self.margin(&src, &dst) {
             Ok(x) => {
                 return x > E::float_zero();
@@ -228,7 +228,7 @@ impl<E: node::FloatElement> Distance<E> for Angular<E> {
     }
 
     // use euclidean distance
-    fn create_split(&self, leaves: &[Leaf<E>], n: &mut Leaf<E>) -> Result<(), &'static str> {
+    fn create_split(&self, leaves: &[Leaf<E, T>], n: &mut Leaf<E, T>) -> Result<(), &'static str> {
         let (p, q) = two_means(&leaves, true, self)?;
 
         if n.node.len() != 0 && n.node.len() != p.node.len() {
@@ -249,7 +249,7 @@ impl<E: node::FloatElement> Distance<E> for Angular<E> {
         return Ok(());
     }
 
-    fn init_leaf(&self, leaf: &mut Leaf<E>) {
+    fn init_leaf(&self, leaf: &mut Leaf<E, T>) {
         match metrics::dot(&leaf.node.vectors(), &leaf.node.vectors()) {
             Ok(dot) => {
                 leaf.norm = dot;
@@ -292,24 +292,24 @@ pub struct DotProduct<E: node::FloatElement> {
     angular: Angular<E>,
 }
 
-impl<E: node::FloatElement> Distance<E> for DotProduct<E> {
-    fn distance(&self, src: &Leaf<E>, dst: &Leaf<E>) -> Result<E, &'static str> {
+impl<E: node::FloatElement, T: Sized> Distance<E,T> for DotProduct<E> {
+    fn distance(&self, src: &Leaf<E, T>, dst: &Leaf<E, T>) -> Result<E, &'static str> {
         return Ok(-metrics::dot(&src.node.vectors(), &dst.node.vectors())?);
     }
 
-    fn create_split(&self, leaves: &[Leaf<E>], n: &mut Leaf<E>) -> Result<(), &'static str> {
+    fn create_split(&self, leaves: &[Leaf<E, T>], n: &mut Leaf<E, T>) -> Result<(), &'static str> {
         return Ok(self.angular.create_split(&leaves, n)?);
     }
 
-    fn init_leaf(&self, leaf: &mut Leaf<E>) {}
+    fn init_leaf(&self, leaf: &mut Leaf<E, T>) {}
 }
 
-impl<E: node::FloatElement> Base<E> for DotProduct<E> {}
+impl<E: node::FloatElement, T:Sized> Base<E, T> for DotProduct<E> {}
 
 // TODO: implement
 impl<E: node::FloatElement> DotProduct<E> {}
 
-pub trait AnnoyIndexer<E: node::FloatElement, D: Distance<E> + Base<E>> {
+pub trait AnnoyIndexer<E: node::FloatElement, T:Sized, D: Distance<E,T> + Base<E,T>, > {
     fn add_item(&mut self, item: i32, w: &[E], d: D) -> Result<(), &'static str>;
     fn build(&mut self, q: i32) -> Result<(), &'static str>;
     fn unbuild(&mut self) -> Result<(), &'static str> {
@@ -355,7 +355,7 @@ pub trait AnnoyIndexer<E: node::FloatElement, D: Distance<E> + Base<E>> {
 }
 
 #[derive(Default, Debug)]
-pub struct AnnoyIndex<E: node::FloatElement, D: Distance<E> + Base<E>> {
+pub struct AnnoyIndex<E: node::FloatElement, T:Sized, D: Distance<E,T> + Base<E,T>> {
     _f: usize, // dimension
     // _s: i32,       // leaf size
     _tot_items_cnt: i32, // add items count, means the physically the item count, _tot_items_cnt == leaves.size()
@@ -371,12 +371,12 @@ pub struct AnnoyIndex<E: node::FloatElement, D: Distance<E> + Base<E>> {
     _fd: i32,
     _on_disk: bool,
     _built: bool,
-    pub leaves: Vec<Leaf<E>>,
+    pub leaves: Vec<Leaf<E, T>>,
 
     distance: D,
 }
 
-impl<E: node::FloatElement, D: Distance<E> + Base<E>> AnnoyIndexer<E, D> for AnnoyIndex<E, D> {
+impl<E: node::FloatElement, T: Sized, D: Distance<E, T> + Base<E, T>> AnnoyIndexer<E, D> for AnnoyIndex<E, D> {
     fn add_item(&mut self, item: i32, w: &[E], d: D) -> Result<(), &'static str> {
         // TODO: remove
         if w.len() != self._f {
@@ -467,8 +467,8 @@ impl<E: node::FloatElement, D: Distance<E> + Base<E>> AnnoyIndexer<E, D> for Ann
     }
 }
 
-impl<E: node::FloatElement, D: Distance<E> + Base<E>> AnnoyIndex<E, D> {
-    pub fn new(f: usize, d: D) -> AnnoyIndex<E, D> {
+impl<E: node::FloatElement, T:Sized, D: Distance<E,T> + Base<E,T>> AnnoyIndex<E, T, D> {
+    pub fn new(f: usize, d: D) -> AnnoyIndex<E,T, D> {
         return AnnoyIndex {
             _verbose: false,
             _built: false,
@@ -488,14 +488,14 @@ impl<E: node::FloatElement, D: Distance<E> + Base<E>> AnnoyIndex<E, D> {
         self._K
     }
 
-    pub fn get_leaf_mut(&mut self, i: i32) -> &mut Leaf<E> {
+    pub fn get_leaf_mut(&mut self, i: i32) -> &mut Leaf<E, T> {
         if self.leaves.len() <= i as usize {
             self.extent_leaves(i as usize);
         }
         return &mut self.leaves[i as usize];
     }
 
-    pub fn get_leaf(&self, i: i32) -> Option<&Leaf<E>> {
+    pub fn get_leaf(&self, i: i32) -> Option<&Leaf<E, T>> {
         if self.leaves.len() < i as usize {
             return None;
         }
@@ -595,7 +595,7 @@ impl<E: node::FloatElement, D: Distance<E> + Base<E>> AnnoyIndex<E, D> {
             return Ok(item);
         }
 
-        let mut children: Vec<Leaf<E>> = Vec::new();
+        let mut children: Vec<Leaf<E, T>> = Vec::new();
         for i in 0..indices.len() {
             let j = indices[i];
             match self.get_leaf(j) {
@@ -705,7 +705,7 @@ impl<E: node::FloatElement, D: Distance<E> + Base<E>> AnnoyIndex<E, D> {
         if self._roots.len() == 0 {
             return Err("empty tree");
         }
-        let leaf: Leaf<E> = Leaf::new();
+        let leaf: Leaf<E, T> = Leaf::new();
 
         if search_k == -1 {
             search_k = (n * self._roots.len()) as i32;
