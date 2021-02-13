@@ -1,6 +1,8 @@
 extern crate num;
 use crate::core::node;
 use std::cmp::Ordering;
+
+// util class
 #[derive(Default, Clone, PartialEq, Debug)]
 pub struct Neighbor<E: node::FloatElement, T: node::IdxType> {
     pub _idx: T,

@@ -3,6 +3,6 @@ use crate::core::node;
 
 #[derive(Default)]
 pub struct Parameters {
-    dimension: usize,       // dimension
-    m: metrics::MetricType, // metric type
+    dimension: usize,   // dimension
+    m: metrics::Metric, // metric type
 }

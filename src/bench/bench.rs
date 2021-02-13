@@ -1,5 +1,6 @@
 // use crate::annoy;
 // use crate::annoy::annoy::AnnoyIndexer;
+use crate::bpforest;
 use crate::core;
 use crate::core::ann_index::AnnIndex;
 use crate::core::parameters;
@@ -69,6 +70,16 @@ fn make_baseline(embs: Vec<Vec<f64>>, flat_idx: &mut flat::flat::FlatIndex<f64, 
     flat_idx.construct();
 }
 
+fn make_bp_forest_baseline(
+    embs: Vec<Vec<f64>>,
+    bpforest_idx: &mut bpforest::bpforest::BinaryProjectionForestIndex<f64, usize>,
+) {
+    for i in 0..embs.len() {
+        bpforest_idx.add(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
+    }
+    bpforest_idx.construct();
+}
+
 fn make_baseline_for_word_emb(
     embs: &HashMap<String, Vec<f64>>,
     flat_idx: &mut flat::flat::FlatIndex<f64, String>,
@@ -82,37 +93,13 @@ fn make_baseline_for_word_emb(
     flat_idx.construct();
 }
 
-// fn make_annoy_idx(embs: Vec<Vec<f64>>, aix: &mut annoy::annoy::AnnoyIndex<f64, annoy::annoy::Angular>) -> String {
-
-//     let (base, mut vectors) = make_test_data();
-//     vectors.shuffle(&mut thread_rng());
-//     for i in 0..vectors.len() {
-//         let f = vec![vectors[i][0], vectors[i][1]];
-//         aix.add_item(i as i32, &f, angular);
-//     }
-
-//     println!("{:?}", aix.build(1));
-//     aix.show_trees();
-//     let f = &base[0];
-//     for i in 0..aix.leaves.len() {
-//         println!("{:?} {:?}", i, aix.leaves[i]);
-//     }
-//     println!("{:?}", aix.get_all_nns(&f, 2, 2));
-
-//     let mut result_vec = Vec::new();
-//     for leaf in aix.leaves {
-//         result_vec.push(leaf.get_literal());
-//     }
-//     format!("[{}]", result_vec.join(","))
-// }
-
 // run for normal distribution test data
 pub fn run_demo() {
     let (base, ns, ts) = make_normal_distribution_clustering(5, 1000, 1, 2, 100.0);
     let mut flat_idx = flat::flat::FlatIndex::<f64, usize>::new(parameters::Parameters::default());
     make_baseline(ns, &mut flat_idx);
     for i in ts.iter() {
-        let result = flat_idx.search(i, 5, core::metrics::MetricType::CosineSimilarity);
+        let result = flat_idx.search_k(i, 5, core::metrics::Metric::CosineSimilarity);
         for j in result.iter() {
             println!("test base: {:?} neighbor: {:?}", i, j);
         }
@@ -138,6 +125,9 @@ pub fn run_word_emb_demo() {
         let mut idx = 0;
         for line in lines {
             if let Ok(l) = line {
+                // if idx == 500 {
+                //     break;
+                // }
                 let split_line = l.split(" ").collect::<Vec<&str>>();
                 let word = split_line[0];
                 let mut vecs = Vec::new();
@@ -159,10 +149,14 @@ pub fn run_word_emb_demo() {
 
     let mut flat_idx = flat::flat::FlatIndex::<f64, usize>::new(parameters::Parameters::default());
     make_baseline(train_data.clone(), &mut flat_idx);
-
-    // annoy
-    // let angular = annoy::annoy::Angular::new();
-    // let mut aix = annoy::annoy::AnnoyIndex::new(2, angular);
+    let mut bpforest_idx = bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(
+        50,
+        4,
+        -1,
+        core::metrics::Metric::Angular,
+    );
+    make_bp_forest_baseline(train_data.clone(), &mut bpforest_idx);
+    // bpforest_idx.show_trees();
 
     const K: i32 = 10;
     for i in 0..K {
@@ -171,10 +165,28 @@ pub fn run_word_emb_demo() {
         let target_word: usize = rng.gen_range(1, words_vec.len());
         let w = words.get(&words_vec[target_word]).unwrap();
 
-        let result = flat_idx.search(&train_data[*w as usize], 20, core::metrics::MetricType::Dot);
+        let mut result = flat_idx.search_k(
+            &train_data[*w as usize],
+            20,
+            core::metrics::Metric::DotProduct,
+        );
         for (n, d) in result.iter() {
             println!(
                 "target word: {}, neighbor: {:?}, distance: {:?}",
+                words_vec[target_word],
+                words_vec[n.idx().unwrap()],
+                d
+            );
+        }
+
+        result = bpforest_idx.search_k(
+            &train_data[*w as usize],
+            20,
+            core::metrics::Metric::DotProduct,
+        );
+        for (n, d) in result.iter() {
+            println!(
+                "bpforest target word: {}, neighbor: {:?}, distance: {:?}",
                 words_vec[target_word],
                 words_vec[n.idx().unwrap()],
                 d
@@ -187,11 +199,28 @@ pub fn run_word_emb_demo() {
     ];
     for tw in test_words.iter() {
         if let Some(w) = words.get(&tw.to_string()) {
-            let result =
-                flat_idx.search(&train_data[*w as usize], 20, core::metrics::MetricType::CosineSimilarity);
+            let mut result = flat_idx.search_k(
+                &train_data[*w as usize],
+                20,
+                core::metrics::Metric::CosineSimilarity,
+            );
             for (n, d) in result.iter() {
                 println!(
                     "target word: {}, neighbor: {:?}, distance: {:?}",
+                    tw,
+                    words_vec[n.idx().unwrap()],
+                    d
+                );
+            }
+
+            result = flat_idx.search_k(
+                &train_data[*w as usize],
+                20,
+                core::metrics::Metric::CosineSimilarity,
+            );
+            for (n, d) in result.iter() {
+                println!(
+                    "bpforest target word: {}, neighbor: {:?}, distance: {:?}",
                     tw,
                     words_vec[n.idx().unwrap()],
                     d
