@@ -112,7 +112,7 @@ pub fn run_demo() {
     let mut flat_idx = flat::flat::FlatIndex::<f64, usize>::new(parameters::Parameters::default());
     make_baseline(ns, &mut flat_idx);
     for i in ts.iter() {
-        let result = flat_idx.search(i, 5, core::metrics::MetricType::CosineSimilarity);
+        let result = flat_idx.search_k(i, 5, core::metrics::Metric::CosineSimilarity);
         for j in result.iter() {
             println!("test base: {:?} neighbor: {:?}", i, j);
         }
@@ -171,7 +171,11 @@ pub fn run_word_emb_demo() {
         let target_word: usize = rng.gen_range(1, words_vec.len());
         let w = words.get(&words_vec[target_word]).unwrap();
 
-        let result = flat_idx.search(&train_data[*w as usize], 20, core::metrics::MetricType::Dot);
+        let result = flat_idx.search_k(
+            &train_data[*w as usize],
+            20,
+            core::metrics::Metric::DotProduct,
+        );
         for (n, d) in result.iter() {
             println!(
                 "target word: {}, neighbor: {:?}, distance: {:?}",
@@ -187,10 +191,10 @@ pub fn run_word_emb_demo() {
     ];
     for tw in test_words.iter() {
         if let Some(w) = words.get(&tw.to_string()) {
-            let result = flat_idx.search(
+            let result = flat_idx.search_k(
                 &train_data[*w as usize],
                 20,
-                core::metrics::MetricType::CosineSimilarity,
+                core::metrics::Metric::CosineSimilarity,
             );
             for (n, d) in result.iter() {
                 println!(

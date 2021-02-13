@@ -17,30 +17,33 @@ impl<E: node::FloatElement, T: node::IdxType> FlatIndex<E, T> {
 }
 
 impl<E: node::FloatElement, T: node::IdxType> ann_index::AnnIndex<E, T> for FlatIndex<E, T> {
-    fn construct(&self) {}
-    fn add(&mut self, item: &node::Node<E, T>) {
+    fn construct(&mut self) -> Result<(), &'static str> {
+        Result::Ok(())
+    }
+    fn add(&mut self, item: &node::Node<E, T>) -> Result<(), &'static str> {
         self.nodes.push(Box::new(item.clone()));
+        Result::Ok(())
     }
     fn once_constructed(&self) -> bool {
         true
     }
     fn reconstruct(&mut self) {}
-    fn search_node(
+    fn node_search_k(
         &self,
         item: &node::Node<E, T>,
         k: usize,
-        mt: metrics::MetricType,
+        mt: metrics::Metric,
     ) -> Vec<(node::Node<E, T>, E)> {
         let mut heap = BinaryHeap::new();
         let mut base = E::default();
         for i in 0..self.nodes.len() {
-            heap.push(Reverse(neighbor::Neighbor::new(
+            heap.push(neighbor::Neighbor::new(
                 // use max heap, and every time pop out the greatest one in the heap
                 i,
                 item.metric(&self.nodes[i], mt).unwrap(),
-            )));
+            ));
             if heap.len() > k {
-                let Reverse(xp) = heap.pop().unwrap();
+                let xp = heap.pop().unwrap();
                 if xp.distance() > base {
                     base = xp.distance();
                 }
@@ -49,7 +52,7 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::AnnIndex<E, T> for Flat
 
         let mut result = Vec::new();
         while !heap.is_empty() {
-            let Reverse(neighbor_rev) = heap.pop().unwrap();
+            let neighbor_rev = heap.pop().unwrap();
             result.push((
                 *self.nodes[neighbor_rev.idx()].clone(),
                 neighbor_rev.distance(),
@@ -60,9 +63,9 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::AnnIndex<E, T> for Flat
         result
     }
 
-    fn search(&self, item: &[E], k: usize, mt: metrics::MetricType) -> Vec<(node::Node<E, T>, E)> {
+    fn search_k(&self, item: &[E], k: usize, mt: metrics::Metric) -> Vec<(node::Node<E, T>, E)> {
         let n = node::Node::new(item);
-        self.search_node(&n, k, mt)
+        self.node_search_k(&n, k, mt)
     }
 
     fn load(&self, path: &str) -> Result<(), &'static str> {

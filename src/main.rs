@@ -1,5 +1,5 @@
 mod bench;
-mod bforest;
+mod bpforest;
 mod core;
 mod flat;
 mod hnsw;

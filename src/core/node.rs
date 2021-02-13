@@ -17,6 +17,7 @@ pub trait FloatElement:
     + num::Signed
     + num::Float
 {
+    // TODO: make it static
     fn float_one() -> Self {
         return Self::from_f32(1.0).unwrap();
     }
@@ -63,17 +64,20 @@ to_idx_type!(u128);
 #[derive(Clone, Debug, Default)]
 pub struct Node<E: FloatElement, T: IdxType> {
     vectors: Vec<E>, // the vectors;
-    idx: Option<T>, // data id, it can be any type;
+    idx: Option<T>,  // data id, it can be any type;
 }
 
 impl<E: FloatElement, T: IdxType> Node<E, T> {
-    // TODO: make it Result
     pub fn new(vectors: &[E]) -> Node<E, T> {
-        vectors.iter().map(|x| {
+        let check = |x| {
             if Node::<E, T>::valid_elements(x) {
-                // TODO: do somthing
+                //TODO: log
+                panic!("invalid float elemet");
             }
-        });
+        };
+        for i in 0..vectors.len() {
+            check(&vectors[i]);
+        }
         Node {
             vectors: vectors.to_vec(),
             idx: Option::None,
@@ -87,14 +91,7 @@ impl<E: FloatElement, T: IdxType> Node<E, T> {
         }
     }
 
-    pub fn distance<F>(&self, other: &Node<E, T>, calc: F) -> Result<E, &'static str>
-    where
-        F: Fn(&[E], &[E]) -> Result<E, &'static str>,
-    {
-        calc(&self.vectors, &other.vectors)
-    }
-
-    pub fn metric(&self, other: &Node<E, T>, t: metrics::MetricType) -> Result<E, &'static str> {
+    pub fn metric(&self, other: &Node<E, T>, t: metrics::Metric) -> Result<E, &'static str> {
         metrics::metric(&self.vectors, &other.vectors, t)
     }
 
@@ -147,5 +144,5 @@ fn node_test() {
     let v2 = vec![0.2, 0.1];
     let n = Node::<f64, usize>::new(&v);
     let n2 = Node::<f64, usize>::new(&v2);
-    n.distance(&n2, manhattan_distance).unwrap();
+    n.metric(&n2, metrics::Metric::Manhattan).unwrap();
 }
