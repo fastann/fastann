@@ -7,7 +7,6 @@ use crate::core::random;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
-use std::marker::PhantomData;
 
 // TODO: leaf as a trait with getter setter function
 #[derive(Default, Clone, Debug)]
@@ -182,6 +181,24 @@ pub struct BinaryProjectionForestIndex<E: node::FloatElement, T: node::IdxType> 
 }
 
 impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> {
+    pub fn new(
+        dimension: usize,
+        tree_num: i32,
+        search_k: i32,
+        mt: metrics::Metric,
+    ) -> BinaryProjectionForestIndex<E, T> {
+        return BinaryProjectionForestIndex {
+            _built: false,
+            _dimension: dimension,
+            _leaf_max_items: (dimension as i32) + 2,
+            _tree_num: tree_num,
+            mt: mt,
+            _search_k: search_k,
+            leaves: vec![Leaf::new()],// the id count should start from 1, use a node as placeholder
+            ..Default::default()
+        };
+    }
+
     fn _add_item(&mut self, w: &node::Node<E, T>) -> Result<(), &'static str> {
         // TODO: remove
         if w.len() != self._dimension {
@@ -233,22 +250,6 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
     fn get_n_tree(&self) -> i32 {
         return self._roots.len() as i32;
     }
-    pub fn new(
-        dimension: usize,
-        tree_num: i32,
-        search_k: i32,
-        mt: metrics::Metric,
-    ) -> BinaryProjectionForestIndex<E, T> {
-        return BinaryProjectionForestIndex {
-            _built: false,
-            _dimension: dimension,
-            _leaf_max_items: (dimension as i32) + 2,
-            _tree_num: tree_num,
-            mt: mt,
-            _search_k: search_k,
-            ..Default::default()
-        };
-    }
 
     pub fn get_dimension(&self) -> usize {
         self._dimension
@@ -299,6 +300,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         let mut this_root: Vec<i32> = Vec::new();
 
         loop {
+            
             if tree_num == -1 {
                 if self._tot_leaves_cnt >= 2 * self._tot_items_cnt {
                     break;
@@ -319,6 +321,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
 
             let tree = self.make_tree(&indices, true, mt).unwrap();
             this_root.push(tree);
+            println!("hi {:?} {:?} {:?} {:?}", self._tot_items_cnt, self._tot_leaves_cnt, tree, self.leaves.len());
         }
 
         // thread lock
@@ -531,10 +534,14 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
     pub fn show_trees(&self) {
         let mut v = self._roots.clone();
 
+        println!("leaves {:?}, items {:?}", self._tot_leaves_cnt, self._tot_items_cnt);
         while !v.is_empty() {
             let i = v.pop().unwrap();
-            println!("get item {}", i);
             let item = self.get_leaf(i).unwrap();
+            if item.n_descendants == 1 {
+                continue;
+            }
+            println!("get item {}", i);
             if !(item.children[0] == 0 && item.children[1] == 0) {
                 v.extend(&item.children);
             }

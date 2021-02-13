@@ -16,7 +16,7 @@ pub enum Metric {
     DotProduct,
     Euclidean,
     CosineSimilarity,
-    AngularDistance,
+    Angular,
 }
 
 impl Default for Metric {
@@ -36,7 +36,7 @@ where
         Metric::Manhattan => manhattan_distance(vec1, vec2),
         Metric::DotProduct => dot_product(vec1, vec2),
         Metric::CosineSimilarity => cosine_similarity(vec1, vec2),
-        Metric::AngularDistance => angular_distance(vec1, vec2),
+        Metric::Angular => angular_distance(vec1, vec2),
         Metric::Unknown => Result::Err("unknown method"),
     };
 }
