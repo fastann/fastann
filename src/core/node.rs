@@ -69,15 +69,7 @@ pub struct Node<E: FloatElement, T: IdxType> {
 
 impl<E: FloatElement, T: IdxType> Node<E, T> {
     pub fn new(vectors: &[E]) -> Node<E, T> {
-        let check = |x| {
-            if Node::<E, T>::valid_elements(x) {
-                //TODO: log
-                panic!("invalid float elemet");
-            }
-        };
-        for i in 0..vectors.len() {
-            check(&vectors[i]);
-        }
+        Node::<E, T>::valid_elements(vectors);
         Node {
             vectors: vectors.to_vec(),
             idx: Option::None,
@@ -85,6 +77,7 @@ impl<E: FloatElement, T: IdxType> Node<E, T> {
     }
 
     pub fn new_with_idx(vectors: &[E], id: T) -> Node<E, T> {
+        Node::<E, T>::valid_elements(vectors);
         Node {
             vectors: vectors.to_vec(),
             idx: Option::Some(id),
@@ -123,8 +116,14 @@ impl<E: FloatElement, T: IdxType> Node<E, T> {
         }
     }
 
-    fn valid_elements(e: &E) -> bool {
-        e.is_nan() || e.is_infinite() || !e.is_normal()
+    fn valid_elements(vectors: &[E]) -> bool {
+        vectors.iter().map(|e| {
+            if e.is_nan() || e.is_infinite() || !e.is_normal() {
+                //TODO: log
+                panic!("invalid float elemet");
+            }
+        });
+        true
     }
 }
 

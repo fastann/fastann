@@ -10,7 +10,7 @@ use std::collections::HashMap;
 
 // TODO: leaf as a trait with getter setter function
 #[derive(Default, Clone, Debug)]
-pub struct Leaf<E: node::FloatElement, T: node::IdxType> {
+struct Leaf<E: node::FloatElement, T: node::IdxType> {
     n_descendants: i32, // tot n_descendants
     children: Vec<i32>, // left and right and if it's a leaf leaf, children would be very large (depend on _K)
     node: Box<node::Node<E, T>>,
@@ -56,12 +56,6 @@ impl<E: node::FloatElement, T: node::IdxType> Leaf<E, T> {
         *self.node.clone()
     }
 
-    // replace distance.init_node() or distance.init_lead()
-    fn init_norm(&mut self) {
-        self.norm = calc::get_norm(&self.node.vectors()).unwrap();
-    }
-
-    // replace distance.normalize()
     fn normalize(&mut self) {
         let norm = calc::get_norm(&self.node.vectors()).unwrap();
         if norm > E::float_zero() {
@@ -80,8 +74,8 @@ impl<E: node::FloatElement, T: node::IdxType> Leaf<E, T> {
 
     pub fn get_literal(&self) -> String {
         format!(
-            "{{ \"n_descendants\": {:?}, \"children\": {:?}, \"norm\": {:?}, \"has_init\": {:?} }}",
-            self.n_descendants, self.children, self.norm, self.has_init
+            "{{ \"n_descendants\": {:?}, \"children\": {:?}, \"has_init\": {:?} }}, \"node\": {:?},",
+            self.n_descendants, self.children, self.has_init, *self.node
         )
     }
 
@@ -96,7 +90,7 @@ impl<E: node::FloatElement, T: node::IdxType> Leaf<E, T> {
     }
 }
 
-pub fn two_means<E: node::FloatElement, T: node::IdxType>(
+fn two_means<E: node::FloatElement, T: node::IdxType>(
     leaves: &[Leaf<E, T>],
     mt: metrics::Metric,
 ) -> Result<(Leaf<E, T>, Leaf<E, T>), &'static str> {
@@ -121,8 +115,7 @@ pub fn two_means<E: node::FloatElement, T: node::IdxType>(
         p.normalize();
         q.normalize();
     }
-    p.init_norm();
-    q.init_norm();
+    // TODO: dot normalize
 
     let mut ic: E = E::float_one();
     let mut jc: E = E::float_one();
@@ -143,25 +136,23 @@ pub fn two_means<E: node::FloatElement, T: node::IdxType>(
             continue;
         }
 
+        // make p more closer to k in space.
         if di < dj {
-            for l in 0..q.node.len() {
+            for l in 0..p.node.len() {
                 p.node.mut_vectors()[l] = (p.node.vectors()[l] * ic
                     + leaves[k].node.vectors()[l] / norm)
                     / (ic + E::float_one());
             }
-            p.init_norm();
             ic += E::float_one();
         } else if dj < di {
             for l in 0..q.node.len() {
-                q.node.mut_vectors()[l] = (q.node.vectors()[l] * ic
+                q.node.mut_vectors()[l] = (q.node.vectors()[l] * jc
                     + leaves[k].node.vectors()[l] / norm)
-                    / (ic + E::float_one());
+                    / (jc + E::float_one());
             }
-            q.init_norm();
             jc += E::float_one();
         }
     }
-
     return Ok((p, q));
 }
 
@@ -174,27 +165,25 @@ pub struct BinaryProjectionForestIndex<E: node::FloatElement, T: node::IdxType> 
     _roots: Vec<i32>,     // dummy root's children
     _leaf_max_items: i32, // max number of n_descendants to fit into leaf
     _built: bool,
-    pub leaves: Vec<Leaf<E, T>>,
+    leaves: Vec<Leaf<E, T>>,
     mt: metrics::Metric,
     _tree_num: i32,
-    _search_k: i32,
+    _candidate_size: i32,
 }
 
 impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> {
     pub fn new(
         dimension: usize,
         tree_num: i32,
-        search_k: i32,
-        mt: metrics::Metric,
+        candidate_size: i32,
     ) -> BinaryProjectionForestIndex<E, T> {
         return BinaryProjectionForestIndex {
             _built: false,
             _dimension: dimension,
-            _leaf_max_items: (dimension as i32) + 2,
+            _leaf_max_items: ((dimension / 2) as i32) + 2,
             _tree_num: tree_num,
-            mt: mt,
-            _search_k: search_k,
-            leaves: vec![Leaf::new()],// the id count should start from 1, use a node as placeholder
+            _candidate_size: candidate_size,
+            leaves: vec![Leaf::new()], // the id count should start from 1, use a node as placeholder
             ..Default::default()
         };
     }
@@ -211,8 +200,6 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         nn.children[1] = 0;
         nn.n_descendants = 1; // only the leaf itself, so the n_descendants include it self
 
-        nn.init_norm();
-
         // no update method
         self._tot_items_cnt += 1;
 
@@ -221,11 +208,12 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         return Ok(());
     }
 
-    fn build(&mut self) -> Result<(), &'static str> {
+    fn build(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
         if self._built {
             return Err("has built");
         }
 
+        self.mt = mt;
         self._tot_leaves_cnt = self._tot_items_cnt; // init with build.
         self._build(self._tree_num, self.mt);
         self._built = true;
@@ -300,7 +288,6 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         let mut this_root: Vec<i32> = Vec::new();
 
         loop {
-            
             if tree_num == -1 {
                 if self._tot_leaves_cnt >= 2 * self._tot_items_cnt {
                     break;
@@ -312,7 +299,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
             }
 
             let mut indices: Vec<i32> = Vec::new();
-            for i in 0..self._tot_items_cnt {
+            for i in 1..self._tot_items_cnt {
                 let leaf = self.get_leaf(i).unwrap();
                 if leaf.n_descendants >= 1 {
                     indices.push(i as i32);
@@ -321,7 +308,6 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
 
             let tree = self.make_tree(&indices, true, mt).unwrap();
             this_root.push(tree);
-            println!("hi {:?} {:?} {:?} {:?}", self._tot_items_cnt, self._tot_leaves_cnt, tree, self.leaves.len());
         }
 
         // thread lock
@@ -360,7 +346,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         }
 
         let mut children: Vec<Leaf<E, T>> = Vec::new();
-        for i in 0..indices.len() {
+        for i in 1..indices.len() {
             let j = indices[i];
             match self.get_leaf(j) {
                 None => continue,
@@ -380,14 +366,14 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
             children_indices[1].clear();
             self.create_split(children.as_slice(), &mut new_parent_leaf, mt);
 
-            for i in 0..indices.len() {
-                let j = indices[i];
-                let leaf = self.get_leaf(i as i32).unwrap();
+            for i in 1..indices.len() {
+                let leaf_idx = indices[i];
+                let leaf = self.get_leaf(leaf_idx as i32).unwrap();
                 let side = self.side(&new_parent_leaf, &leaf.node.vectors());
-                children_indices[(side as usize)].push(j);
+                children_indices[(side as usize)].push(leaf_idx);
             }
 
-            if calc::split_imbalance(&children_indices[0], &children_indices[1]) < 0.95 {
+            if calc::split_imbalance(&children_indices[0], &children_indices[1]) < 0.85 {
                 break;
             }
         }
@@ -407,7 +393,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
                 }
             }
 
-            for i in 0..indices.len() {
+            for i in 1..indices.len() {
                 let j = indices[i];
                 children_indices[random::flip() as usize].push(j);
             }
@@ -446,15 +432,14 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         let mut v_leaf = Leaf::<E, T>::new();
 
         v_leaf.node.set_vectors(&vectors.to_vec());
-        v_leaf.init_norm();
 
         if self._roots.len() == 0 || !self._built {
             return Err("empty tree");
         }
 
-        let mut search_k = self._search_k;
-        if search_k == -1 || search_k == 0 {
-            search_k = (n * self._roots.len()) as i32;
+        let mut candidate_size = self._candidate_size;
+        if candidate_size <= 0 {
+            candidate_size = (n * self._roots.len() * 2) as i32;
         }
 
         let mut heap: BinaryHeap<neighbor::Neighbor<E, i32>> = BinaryHeap::new(); // max-heap
@@ -467,7 +452,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
 
         // it use a heap to ensure the minest distance node will pop up
         let mut nns: Vec<i32> = Vec::new();
-        while nns.len() < (search_k as usize) && !(heap.is_empty()) {
+        while nns.len() < (candidate_size as usize) && !(heap.is_empty()) {
             let top = heap.peek().unwrap();
             let top_idx = top._idx;
             let top_distance = top._distance;
@@ -481,7 +466,6 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
                 nns.extend_from_slice(&nd.children); // push all of its children
             } else {
                 let margin = self.margin(&nd, vectors)?;
-
                 // put two children into heap, and use distance to sort the order for poping up.
                 heap.push(neighbor::Neighbor {
                     _distance: self.pq_distance(top_distance, margin, 1),
@@ -495,7 +479,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         }
 
         nns.sort(); // sort id and filter dup to avoid same id;
-        let mut nns_dist: Vec<neighbor::Neighbor<E, usize>> = Vec::new();
+        let mut nns_vec: Vec<neighbor::Neighbor<E, usize>> = Vec::new();
         let mut last = -1;
         for i in 0..nns.len() {
             let j = nns[i];
@@ -505,26 +489,21 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
             last = j;
             let leaf = self.get_leaf(j).unwrap();
             if leaf.n_descendants == 1 {
-                nns_dist.push(neighbor::Neighbor {
-                    _distance: metrics::metric(
-                        &v_leaf.node.vectors(),
-                        &leaf.node.vectors(),
-                        self.mt,
-                    )?,
-                    _idx: j as usize,
-                })
+                nns_vec.push(neighbor::Neighbor::new(
+                    j as usize,
+                    metrics::metric(&v_leaf.node.vectors(), &leaf.node.vectors(), self.mt).unwrap(),
+                ))
             }
         }
 
-        let m = nns_dist.len();
-        let p = if n < m { n } else { m };
-
+        nns_vec.sort_by(|a, b| a.distance().partial_cmp(&b.distance()).unwrap());
+        let return_size = if n < nns_vec.len() { n } else { nns_vec.len() };
         let mut result: Vec<(node::Node<E, T>, E)> = Vec::new();
 
-        for i in 0..p {
+        for i in 0..return_size {
             result.push((
-                self.get_leaf(nns_dist[i]._idx as i32).unwrap().clone_node(),
-                nns_dist[i]._distance,
+                self.get_leaf(nns_vec[i]._idx as i32).unwrap().clone_node(),
+                nns_vec[i]._distance,
             ));
         }
 
@@ -533,15 +512,12 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
 
     pub fn show_trees(&self) {
         let mut v = self._roots.clone();
-
-        println!("leaves {:?}, items {:?}", self._tot_leaves_cnt, self._tot_items_cnt);
         while !v.is_empty() {
             let i = v.pop().unwrap();
             let item = self.get_leaf(i).unwrap();
             if item.n_descendants == 1 {
                 continue;
             }
-            println!("get item {}", i);
             if !(item.children[0] == 0 && item.children[1] == 0) {
                 v.extend(&item.children);
             }
@@ -596,6 +572,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
                     .push(p.node.vectors()[i] - q.node.vectors()[i]);
             } else {
                 new_mean_leaf.node.mut_vectors()[i] = p.node.vectors()[i] - q.node.vectors()[i];
+                // get mean point between p and q.
             }
         }
         new_mean_leaf.normalize();
@@ -621,22 +598,17 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
 impl<E: node::FloatElement, T: node::IdxType> ann_index::AnnIndex<E, T>
     for BinaryProjectionForestIndex<E, T>
 {
-    fn construct(&mut self) -> Result<(), &'static str> {
-        self.build()
+    fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
+        self.build(mt)
     }
-    fn add(&mut self, item: &node::Node<E, T>) -> Result<(), &'static str> {
+    fn add_node(&mut self, item: &node::Node<E, T>) -> Result<(), &'static str> {
         self._add_item(item)
     }
     fn once_constructed(&self) -> bool {
         self._built
     }
 
-    fn node_search_k(
-        &self,
-        item: &node::Node<E, T>,
-        k: usize,
-        mt: metrics::Metric,
-    ) -> Vec<(node::Node<E, T>, E)> {
+    fn node_search_k(&self, item: &node::Node<E, T>, k: usize) -> Vec<(node::Node<E, T>, E)> {
         self._search_k(item.vectors(), k).unwrap()
     }
 
@@ -648,5 +620,5 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::AnnIndex<E, T>
         std::result::Result::Ok(())
     }
 
-    fn reconstruct(&mut self) {}
+    fn reconstruct(&mut self, mt: metrics::Metric) {}
 }

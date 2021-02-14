@@ -12,8 +12,9 @@ use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{self, BufRead};
+use std::io::{self, prelude::*, BufReader};
 use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 fn make_normal_distribution_clustering(
     clustering_n: usize,
@@ -65,9 +66,9 @@ fn make_normal_distribution_clustering(
 
 fn make_baseline(embs: Vec<Vec<f64>>, flat_idx: &mut flat::flat::FlatIndex<f64, usize>) {
     for i in 0..embs.len() {
-        flat_idx.add(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
+        flat_idx.add_node(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
     }
-    flat_idx.construct();
+    flat_idx.construct(core::metrics::Metric::CosineSimilarity);
 }
 
 fn make_bp_forest_baseline(
@@ -75,9 +76,9 @@ fn make_bp_forest_baseline(
     bpforest_idx: &mut bpforest::bpforest::BinaryProjectionForestIndex<f64, usize>,
 ) {
     for i in 0..embs.len() {
-        bpforest_idx.add(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
+        bpforest_idx.add_node(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
     }
-    bpforest_idx.construct();
+    bpforest_idx.construct(core::metrics::Metric::CosineSimilarity);
 }
 
 fn make_baseline_for_word_emb(
@@ -85,12 +86,12 @@ fn make_baseline_for_word_emb(
     flat_idx: &mut flat::flat::FlatIndex<f64, String>,
 ) {
     for (key, value) in embs {
-        flat_idx.add(&core::node::Node::<f64, String>::new_with_idx(
+        flat_idx.add_node(&core::node::Node::<f64, String>::new_with_idx(
             &value,
             key.to_string(),
         ));
     }
-    flat_idx.construct();
+    flat_idx.construct(core::metrics::Metric::CosineSimilarity);
 }
 
 // run for normal distribution test data
@@ -99,7 +100,7 @@ pub fn run_demo() {
     let mut flat_idx = flat::flat::FlatIndex::<f64, usize>::new(parameters::Parameters::default());
     make_baseline(ns, &mut flat_idx);
     for i in ts.iter() {
-        let result = flat_idx.search_k(i, 5, core::metrics::Metric::CosineSimilarity);
+        let result = flat_idx.search_k(i, 5);
         for j in result.iter() {
             println!("test base: {:?} neighbor: {:?}", i, j);
         }
@@ -121,40 +122,37 @@ pub fn run_word_emb_demo() {
     let mut words_vec = Vec::new();
     let mut train_data = Vec::new();
     let mut words_train_data = HashMap::new();
-    if let Ok(lines) = read_lines("src/bench/glove.6B.50d.txt") {
-        let mut idx = 0;
-        for line in lines {
-            if let Ok(l) = line {
-                // if idx == 500 {
-                //     break;
-                // }
-                let split_line = l.split(" ").collect::<Vec<&str>>();
-                let word = split_line[0];
-                let mut vecs = Vec::new();
-                for i in 1..split_line.len() {
-                    vecs.push(split_line[i].parse::<f64>().unwrap());
-                }
-                words.insert(word.to_string(), idx.clone());
-                word_idxs.insert(idx.clone(), word.to_string());
-                words_vec.push(word.to_string());
-                words_train_data.insert(word.to_string(), vecs.clone());
-                idx += 1;
-                train_data.push(vecs.clone());
-                if (idx % 100000 == 0) {
-                    println!("load {:?}", idx);
-                }
+    let file = File::open("src/bench/glove.6B.50d.txt").unwrap();
+    let reader = BufReader::new(file);
+
+    let mut idx = 0;
+    for line in reader.lines() {
+        if let Ok(l) = line {
+            if idx == 50000 {
+                break;
+            }
+            let split_line = l.split(" ").collect::<Vec<&str>>();
+            let word = split_line[0];
+            let mut vecs = Vec::with_capacity(split_line.len() - 1);
+            for i in 1..split_line.len() {
+                vecs.push(split_line[i].parse::<f64>().unwrap());
+            }
+            words.insert(word.to_string(), idx.clone());
+            word_idxs.insert(idx.clone(), word.to_string());
+            words_vec.push(word.to_string());
+            words_train_data.insert(word.to_string(), vecs.clone());
+            idx += 1;
+            train_data.push(vecs.clone());
+            if (idx % 100000 == 0) {
+                println!("load {:?}", idx);
             }
         }
     }
 
     let mut flat_idx = flat::flat::FlatIndex::<f64, usize>::new(parameters::Parameters::default());
     make_baseline(train_data.clone(), &mut flat_idx);
-    let mut bpforest_idx = bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(
-        50,
-        4,
-        -1,
-        core::metrics::Metric::Angular,
-    );
+    let mut bpforest_idx =
+        bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(50, 6, -1);
     make_bp_forest_baseline(train_data.clone(), &mut bpforest_idx);
     // bpforest_idx.show_trees();
 
@@ -165,11 +163,8 @@ pub fn run_word_emb_demo() {
         let target_word: usize = rng.gen_range(1, words_vec.len());
         let w = words.get(&words_vec[target_word]).unwrap();
 
-        let mut result = flat_idx.search_k(
-            &train_data[*w as usize],
-            20,
-            core::metrics::Metric::DotProduct,
-        );
+        let start = SystemTime::now();
+        let mut result = flat_idx.search_k(&train_data[*w as usize], 20);
         for (n, d) in result.iter() {
             println!(
                 "target word: {}, neighbor: {:?}, distance: {:?}",
@@ -178,12 +173,13 @@ pub fn run_word_emb_demo() {
                 d
             );
         }
+        let since_the_epoch = SystemTime::now()
+            .duration_since(start)
+            .expect("Time went backwards");
+        println!("general: {:?}", since_the_epoch);
 
-        result = bpforest_idx.search_k(
-            &train_data[*w as usize],
-            20,
-            core::metrics::Metric::DotProduct,
-        );
+        let start = SystemTime::now();
+        result = bpforest_idx.search_k(&train_data[*w as usize], 20);
         for (n, d) in result.iter() {
             println!(
                 "bpforest target word: {}, neighbor: {:?}, distance: {:?}",
@@ -192,6 +188,10 @@ pub fn run_word_emb_demo() {
                 d
             );
         }
+        let since_the_epoch = SystemTime::now()
+            .duration_since(start)
+            .expect("Time went backwards");
+        println!("bpforest: {:?}", since_the_epoch);
     }
 
     let test_words = vec![
@@ -199,11 +199,8 @@ pub fn run_word_emb_demo() {
     ];
     for tw in test_words.iter() {
         if let Some(w) = words.get(&tw.to_string()) {
-            let mut result = flat_idx.search_k(
-                &train_data[*w as usize],
-                20,
-                core::metrics::Metric::CosineSimilarity,
-            );
+            let start = SystemTime::now();
+            let mut result = flat_idx.search_k(&train_data[*w as usize], 20);
             for (n, d) in result.iter() {
                 println!(
                     "target word: {}, neighbor: {:?}, distance: {:?}",
@@ -212,12 +209,13 @@ pub fn run_word_emb_demo() {
                     d
                 );
             }
+            let since_the_epoch = SystemTime::now()
+                .duration_since(start)
+                .expect("Time went backwards");
+            println!("general: {:?}", since_the_epoch);
 
-            result = flat_idx.search_k(
-                &train_data[*w as usize],
-                20,
-                core::metrics::Metric::CosineSimilarity,
-            );
+            let start = SystemTime::now();
+            result = bpforest_idx.search_k(&train_data[*w as usize], 20);
             for (n, d) in result.iter() {
                 println!(
                     "bpforest target word: {}, neighbor: {:?}, distance: {:?}",
@@ -226,6 +224,10 @@ pub fn run_word_emb_demo() {
                     d
                 );
             }
+            let since_the_epoch = SystemTime::now()
+                .duration_since(start)
+                .expect("Time went backwards");
+            println!("bpforest: {:?}", since_the_epoch);
         }
     }
 }
