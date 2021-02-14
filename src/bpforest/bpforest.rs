@@ -74,8 +74,8 @@ impl<E: node::FloatElement, T: node::IdxType> Leaf<E, T> {
 
     pub fn get_literal(&self) -> String {
         format!(
-            "{{ \"n_descendants\": {:?}, \"children\": {:?}, \"has_init\": {:?} }}",
-            self.n_descendants, self.children, self.has_init
+            "{{ \"n_descendants\": {:?}, \"children\": {:?}, \"has_init\": {:?} }}, \"node\": {:?},",
+            self.n_descendants, self.children, self.has_init, *self.node
         )
     }
 
@@ -115,6 +115,7 @@ fn two_means<E: node::FloatElement, T: node::IdxType>(
         p.normalize();
         q.normalize();
     }
+    // TODO: dot normalize
 
     let mut ic: E = E::float_one();
     let mut jc: E = E::float_one();
@@ -124,7 +125,6 @@ fn two_means<E: node::FloatElement, T: node::IdxType>(
         let k = random::index(count);
         let di = ic * metrics::metric(&p.node.vectors(), &leaves[k].node.vectors(), mt).unwrap();
         let dj = jc * metrics::metric(&q.node.vectors(), &leaves[k].node.vectors(), mt).unwrap();
-        // println!("k {:?} dj {:?} di {:?} di < dj {:?} mt {:?}", k, dj, di , (di < dj) as bool);
 
         //
         let norm = if mt == metrics::Metric::CosineSimilarity {
@@ -153,8 +153,6 @@ fn two_means<E: node::FloatElement, T: node::IdxType>(
             jc += E::float_one();
         }
     }
-    // println!("ic {:?} jc {:?}",ic,jc);
-
     return Ok((p, q));
 }
 
@@ -301,7 +299,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
             }
 
             let mut indices: Vec<i32> = Vec::new();
-            for i in 0..self._tot_items_cnt {
+            for i in 1..self._tot_items_cnt {
                 let leaf = self.get_leaf(i).unwrap();
                 if leaf.n_descendants >= 1 {
                     indices.push(i as i32);
@@ -348,7 +346,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         }
 
         let mut children: Vec<Leaf<E, T>> = Vec::new();
-        for i in 0..indices.len() {
+        for i in 1..indices.len() {
             let j = indices[i];
             match self.get_leaf(j) {
                 None => continue,
@@ -368,11 +366,11 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
             children_indices[1].clear();
             self.create_split(children.as_slice(), &mut new_parent_leaf, mt);
 
-            for i in 0..indices.len() {
-                let j = indices[i];
-                let leaf = self.get_leaf(i as i32).unwrap();
+            for i in 1..indices.len() {
+                let leaf_idx = indices[i];
+                let leaf = self.get_leaf(leaf_idx as i32).unwrap();
                 let side = self.side(&new_parent_leaf, &leaf.node.vectors());
-                children_indices[(side as usize)].push(j);
+                children_indices[(side as usize)].push(leaf_idx);
             }
 
             if calc::split_imbalance(&children_indices[0], &children_indices[1]) < 0.85 {
@@ -395,7 +393,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
                 }
             }
 
-            for i in 0..indices.len() {
+            for i in 1..indices.len() {
                 let j = indices[i];
                 children_indices[random::flip() as usize].push(j);
             }

@@ -113,11 +113,11 @@ where
     same_dimension(vec1, vec2)?;
     let rhd = dot(vec1, vec1).unwrap();
     let lhd = dot(vec2, vec2).unwrap();
-    let d = dot(vec1, vec1).unwrap();
-    let m = rhd * lhd;
+    let rldot = dot(vec1, vec2).unwrap();
+    let rlmul = rhd * lhd;
     let two = T::from_f32(2.0).unwrap();
-    if m > T::float_zero() {
-        Result::Ok(two - two * d / m.sqrt())
+    if rlmul > T::float_zero() {
+        Result::Ok(two - two * rldot / rlmul.sqrt())
     } else {
         Result::Ok(two)
     }

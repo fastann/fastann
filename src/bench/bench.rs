@@ -68,7 +68,7 @@ fn make_baseline(embs: Vec<Vec<f64>>, flat_idx: &mut flat::flat::FlatIndex<f64, 
     for i in 0..embs.len() {
         flat_idx.add_node(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
     }
-    flat_idx.construct(core::metrics::Metric::DotProduct);
+    flat_idx.construct(core::metrics::Metric::CosineSimilarity);
 }
 
 fn make_bp_forest_baseline(
@@ -78,7 +78,7 @@ fn make_bp_forest_baseline(
     for i in 0..embs.len() {
         bpforest_idx.add_node(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
     }
-    bpforest_idx.construct(core::metrics::Metric::DotProduct);
+    bpforest_idx.construct(core::metrics::Metric::CosineSimilarity);
 }
 
 fn make_baseline_for_word_emb(
@@ -91,7 +91,7 @@ fn make_baseline_for_word_emb(
             key.to_string(),
         ));
     }
-    flat_idx.construct(core::metrics::Metric::DotProduct);
+    flat_idx.construct(core::metrics::Metric::CosineSimilarity);
 }
 
 // run for normal distribution test data
