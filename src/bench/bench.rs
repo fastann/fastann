@@ -81,16 +81,6 @@ fn make_bp_forest_baseline(
     bpforest_idx.construct(core::metrics::Metric::CosineSimilarity);
 }
 
-fn make_bp_forest_baseline(
-    embs: Vec<Vec<f64>>,
-    bpforest_idx: &mut bpforest::bpforest::BinaryProjectionForestIndex<f64, usize>,
-) {
-    for i in 0..embs.len() {
-        bpforest_idx.add(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
-    }
-    bpforest_idx.construct();
-}
-
 fn make_baseline_for_word_emb(
     embs: &HashMap<String, Vec<f64>>,
     flat_idx: &mut flat::flat::FlatIndex<f64, String>,
