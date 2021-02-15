@@ -77,7 +77,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndexer<E, T> {
         top_candidates: &mut BinaryHeap<Neighbor<E, usize>>,
         ret_size: usize,
     ) -> Result<(), &'static str> {
-        if top_candidates.len() < ret_size {
+        if top_candidates.len() <= ret_size {
             return Ok(());
         }
         let mut queue_closest: BinaryHeap<Neighbor<E, usize>> = BinaryHeap::new();
@@ -112,7 +112,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndexer<E, T> {
         }
 
         for ret_neighbor in &return_list {
-            top_candidates.push(Neighbor::new(ret_neighbor.idx(), -ret_neighbor._distance));
+            top_candidates.push(Neighbor::new(ret_neighbor.idx(), ret_neighbor._distance));
         }
 
         return Ok(());
@@ -239,7 +239,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndexer<E, T> {
                     self.get_neighbors_by_heuristic2(&mut candidates, n_neigh);
 
                     self.clear_neighbor(selected_neighbor, level);
-                    for k in 0..n_neigh {
+                    while !candidates.is_empty() {
                         // selected_neighbor = candidates.peek().unwrap().idx();
                         self.push_neighbor(
                             selected_neighbor,
@@ -267,7 +267,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndexer<E, T> {
     }
 
     pub fn is_deleted(&self, id: usize) -> bool {
-        return self._delete_ids.contains(&id);
+        return  self._has_deletons && self._delete_ids.contains(&id);
     }
 
     pub fn get_data(&self, id: usize) -> &node::Node<E,T> {
@@ -309,7 +309,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndexer<E, T> {
 
         while !candidates.is_empty() {
             let cur_neigh = candidates.peek().unwrap();
-            let cur_dist = cur_neigh._distance;
+            let cur_dist = -cur_neigh._distance;
             let cur_id = cur_neigh.idx();
             candidates.pop();
             if cur_dist > lower_bound {
@@ -323,7 +323,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndexer<E, T> {
                 visted_id.insert(*neigh);
                 let dist = self.get_distance_from_vec(self.get_data(*neigh), search_data);
                 if top_candidates.len() < ef || dist < lower_bound {
-                    candidates.push(Neighbor::new(*neigh, dist));
+                    candidates.push(Neighbor::new(*neigh, -dist));
 
                     if !self.is_deleted(*neigh) {
                         top_candidates.push(Neighbor::new(*neigh, dist))
@@ -387,7 +387,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndexer<E, T> {
             cur_level -= 1;
         }
 
-        top_candidate = self.search_laryer(cur_id, search_data, 0, k, self._has_deletons);
+        top_candidate = self.search_laryer(cur_id, search_data, 0, self._ef_default, self._has_deletons);
         while top_candidate.len() > k {
             top_candidate.pop();
         }
@@ -435,7 +435,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndexer<E, T> {
 
         if insert_id == 0 {
             self._root_id = 0;
-            self._cur_level = self._id2level[insert_id];
+            self._cur_level = insert_level;
             return Ok(());
         }
 

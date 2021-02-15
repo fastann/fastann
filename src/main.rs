@@ -9,5 +9,4 @@ mod flat;
 fn main() {
     // bench::bench::run_word_emb_demo();
     bench::bench::run_word_emb_hnsw_demo();
-    
 }
