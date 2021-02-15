@@ -1,39 +1,15 @@
 use crate::core::metrics;
 use crate::core::neighbor::Neighbor;
+use crate::core::node;
+use crate::core::ann_index;
+use ann_index::ANNIndex;
 use rand::prelude::*;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-#[derive(Default, Clone, PartialEq, Debug)]
-pub struct Data {
-    _demension: i32,
-    _val: Vec<f64>,
-}
-
-impl Data {
-    fn new() -> Data {
-        Data {
-            _demension: 0,
-            ..Default::default()
-        }
-    }
-
-    fn new_with_vectors(demension: i32, val: &[f64]) -> Data {
-        Data {
-            _demension: demension,
-            _val: val.to_vec(),
-        }
-    }
-
-    fn distance(&self, data: &Data) -> Result<f64, &str> {
-        let ret = metrics::euclidean_distance(&(self._val), &(data._val));
-        ret
-    }
-}
-
 #[derive(Default, Debug)]
-pub struct HnswIndexer {
+pub struct HnswIndexer<E: node::FloatElement, T: node::IdxType> {
     _demension: usize, // dimension
     _n_items: usize,   // next item count
     _max_item: usize,
@@ -43,28 +19,38 @@ pub struct HnswIndexer {
     _cur_level: usize,               //current level
     _id2neigh: Vec<Vec<Vec<usize>>>, //neight_id from level 1 to level _max_level
     _id2neigh0: Vec<Vec<usize>>,     //neigh_id at level 0
-    _datas: Vec<Vec<f64>>,           // data saver
-    _item2id: HashMap<i32, usize>,   //item_id to id in Hnsw
+    _datas: Vec<Box<node::Node<E,T>>>,           // data saver
+    _item2id: HashMap<T, usize>,   //item_id to id in Hnsw
     _root_id: usize,                 //root of hnsw
     _id2level: Vec<usize>,
     _has_deletons: bool,
     _ef_default: usize,          // num of max candidates when searching
     _delete_ids: HashSet<usize>, //save deleted ids
+    _metri: metrics::Metric, //compute metrics
 }
 
-impl HnswIndexer {
-    pub fn new(demension: usize) -> HnswIndexer {
+impl<E: node::FloatElement, T: node::IdxType> HnswIndexer<E, T> {
+    pub fn new(demension: usize,
+        max_item: usize,
+        n_neigh: usize,
+        n_neigh0: usize,
+        max_level: usize,
+        metri: metrics::Metric,
+        ef: usize,
+        has_deletion: bool,
+        ) -> HnswIndexer<E,T> {
         return HnswIndexer {
             _demension: demension,
             _n_items: 0,
-            _max_item: 10000,
-            _n_neigh: 200,
-            _n_neigh0: 300,
-            _max_level: 10,
+            _max_item: max_item,
+            _n_neigh: n_neigh,
+            _n_neigh0: n_neigh0,
+            _max_level: max_level,
             _cur_level: 0,
             _root_id: 0,
-            _has_deletons: false,
-            _ef_default: 200,
+            _has_deletons: has_deletion,
+            _ef_default: ef,
+            _metri: metri,
             ..Default::default()
         };
     }
@@ -88,14 +74,14 @@ impl HnswIndexer {
     //return min top heap in top_candidates, delete part candidate
     fn get_neighbors_by_heuristic2(
         &self,
-        top_candidates: &mut BinaryHeap<Neighbor<f64, usize>>,
+        top_candidates: &mut BinaryHeap<Neighbor<E, usize>>,
         ret_size: usize,
     ) -> Result<(), &'static str> {
         if top_candidates.len() < ret_size {
             return Ok(());
         }
-        let mut queue_closest: BinaryHeap<Neighbor<f64, usize>> = BinaryHeap::new();
-        let mut return_list: Vec<Neighbor<f64, usize>> = Vec::new();
+        let mut queue_closest: BinaryHeap<Neighbor<E, usize>> = BinaryHeap::new();
+        let mut return_list: Vec<Neighbor<E, usize>> = Vec::new();
         while !top_candidates.is_empty() {
             let cand = top_candidates.peek().unwrap();
             queue_closest.push(Neighbor::new(cand.idx(), -cand._distance));
@@ -170,7 +156,7 @@ impl HnswIndexer {
     fn connect_neighbor(
         &mut self,
         cur_id: usize,
-        top_candidates: &mut BinaryHeap<Neighbor<f64, usize>>,
+        top_candidates: &mut BinaryHeap<Neighbor<E, usize>>,
         level: usize,
         is_update: bool,
     ) -> Result<usize, &'static str> {
@@ -243,7 +229,7 @@ impl HnswIndexer {
                 } else {
                     let d_max = self.get_distance_from_id(cur_id, selected_neighbor);
 
-                    let mut candidates: BinaryHeap<Neighbor<f64, usize>> = BinaryHeap::new();
+                    let mut candidates: BinaryHeap<Neighbor<E, usize>> = BinaryHeap::new();
                     candidates.push(Neighbor::new(cur_id, d_max));
                     for neighbor_id in neighbor_of_selected_neighbors {
                         let d_neigh = self.get_distance_from_id(*neighbor_id, selected_neighbor);
@@ -284,31 +270,31 @@ impl HnswIndexer {
         return self._delete_ids.contains(&id);
     }
 
-    pub fn get_data(&self, id: usize) -> &Vec<f64> {
+    pub fn get_data(&self, id: usize) -> &node::Node<E,T> {
         return &self._datas[id];
     }
 
-    pub fn get_distance_from_vec(&self, x: &Vec<f64>, y: &Vec<f64>) -> f64 {
-        return metrics::euclidean_distance(x, y).unwrap();
+    pub fn get_distance_from_vec(&self, x: &node::Node<E,T>, y: &node::Node<E,T>) -> E {
+        return metrics::metric(x.vectors(), y.vectors(), self._metri).unwrap();
     }
 
-    pub fn get_distance_from_id(&self, x: usize, y: usize) -> f64 {
-        return metrics::euclidean_distance(self.get_data(x), self.get_data(y)).unwrap();
+    pub fn get_distance_from_id(&self, x: usize, y: usize) -> E {
+        return metrics::metric(self.get_data(x).vectors(), self.get_data(y).vectors(), self._metri).unwrap();
     }
 
     //find ef nearist nodes to search data from root at level
     pub fn search_laryer(
         &self,
         root: usize,
-        search_data: &Vec<f64>,
+        search_data: &node::Node<E,T>,
         level: usize,
         ef: usize,
         has_deletion: bool,
-    ) -> BinaryHeap<Neighbor<f64, usize>> {
+    ) -> BinaryHeap<Neighbor<E, usize>> {
         let mut visted_id: HashSet<usize> = HashSet::new();
-        let mut top_candidates: BinaryHeap<Neighbor<f64, usize>> = BinaryHeap::new();
-        let mut candidates: BinaryHeap<Neighbor<f64, usize>> = BinaryHeap::new();
-        let mut lower_bound: f64;
+        let mut top_candidates: BinaryHeap<Neighbor<E, usize>> = BinaryHeap::new();
+        let mut candidates: BinaryHeap<Neighbor<E, usize>> = BinaryHeap::new();
+        let mut lower_bound: E;
 
         if !has_deletion || !self.is_deleted(root) {
             let dist = self.get_distance_from_vec(self.get_data(root), search_data);
@@ -316,7 +302,7 @@ impl HnswIndexer {
             candidates.push(Neighbor::new(root, -dist));
             lower_bound = dist;
         } else {
-            lower_bound = f64::MAX; //max dist in top_candidates
+            lower_bound = E::max_value(); //max dist in top_candidates
             candidates.push(Neighbor::new(root, -lower_bound))
         }
         visted_id.insert(root);
@@ -360,18 +346,18 @@ impl HnswIndexer {
     pub fn search_laryer_default(
         &self,
         root: usize,
-        search_data: &Vec<f64>,
+        search_data: &node::Node<E,T>,
         level: usize,
-    ) -> BinaryHeap<Neighbor<f64, usize>> {
+    ) -> BinaryHeap<Neighbor<E, usize>> {
         return self.search_laryer(root, search_data, level, self._ef_default, false);
     }
 
     pub fn search_knn(
         &self,
-        search_data: &Vec<f64>,
+        search_data: &node::Node<E,T>,
         k: usize,
-    ) -> Result<BinaryHeap<Neighbor<f64, usize>>, &'static str> {
-        let mut top_candidate: BinaryHeap<Neighbor<f64, usize>> = BinaryHeap::new();
+    ) -> Result<BinaryHeap<Neighbor<E, usize>>, &'static str> {
+        let mut top_candidate: BinaryHeap<Neighbor<E, usize>> = BinaryHeap::new();
         if self._n_items == 0 {
             return Ok(top_candidate);
         }
@@ -409,7 +395,7 @@ impl HnswIndexer {
         return Ok(top_candidate);
     }
 
-    pub fn init_item(&mut self, item: i32, data: &[f64]) -> usize {
+    pub fn init_item(&mut self, data: &node::Node<E,T>) -> usize {
         let cur_id = self._n_items;
         let cur_level = self.get_random_level();
         let mut neigh0: Vec<usize> = Vec::new();
@@ -418,31 +404,31 @@ impl HnswIndexer {
             let level_neigh: Vec<usize> = Vec::new();
             neigh.push(level_neigh);
         }
-        self._datas.push(data.to_vec());
+        self._datas.push(Box::new(data.clone()));
         self._id2neigh0.push(neigh0);
         self._id2neigh.push(neigh);
         self._id2level.push(cur_level);
-        self._item2id.insert(item, cur_id);
+        // self._item2id.insert(data.idx().unwrap(), cur_id);
         self._n_items += 1;
         return cur_id;
     }
 
-    pub fn add_item(&mut self, item: i32, data: &[f64]) -> Result<usize, &'static str> {
+    pub fn add_item(&mut self, data: &node::Node<E,T>) -> Result<(), &'static str> {
         if data.len() != self._demension {
             return Err("dimension is different");
         }
         {
-            if self._item2id.contains_key(&item) {
-                //to_do update point
-                return Ok(self._item2id[&item]);
-            }
+            // if self._item2id.contains_key(data.idx().unwrap()) {
+            //     //to_do update point
+            //     return Ok(self._item2id[data.idx().unwrap()]);
+            // }
 
             if self._n_items > self._max_item {
                 return Err("The number of elements exceeds the specified limit");
             }
         }
 
-        let insert_id = self.init_item(item, data);
+        let insert_id = self.init_item(data);
         let insert_level = self._id2level[insert_id];
         let mut cur_id = self._root_id;
         // println!("insert_id {:?}, insert_level {:?} ", insert_id, insert_level);
@@ -450,7 +436,7 @@ impl HnswIndexer {
         if insert_id == 0 {
             self._root_id = 0;
             self._cur_level = self._id2level[insert_id];
-            return Ok(0);
+            return Ok(());
         }
 
         if insert_level < self._cur_level {
@@ -510,6 +496,47 @@ impl HnswIndexer {
             self._cur_level = insert_level;
         }
 
-        return Ok(insert_id);
+        return Ok(());
     }
+}
+
+impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
+    for HnswIndexer<E, T>
+{
+    fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
+        std::result::Result::Ok(())
+    }
+    fn add_node(&mut self, item: &node::Node<E, T>) -> Result<(), &'static str> {
+        self.add_item(item)
+    }
+    fn once_constructed(&self) -> bool {
+        true
+    }
+
+    fn node_search_k(&self, item: &node::Node<E, T>, k: usize) -> Vec<(node::Node<E, T>, E)> {
+        let mut ret: BinaryHeap<Neighbor<E, usize>> = self.search_knn(item, k).unwrap();
+        let mut result: Vec<(node::Node<E, T>, E)> = Vec::new();
+        let mut result_idx: Vec<(usize, E)> = Vec::new();
+        while(!ret.is_empty()){
+            let top = ret.peek().unwrap();
+            let top_idx = top.idx();
+            let top_distance = top.distance();
+            result_idx.push((top_idx, top_distance))
+        }
+        for i in 0..result_idx.len() {
+            let cur_id = result_idx.len()-i-1;
+            result.push((*self._datas[result_idx[cur_id].0].clone(),result_idx[cur_id].1));
+        }
+        return result
+    }
+
+    fn load(&self, path: &str) -> Result<(), &'static str> {
+        std::result::Result::Ok(())
+    }
+
+    fn dump(&self, path: &str) -> Result<(), &'static str> {
+        std::result::Result::Ok(())
+    }
+
+    fn reconstruct(&mut self, mt: metrics::Metric) {}
 }
