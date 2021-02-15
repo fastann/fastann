@@ -20,7 +20,7 @@ impl<E: node::FloatElement, T: node::IdxType> FlatIndex<E, T> {
     }
 }
 
-impl<E: node::FloatElement, T: node::IdxType> ann_index::AnnIndex<E, T> for FlatIndex<E, T> {
+impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for FlatIndex<E, T> {
     fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
         self.mt = mt;
         Result::Ok(())
@@ -58,7 +58,6 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::AnnIndex<E, T> for Flat
                 neighbor_rev.distance(),
             ))
         }
-        println!("hello: {:?}", base);
         result.reverse();
         result
     }

@@ -2,7 +2,7 @@
 // use crate::annoy::annoy::AnnoyIndexer;
 use crate::bpforest;
 use crate::core;
-use crate::core::ann_index::AnnIndex;
+use crate::core::ann_index::ANNIndex;
 use crate::core::parameters;
 use crate::flat;
 use crate::hnsw;

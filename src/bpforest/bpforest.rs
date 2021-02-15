@@ -247,14 +247,14 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         self._leaf_max_items
     }
 
-    pub fn get_leaf_mut(&mut self, i: i32) -> &mut Leaf<E, T> {
+    fn get_leaf_mut(&mut self, i: i32) -> &mut Leaf<E, T> {
         if self.leaves.len() <= i as usize {
             self.extent_leaves(i as usize);
         }
         return &mut self.leaves[i as usize];
     }
 
-    pub fn extent_leaf(&mut self) -> &mut Leaf<E, T> {
+    fn extent_leaf(&mut self) -> &mut Leaf<E, T> {
         let i = self.leaves.len();
         self.extent_leaves(self.leaves.len());
         if self.leaves[i].is_empty() {
@@ -263,7 +263,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         return &mut self.leaves[i];
     }
 
-    pub fn get_leaf(&self, i: i32) -> Option<&Leaf<E, T>> {
+    fn get_leaf(&self, i: i32) -> Option<&Leaf<E, T>> {
         if self.leaves.len() < i as usize {
             return None;
         }
@@ -595,7 +595,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
     }
 }
 
-impl<E: node::FloatElement, T: node::IdxType> ann_index::AnnIndex<E, T>
+impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
     for BinaryProjectionForestIndex<E, T>
 {
     fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {

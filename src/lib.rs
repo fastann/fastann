@@ -1,6 +1,6 @@
 pub mod bench;
-mod bpforest;
-mod core;
-mod flat;
-mod hnsw;
-mod pq;
+pub mod bpforest;
+pub mod core;
+pub mod flat;
+pub mod hnsw;
+pub mod pq;
