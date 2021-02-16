@@ -162,11 +162,11 @@ pub fn run_word_emb_demo() {
     let mut hnsw_idx = Box::new(hnsw::hnsw::HnswIndex::<f64, usize>::new(
         50,
         10000000,
-        200,
-        300,
+        16,
+        32,
         20,
         core::metrics::Metric::CosineSimilarity,
-        200,
+        40,
         false,
     ));
     make_hnsw_baseline(train_data.clone(), &mut hnsw_idx);
