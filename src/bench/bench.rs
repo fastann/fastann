@@ -282,10 +282,11 @@ pub fn run_word_emb_hnsw_demo() {
     let mut hnsw_idx =
         hnsw::hnsw::HnswIndexer::<f64, usize>::new(50, 
             10000000,
-                200,
-                300,
-                20,core::metrics::Metric::CosineSimilarity,
-                200, 
+                12,
+                24,
+                20,
+                core::metrics::Metric::CosineSimilarity,
+                50, 
                 false);
     make_hnsw_baseline(train_data.clone(), &mut hnsw_idx);
     // bpforest_idx.show_trees();
@@ -328,7 +329,6 @@ pub fn run_word_emb_hnsw_demo() {
         println!("hnsw: {:?}", since_the_epoch);
     }
     
-    return ;
 
     let test_words = vec![
         "frog", "china", "english", "football", "school", "computer", "apple", "math",

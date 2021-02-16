@@ -386,8 +386,15 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndexer<E, T> {
             }
             cur_level -= 1;
         }
+        
+        let search_range = if self._ef_default > k {
+            self._ef_default
+        }
+        else{
+            k
+        };
 
-        top_candidate = self.search_laryer(cur_id, search_data, 0, self._ef_default, self._has_deletons);
+        top_candidate = self.search_laryer(cur_id, search_data, 0, search_range, self._has_deletons);
         while top_candidate.len() > k {
             top_candidate.pop();
         }
