@@ -97,7 +97,9 @@ fn make_baseline_for_word_emb(
 // run for normal distribution test data
 pub fn run_demo() {
     let (base, ns, ts) = make_normal_distribution_clustering(5, 1000, 1, 2, 100.0);
-    let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new(parameters::Parameters::default()));
+    let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new(
+        parameters::Parameters::default(),
+    ));
     make_baseline(ns, &mut bf_idx);
     for i in ts.iter() {
         let result = bf_idx.search_k(i, 5);
@@ -149,7 +151,9 @@ pub fn run_word_emb_demo() {
         }
     }
 
-    let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new(parameters::Parameters::default()));
+    let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new(
+        parameters::Parameters::default(),
+    ));
     make_baseline(train_data.clone(), &mut bf_idx);
     let mut bpforest_idx =
         Box::new(bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(50, 6, -1));
@@ -167,7 +171,7 @@ pub fn run_word_emb_demo() {
     ));
     make_hnsw_baseline(train_data.clone(), &mut hnsw_idx);
 
-    let indices: Vec<Box<ANNIndex<f64,usize>>> = vec![bf_idx, bpforest_idx, hnsw_idx];
+    let indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bf_idx, bpforest_idx, hnsw_idx];
 
     const K: i32 = 10;
     for i in 0..K {
@@ -221,7 +225,7 @@ pub fn run_word_emb_demo() {
     }
 }
 
-fn make_hnsw_baseline(embs: Vec<Vec<f64>>, hnsw_idx: &mut Box::<hnsw::hnsw::HnswIndex<f64, usize>>) {
+fn make_hnsw_baseline(embs: Vec<Vec<f64>>, hnsw_idx: &mut Box<hnsw::hnsw::HnswIndex<f64, usize>>) {
     for i in 0..embs.len() {
         // println!("addword i {:?}", i);
         hnsw_idx.add_node(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
