@@ -5,33 +5,6 @@ use std::collections::BinaryHeap;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-#[derive(Default, Clone, PartialEq, Debug)]
-pub struct Data {
-    _demension: i32,
-    _val: Vec<f64>,
-}
-
-impl Data {
-    fn new() -> Data {
-        Data {
-            _demension: 0,
-            ..Default::default()
-        }
-    }
-
-    fn new_with_vectors(demension: i32, val: &[f64]) -> Data {
-        Data {
-            _demension: demension,
-            _val: val.to_vec(),
-        }
-    }
-
-    fn distance(&self, data: &Data) -> Result<f64, &str> {
-        let ret = metrics::euclidean_distance(&(self._val), &(data._val));
-        ret
-    }
-}
-
 #[derive(Default, Debug)]
 pub struct KmeansIndexer {
     _demension: usize,
