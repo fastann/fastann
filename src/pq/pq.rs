@@ -1,6 +1,8 @@
+use crate::core::ann_index;
 use crate::core::metrics;
 use crate::core::neighbor::Neighbor;
 use crate::core::node;
+use metrics::range_metric;
 use rand::prelude::*;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
@@ -14,27 +16,33 @@ pub struct KmeansIndexer<E: node::FloatElement, T: node::IdxType> {
     _data_range_begin: usize,
     _data_range_end: usize,
     _mean: T,
+    _metri: metrics::Metric,     //compute metrics
 }
 
 impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
-    pub fn new(demension: usize, n_center: usize) -> KmeansIndexer<E, T> {
+    pub fn new(
+        demension: usize, 
+        n_center: usize, 
+        metri: metrics::Metric,
+    ) -> KmeansIndexer<E, T> {
         return KmeansIndexer {
             _demension: demension,
             _n_center: n_center,
             _data_range_begin: 0,
             _data_range_end: demension,
+            _metri: metri,
             ..Default::default()
         };
     }
 
     pub fn get_distance_from_vec(&self, x: &node::Node<E, T>, y: &Vec<E>) -> E {
-        return metrics::euclidean_distance_range(
+        return range_metric(
             x.vectors(),
             y,
+            self._metri,
             self._data_range_begin,
             self._data_range_end,
-        )
-        .unwrap();
+        ).unwrap();
     }
 
     pub fn init_center(&mut self, batch_size: usize, batch_data: &Vec<Box<node::Node<E, T>>>) {
@@ -221,12 +229,17 @@ pub struct PQIndexer<E: node::FloatElement, T: node::IdxType> {
     _max_item: usize,
     _datas: Vec<Box<node::Node<E, T>>>,
     _assigned_center: Vec<Vec<usize>>,
+    _metri: metrics::Metric,     //compute metrics
     // _item2id: HashMap<i32, usize>,
 }
 
 impl<E: node::FloatElement, T: node::IdxType> PQIndexer<E, T> {
-    pub fn new(demension: usize, n_sub: usize, sub_bits: usize, train_epoch: usize) 
-        -> PQIndexer<E, T> {
+    pub fn new(demension: usize, 
+        n_sub: usize, 
+        sub_bits: usize, 
+        train_epoch: usize,
+        metri: metrics::Metric,   
+    )-> PQIndexer<E, T> {
         assert_eq!(demension % n_sub, 0);
         let sub_demension = demension / n_sub;
         let sub_bytes = (sub_bits + 7) / 8;
@@ -245,6 +258,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndexer<E, T> {
             _is_trained: false,
             _n_items: 0,
             _max_item: 100000,
+            _metri: metri,
             ..Default::default()
         };
     }
@@ -283,7 +297,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndexer<E, T> {
             let n_epoch = self._train_epoch;
             let begin = n_sub * demension;
             let end = (n_sub + 1) * demension;
-            let mut clus = KmeansIndexer::new(demension, n_center);
+            let mut clus = KmeansIndexer::new(demension, n_center, self._metri);
             clus.set_range(begin, end);
             clus.train(n_item, &self._datas, n_epoch);
             let mut assigned_center: Vec<usize> = Vec::new();
@@ -302,7 +316,8 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndexer<E, T> {
         begin: usize,
         end: usize,
     ) -> E {
-        return metrics::euclidean_distance_range(x.vectors(), y, begin, end).unwrap();
+        return metrics::range_metric(x.vectors(), y, self._metri, begin, end).unwrap()
+        // return metrics::euclidean_distance_range(x.vectors(), y, begin, end).unwrap();
     }
 
     pub fn search_knn_ADC(
@@ -338,5 +353,54 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndexer<E, T> {
         }
 
         return Ok(top_candidate);
+    }
+}
+
+impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIndexer<E, T> {
+    fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
+        self.train_center();
+        std::result::Result::Ok(())
+    }
+    fn add_node(&mut self, item: &node::Node<E, T>) -> Result<(), &'static str> {
+        self.add_item(item);
+        std::result::Result::Ok(())
+    }
+    fn once_constructed(&self) -> bool {
+        true
+    }
+
+    fn node_search_k(&self, item: &node::Node<E, T>, k: usize) -> Vec<(node::Node<E, T>, E)> {
+        let mut ret: BinaryHeap<Neighbor<E, usize>> = self.search_knn_ADC(item, k).unwrap();
+        let mut result: Vec<(node::Node<E, T>, E)> = Vec::new();
+        let mut result_idx: Vec<(usize, E)> = Vec::new();
+        while (!ret.is_empty()) {
+            let top = ret.peek().unwrap();
+            let top_idx = top.idx();
+            let top_distance = top.distance();
+            ret.pop();
+            result_idx.push((top_idx, top_distance))
+        }
+        for i in 0..result_idx.len() {
+            let cur_id = result_idx.len() - i - 1;
+            result.push((
+                *self._datas[result_idx[cur_id].0].clone(),
+                result_idx[cur_id].1,
+            ));
+        }
+        return result;
+    }
+
+    fn load(&self, path: &str) -> Result<(), &'static str> {
+        std::result::Result::Ok(())
+    }
+
+    fn dump(&self, path: &str) -> Result<(), &'static str> {
+        std::result::Result::Ok(())
+    }
+
+    fn reconstruct(&mut self, mt: metrics::Metric) {}
+
+    fn name(&self) -> &'static str {
+        "PQAIndex"
     }
 }
