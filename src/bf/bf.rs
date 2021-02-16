@@ -6,21 +6,21 @@ use crate::core::parameters;
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 
-pub struct FlatIndex<E: node::FloatElement, T: node::IdxType> {
+pub struct BruteForceIndex<E: node::FloatElement, T: node::IdxType> {
     nodes: Vec<Box<node::Node<E, T>>>,
     mt: metrics::Metric,
 }
 
-impl<E: node::FloatElement, T: node::IdxType> FlatIndex<E, T> {
-    pub fn new(p: parameters::Parameters) -> FlatIndex<E, T> {
-        FlatIndex::<E, T> {
+impl<E: node::FloatElement, T: node::IdxType> BruteForceIndex<E, T> {
+    pub fn new(p: parameters::Parameters) -> BruteForceIndex<E, T> {
+        BruteForceIndex::<E, T> {
             nodes: Vec::new(),
             mt: metrics::Metric::Unknown,
         }
     }
 }
 
-impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for FlatIndex<E, T> {
+impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for BruteForceIndex<E, T> {
     fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
         self.mt = mt;
         Result::Ok(())
@@ -73,5 +73,9 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Flat
 
     fn dump(&self, path: &str) -> Result<(), &'static str> {
         std::result::Result::Ok(())
+    }
+
+    fn name(&self) -> &'static str {
+        "BruteForceIndex"
     }
 }

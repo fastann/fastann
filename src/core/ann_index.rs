@@ -24,4 +24,6 @@ pub trait ANNIndex<E: node::FloatElement, T: node::IdxType> {
     fn load(&self, path: &str) -> Result<(), &'static str>;
 
     fn dump(&self, path: &str) -> Result<(), &'static str>;
+
+    fn name(&self) -> &'static str;
 }

@@ -621,4 +621,8 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
     }
 
     fn reconstruct(&mut self, mt: metrics::Metric) {}
+
+    fn name(&self) -> &'static str {
+        "BPForestIndex"
+    }
 }

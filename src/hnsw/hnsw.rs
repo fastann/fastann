@@ -1,7 +1,7 @@
+use crate::core::ann_index;
 use crate::core::metrics;
 use crate::core::neighbor::Neighbor;
 use crate::core::node;
-use crate::core::ann_index;
 use ann_index::ANNIndex;
 use rand::prelude::*;
 use std::collections::BinaryHeap;
@@ -9,28 +9,29 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 #[derive(Default, Debug)]
-pub struct HnswIndexer<E: node::FloatElement, T: node::IdxType> {
+pub struct HnswIndex<E: node::FloatElement, T: node::IdxType> {
     _demension: usize, // dimension
     _n_items: usize,   // next item count
     _max_item: usize,
-    _n_neigh: usize,                 // neighbor num except level 0
-    _n_neigh0: usize,                // neight num of level 0
-    _max_level: usize,               //max level
-    _cur_level: usize,               //current level
-    _id2neigh: Vec<Vec<Vec<usize>>>, //neight_id from level 1 to level _max_level
-    _id2neigh0: Vec<Vec<usize>>,     //neigh_id at level 0
-    _datas: Vec<Box<node::Node<E,T>>>,           // data saver
-    _item2id: HashMap<T, usize>,   //item_id to id in Hnsw
-    _root_id: usize,                 //root of hnsw
+    _n_neigh: usize,                    // neighbor num except level 0
+    _n_neigh0: usize,                   // neight num of level 0
+    _max_level: usize,                  //max level
+    _cur_level: usize,                  //current level
+    _id2neigh: Vec<Vec<Vec<usize>>>,    //neight_id from level 1 to level _max_level
+    _id2neigh0: Vec<Vec<usize>>,        //neigh_id at level 0
+    _datas: Vec<Box<node::Node<E, T>>>, // data saver
+    _item2id: HashMap<T, usize>,        //item_id to id in Hnsw
+    _root_id: usize,                    //root of hnsw
     _id2level: Vec<usize>,
     _has_deletons: bool,
     _ef_default: usize,          // num of max candidates when searching
     _delete_ids: HashSet<usize>, //save deleted ids
-    _metri: metrics::Metric, //compute metrics
+    _metri: metrics::Metric,     //compute metrics
 }
 
-impl<E: node::FloatElement, T: node::IdxType> HnswIndexer<E, T> {
-    pub fn new(demension: usize,
+impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
+    pub fn new(
+        demension: usize,
         max_item: usize,
         n_neigh: usize,
         n_neigh0: usize,
@@ -38,8 +39,8 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndexer<E, T> {
         metri: metrics::Metric,
         ef: usize,
         has_deletion: bool,
-        ) -> HnswIndexer<E,T> {
-        return HnswIndexer {
+    ) -> HnswIndex<E, T> {
+        return HnswIndex {
             _demension: demension,
             _n_items: 0,
             _max_item: max_item,
@@ -267,26 +268,31 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndexer<E, T> {
     }
 
     pub fn is_deleted(&self, id: usize) -> bool {
-        return  self._has_deletons && self._delete_ids.contains(&id);
+        return self._has_deletons && self._delete_ids.contains(&id);
     }
 
-    pub fn get_data(&self, id: usize) -> &node::Node<E,T> {
+    pub fn get_data(&self, id: usize) -> &node::Node<E, T> {
         return &self._datas[id];
     }
 
-    pub fn get_distance_from_vec(&self, x: &node::Node<E,T>, y: &node::Node<E,T>) -> E {
+    pub fn get_distance_from_vec(&self, x: &node::Node<E, T>, y: &node::Node<E, T>) -> E {
         return metrics::metric(x.vectors(), y.vectors(), self._metri).unwrap();
     }
 
     pub fn get_distance_from_id(&self, x: usize, y: usize) -> E {
-        return metrics::metric(self.get_data(x).vectors(), self.get_data(y).vectors(), self._metri).unwrap();
+        return metrics::metric(
+            self.get_data(x).vectors(),
+            self.get_data(y).vectors(),
+            self._metri,
+        )
+        .unwrap();
     }
 
     //find ef nearist nodes to search data from root at level
     pub fn search_laryer(
         &self,
         root: usize,
-        search_data: &node::Node<E,T>,
+        search_data: &node::Node<E, T>,
         level: usize,
         ef: usize,
         has_deletion: bool,
@@ -346,7 +352,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndexer<E, T> {
     pub fn search_laryer_default(
         &self,
         root: usize,
-        search_data: &node::Node<E,T>,
+        search_data: &node::Node<E, T>,
         level: usize,
     ) -> BinaryHeap<Neighbor<E, usize>> {
         return self.search_laryer(root, search_data, level, self._ef_default, false);
@@ -354,7 +360,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndexer<E, T> {
 
     pub fn search_knn(
         &self,
-        search_data: &node::Node<E,T>,
+        search_data: &node::Node<E, T>,
         k: usize,
     ) -> Result<BinaryHeap<Neighbor<E, usize>>, &'static str> {
         let mut top_candidate: BinaryHeap<Neighbor<E, usize>> = BinaryHeap::new();
@@ -387,7 +393,8 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndexer<E, T> {
             cur_level -= 1;
         }
 
-        top_candidate = self.search_laryer(cur_id, search_data, 0, self._ef_default, self._has_deletons);
+        top_candidate =
+            self.search_laryer(cur_id, search_data, 0, self._ef_default, self._has_deletons);
         while top_candidate.len() > k {
             top_candidate.pop();
         }
@@ -395,7 +402,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndexer<E, T> {
         return Ok(top_candidate);
     }
 
-    pub fn init_item(&mut self, data: &node::Node<E,T>) -> usize {
+    pub fn init_item(&mut self, data: &node::Node<E, T>) -> usize {
         let cur_id = self._n_items;
         let cur_level = self.get_random_level();
         let mut neigh0: Vec<usize> = Vec::new();
@@ -413,7 +420,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndexer<E, T> {
         return cur_id;
     }
 
-    pub fn add_item(&mut self, data: &node::Node<E,T>) -> Result<(), &'static str> {
+    pub fn add_item(&mut self, data: &node::Node<E, T>) -> Result<(), &'static str> {
         if data.len() != self._demension {
             return Err("dimension is different");
         }
@@ -500,9 +507,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndexer<E, T> {
     }
 }
 
-impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
-    for HnswIndexer<E, T>
-{
+impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for HnswIndex<E, T> {
     fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
         std::result::Result::Ok(())
     }
@@ -517,7 +522,7 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
         let mut ret: BinaryHeap<Neighbor<E, usize>> = self.search_knn(item, k).unwrap();
         let mut result: Vec<(node::Node<E, T>, E)> = Vec::new();
         let mut result_idx: Vec<(usize, E)> = Vec::new();
-        while(!ret.is_empty()){
+        while (!ret.is_empty()) {
             let top = ret.peek().unwrap();
             let top_idx = top.idx();
             let top_distance = top.distance();
@@ -525,10 +530,13 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
             result_idx.push((top_idx, top_distance))
         }
         for i in 0..result_idx.len() {
-            let cur_id = result_idx.len()-i-1;
-            result.push((*self._datas[result_idx[cur_id].0].clone(),result_idx[cur_id].1));
+            let cur_id = result_idx.len() - i - 1;
+            result.push((
+                *self._datas[result_idx[cur_id].0].clone(),
+                result_idx[cur_id].1,
+            ));
         }
-        return result
+        return result;
     }
 
     fn load(&self, path: &str) -> Result<(), &'static str> {
@@ -540,4 +548,8 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
     }
 
     fn reconstruct(&mut self, mt: metrics::Metric) {}
+
+    fn name(&self) -> &'static str {
+        "HnswIndex"
+    }
 }

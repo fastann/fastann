@@ -1,10 +1,10 @@
 // use crate::annoy;
 // use crate::annoy::annoy::AnnoyIndexer;
+use crate::bf;
 use crate::bpforest;
 use crate::core;
 use crate::core::ann_index::ANNIndex;
 use crate::core::parameters;
-use crate::flat;
 use crate::hnsw;
 use rand::distributions::{Alphanumeric, StandardNormal, Uniform};
 use rand::distributions::{Distribution, Normal};
@@ -64,16 +64,16 @@ fn make_normal_distribution_clustering(
     return (bases, ns, ts);
 }
 
-fn make_baseline(embs: Vec<Vec<f64>>, flat_idx: &mut flat::flat::FlatIndex<f64, usize>) {
+fn make_baseline(embs: Vec<Vec<f64>>, bf_idx: &mut Box<bf::bf::BruteForceIndex<f64, usize>>) {
     for i in 0..embs.len() {
-        flat_idx.add_node(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
+        bf_idx.add_node(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
     }
-    flat_idx.construct(core::metrics::Metric::CosineSimilarity);
+    bf_idx.construct(core::metrics::Metric::CosineSimilarity);
 }
 
 fn make_bp_forest_baseline(
     embs: Vec<Vec<f64>>,
-    bpforest_idx: &mut bpforest::bpforest::BinaryProjectionForestIndex<f64, usize>,
+    bpforest_idx: &mut Box<bpforest::bpforest::BinaryProjectionForestIndex<f64, usize>>,
 ) {
     for i in 0..embs.len() {
         bpforest_idx.add_node(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
@@ -83,24 +83,24 @@ fn make_bp_forest_baseline(
 
 fn make_baseline_for_word_emb(
     embs: &HashMap<String, Vec<f64>>,
-    flat_idx: &mut flat::flat::FlatIndex<f64, String>,
+    bf_idx: &mut bf::bf::BruteForceIndex<f64, String>,
 ) {
     for (key, value) in embs {
-        flat_idx.add_node(&core::node::Node::<f64, String>::new_with_idx(
+        bf_idx.add_node(&core::node::Node::<f64, String>::new_with_idx(
             &value,
             key.to_string(),
         ));
     }
-    flat_idx.construct(core::metrics::Metric::CosineSimilarity);
+    bf_idx.construct(core::metrics::Metric::CosineSimilarity);
 }
 
 // run for normal distribution test data
 pub fn run_demo() {
     let (base, ns, ts) = make_normal_distribution_clustering(5, 1000, 1, 2, 100.0);
-    let mut flat_idx = flat::flat::FlatIndex::<f64, usize>::new(parameters::Parameters::default());
-    make_baseline(ns, &mut flat_idx);
+    let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new(parameters::Parameters::default()));
+    make_baseline(ns, &mut bf_idx);
     for i in ts.iter() {
-        let result = flat_idx.search_k(i, 5);
+        let result = bf_idx.search_k(i, 5);
         for j in result.iter() {
             println!("test base: {:?} neighbor: {:?}", i, j);
         }
@@ -128,7 +128,7 @@ pub fn run_word_emb_demo() {
     let mut idx = 0;
     for line in reader.lines() {
         if let Ok(l) = line {
-            if idx == 50000 {
+            if idx == 500 {
                 break;
             }
             let split_line = l.split(" ").collect::<Vec<&str>>();
@@ -149,12 +149,25 @@ pub fn run_word_emb_demo() {
         }
     }
 
-    let mut flat_idx = flat::flat::FlatIndex::<f64, usize>::new(parameters::Parameters::default());
-    make_baseline(train_data.clone(), &mut flat_idx);
+    let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new(parameters::Parameters::default()));
+    make_baseline(train_data.clone(), &mut bf_idx);
     let mut bpforest_idx =
-        bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(50, 6, -1);
+        Box::new(bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(50, 6, -1));
     make_bp_forest_baseline(train_data.clone(), &mut bpforest_idx);
     // bpforest_idx.show_trees();
+    let mut hnsw_idx = Box::new(hnsw::hnsw::HnswIndex::<f64, usize>::new(
+        50,
+        10000000,
+        200,
+        300,
+        20,
+        core::metrics::Metric::CosineSimilarity,
+        200,
+        false,
+    ));
+    make_hnsw_baseline(train_data.clone(), &mut hnsw_idx);
+
+    let indices: Vec<Box<ANNIndex<f64,usize>>> = vec![bf_idx, bpforest_idx, hnsw_idx];
 
     const K: i32 = 10;
     for i in 0..K {
@@ -163,35 +176,23 @@ pub fn run_word_emb_demo() {
         let target_word: usize = rng.gen_range(1, words_vec.len());
         let w = words.get(&words_vec[target_word]).unwrap();
 
-        let start = SystemTime::now();
-        let mut result = flat_idx.search_k(&train_data[*w as usize], 20);
-        for (n, d) in result.iter() {
-            println!(
-                "target word: {}, neighbor: {:?}, distance: {:?}",
-                words_vec[target_word],
-                words_vec[n.idx().unwrap()],
-                d
-            );
+        for idx in indices.iter() {
+            let start = SystemTime::now();
+            let mut result = idx.search_k(&train_data[*w as usize], 20);
+            for (n, d) in result.iter() {
+                println!(
+                    "{:?} target word: {}, neighbor: {:?}, distance: {:?}",
+                    idx.name(),
+                    words_vec[target_word],
+                    words_vec[n.idx().unwrap()],
+                    d
+                );
+            }
+            let since_the_epoch = SystemTime::now()
+                .duration_since(start)
+                .expect("Time went backwards");
+            println!("{:?}: {:?}", idx.name(), since_the_epoch);
         }
-        let since_the_epoch = SystemTime::now()
-            .duration_since(start)
-            .expect("Time went backwards");
-        println!("general: {:?}", since_the_epoch);
-
-        let start = SystemTime::now();
-        result = bpforest_idx.search_k(&train_data[*w as usize], 20);
-        for (n, d) in result.iter() {
-            println!(
-                "bpforest target word: {}, neighbor: {:?}, distance: {:?}",
-                words_vec[target_word],
-                words_vec[n.idx().unwrap()],
-                d
-            );
-        }
-        let since_the_epoch = SystemTime::now()
-            .duration_since(start)
-            .expect("Time went backwards");
-        println!("bpforest: {:?}", since_the_epoch);
     }
 
     let test_words = vec![
@@ -199,171 +200,32 @@ pub fn run_word_emb_demo() {
     ];
     for tw in test_words.iter() {
         if let Some(w) = words.get(&tw.to_string()) {
-            let start = SystemTime::now();
-            let mut result = flat_idx.search_k(&train_data[*w as usize], 20);
-            for (n, d) in result.iter() {
-                println!(
-                    "target word: {}, neighbor: {:?}, distance: {:?}",
-                    tw,
-                    words_vec[n.idx().unwrap()],
-                    d
-                );
+            for idx in indices.iter() {
+                let start = SystemTime::now();
+                let mut result = idx.search_k(&train_data[*w as usize], 20);
+                for (n, d) in result.iter() {
+                    println!(
+                        "{:?} target word: {}, neighbor: {:?}, distance: {:?}",
+                        idx.name(),
+                        tw,
+                        words_vec[n.idx().unwrap()],
+                        d
+                    );
+                }
+                let since_the_epoch = SystemTime::now()
+                    .duration_since(start)
+                    .expect("Time went backwards");
+                println!("{:?}: {:?}", idx.name(), since_the_epoch);
             }
-            let since_the_epoch = SystemTime::now()
-                .duration_since(start)
-                .expect("Time went backwards");
-            println!("general: {:?}", since_the_epoch);
-
-            let start = SystemTime::now();
-            result = bpforest_idx.search_k(&train_data[*w as usize], 20);
-            for (n, d) in result.iter() {
-                println!(
-                    "bpforest target word: {}, neighbor: {:?}, distance: {:?}",
-                    tw,
-                    words_vec[n.idx().unwrap()],
-                    d
-                );
-            }
-            let since_the_epoch = SystemTime::now()
-                .duration_since(start)
-                .expect("Time went backwards");
-            println!("bpforest: {:?}", since_the_epoch);
         }
     }
 }
 
-fn make_hnsw_baseline(
-    embs: Vec<Vec<f64>>,
-    hnsw_idx: &mut hnsw::hnsw::HnswIndexer<f64, usize>,
-) {
+fn make_hnsw_baseline(embs: Vec<Vec<f64>>, hnsw_idx: &mut Box::<hnsw::hnsw::HnswIndex<f64, usize>>) {
     for i in 0..embs.len() {
         // println!("addword i {:?}", i);
         hnsw_idx.add_node(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
     }
     println!("addword len {:?}", embs.len());
     // bpforest_idx.construct(core::metrics::Metric::CosineSimilarity);
-}
-
-pub fn run_word_emb_hnsw_demo() {
-    let mut words = HashMap::new();
-    let mut word_idxs = HashMap::new();
-    let mut words_vec = Vec::new();
-    let mut train_data = Vec::new();
-    let mut words_train_data = HashMap::new();
-    let file = File::open("src/bench/glove.6B.50d.txt").unwrap();
-    let reader = BufReader::new(file);
-
-    let mut idx = 0;
-    for line in reader.lines() {
-        if let Ok(l) = line {
-            if idx == 50000 {
-                break;
-            }
-            let split_line = l.split(" ").collect::<Vec<&str>>();
-            let word = split_line[0];
-            let mut vecs = Vec::with_capacity(split_line.len() - 1);
-            for i in 1..split_line.len() {
-                vecs.push(split_line[i].parse::<f64>().unwrap());
-            }
-            words.insert(word.to_string(), idx.clone());
-            word_idxs.insert(idx.clone(), word.to_string());
-            words_vec.push(word.to_string());
-            words_train_data.insert(word.to_string(), vecs.clone());
-            idx += 1;
-            train_data.push(vecs.clone());
-            if (idx % 100000 == 0) {
-                println!("load {:?}", idx);
-            }
-        }
-    }
-
-    let mut flat_idx = flat::flat::FlatIndex::<f64, usize>::new(parameters::Parameters::default());
-    make_baseline(train_data.clone(), &mut flat_idx);
-    let mut hnsw_idx =
-        hnsw::hnsw::HnswIndexer::<f64, usize>::new(50, 
-            10000000,
-                200,
-                300,
-                20,core::metrics::Metric::CosineSimilarity,
-                200, 
-                false);
-    make_hnsw_baseline(train_data.clone(), &mut hnsw_idx);
-    // bpforest_idx.show_trees();
-
-    const K: i32 = 10;
-    for i in 0..K {
-        let mut rng = rand::thread_rng();
-
-        let target_word: usize = rng.gen_range(1, words_vec.len());
-        let w = words.get(&words_vec[target_word]).unwrap();
-
-        let start = SystemTime::now();
-        let mut result = flat_idx.search_k(&train_data[*w as usize], 20);
-        for (n, d) in result.iter() {
-            println!(
-                "target word: {}, neighbor: {:?}, distance: {:?}",
-                words_vec[target_word],
-                words_vec[n.idx().unwrap()],
-                d
-            );
-        }
-        let since_the_epoch = SystemTime::now()
-            .duration_since(start)
-            .expect("Time went backwards");
-        println!("general: {:?}", since_the_epoch);
-
-        let start = SystemTime::now();
-        result = hnsw_idx.search_k(&train_data[*w as usize], 20);
-        for (n, d) in result.iter() {
-            println!(
-                "hnsw target word: {}, neighbor: {:?}, distance: {:?}",
-                words_vec[target_word],
-                words_vec[n.idx().unwrap()],
-                d
-            );
-        }
-        let since_the_epoch = SystemTime::now()
-            .duration_since(start)
-            .expect("Time went backwards");
-        println!("hnsw: {:?}", since_the_epoch);
-    }
-    
-    return ;
-
-    let test_words = vec![
-        "frog", "china", "english", "football", "school", "computer", "apple", "math",
-    ];
-    for tw in test_words.iter() {
-        if let Some(w) = words.get(&tw.to_string()) {
-            let start = SystemTime::now();
-            let mut result = flat_idx.search_k(&train_data[*w as usize], 20);
-            for (n, d) in result.iter() {
-                println!(
-                    "target word: {}, neighbor: {:?}, distance: {:?}",
-                    tw,
-                    words_vec[n.idx().unwrap()],
-                    d
-                );
-            }
-            let since_the_epoch = SystemTime::now()
-                .duration_since(start)
-                .expect("Time went backwards");
-            println!("general: {:?}", since_the_epoch);
-
-            let start = SystemTime::now();
-            result = hnsw_idx.search_k(&train_data[*w as usize], 20);
-            for (n, d) in result.iter() {
-                println!(
-                    "hnsw target word: {}, neighbor: {:?}, distance: {:?}",
-                    tw,
-                    words_vec[n.idx().unwrap()],
-                    d
-                );
-            }
-            let since_the_epoch = SystemTime::now()
-                .duration_since(start)
-                .expect("Time went backwards");
-            println!("hnsw: {:?}", since_the_epoch);
-        }
-    }
 }
