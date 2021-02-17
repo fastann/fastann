@@ -6,6 +6,8 @@ use crate::core;
 use crate::core::ann_index::ANNIndex;
 use crate::core::parameters;
 use crate::hnsw;
+use crate::pq;
+use pq::pq::PQIndexer;
 use rand::distributions::{Alphanumeric, StandardNormal, Uniform};
 use rand::distributions::{Distribution, Normal};
 use rand::seq::SliceRandom;
@@ -171,7 +173,16 @@ pub fn run_word_emb_demo() {
     ));
     make_hnsw_baseline(train_data.clone(), &mut hnsw_idx);
 
-    let indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bf_idx, bpforest_idx, hnsw_idx];
+    let mut pq_idx=Box::new(pq::pq::PQIndexer::<f64, usize>::new(
+        50,
+        10,
+        4,
+        100,
+        core::metrics::Metric::Euclidean,
+    ));
+    make_pq_baseline(train_data.clone(), &mut pq_idx);
+
+    let indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bf_idx, bpforest_idx, hnsw_idx, pq_idx];
 
     const K: i32 = 10;
     for i in 0..K {
@@ -230,6 +241,16 @@ fn make_hnsw_baseline(embs: Vec<Vec<f64>>, hnsw_idx: &mut Box<hnsw::hnsw::HnswIn
         // println!("addword i {:?}", i);
         hnsw_idx.add_node(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
     }
+    println!("addword len {:?}", embs.len());
+    // bpforest_idx.construct(core::metrics::Metric::CosineSimilarity);
+}
+
+fn make_pq_baseline(embs: Vec<Vec<f64>>, pq_idx: &mut Box<pq::pq::PQIndexer<f64, usize>>) {
+    for i in 0..embs.len() {
+        // println!("addword i {:?}", i);
+        pq_idx.add_node(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
+    }
+    pq_idx.construct(core::metrics::Metric::Euclidean);
     println!("addword len {:?}", embs.len());
     // bpforest_idx.construct(core::metrics::Metric::CosineSimilarity);
 }

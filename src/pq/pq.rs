@@ -2,9 +2,9 @@ use crate::core::ann_index;
 use crate::core::metrics;
 use crate::core::neighbor::Neighbor;
 use crate::core::node;
-use metrics::range_metric;
+use metrics::{metric, range_metric};
 use rand::prelude::*;
-use std::collections::BinaryHeap;
+use std::{collections::BinaryHeap, process::exit};
 use std::collections::HashMap;
 use std::collections::HashSet;
 
@@ -36,12 +36,10 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
     }
 
     pub fn get_distance_from_vec(&self, x: &node::Node<E, T>, y: &Vec<E>) -> E {
-        return range_metric(
-            x.vectors(),
+        return metric(
+            &x.vectors()[self._data_range_begin..self._data_range_end],
             y,
-            self._metri,
-            self._data_range_begin,
-            self._data_range_end,
+            self._metri
         ).unwrap();
     }
 
@@ -79,6 +77,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
             }
             new_centers.push(cur_center);
         }
+        self._centers = new_centers;
     }
 
     fn update_center(
@@ -142,7 +141,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
                     nearist_center_id = j;
                 }
             }
-            assigned_center[i] = nearist_center_id;
+            assigned_center.push(nearist_center_id);
         }
     }
 
@@ -161,7 +160,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
         for i in 0..n_center {
             if n_assigned_per_center[i] == 0 {
                 //rand pick split center
-                let mut split_center_id = i + 1;
+                let mut split_center_id = (i + 1)%n_center;
                 loop {
                     let mut rng = rand::thread_rng();
                     let pick_percent =
@@ -295,14 +294,13 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndexer<E, T> {
             let demension = self._sub_demension;
             let n_center = self._n_sub_center;
             let n_epoch = self._train_epoch;
-            let begin = n_sub * demension;
-            let end = (n_sub + 1) * demension;
+            let begin = i * demension;
+            let end = (i + 1) * demension;
             let mut clus = KmeansIndexer::new(demension, n_center, self._metri);
             clus.set_range(begin, end);
             clus.train(n_item, &self._datas, n_epoch);
             let mut assigned_center: Vec<usize> = Vec::new();
             clus.search_data(n_item, &self._datas, &mut assigned_center);
-
             self._centers.push(clus._centers);
             self._assigned_center.push(assigned_center);
         }
@@ -316,7 +314,11 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndexer<E, T> {
         begin: usize,
         end: usize,
     ) -> E {
-        return metrics::range_metric(x.vectors(), y, self._metri, begin, end).unwrap()
+        return metrics::metric(
+            &x.vectors()[begin..end], 
+            y, 
+            self._metri
+        ).unwrap()
         // return metrics::euclidean_distance_range(x.vectors(), y, begin, end).unwrap();
     }
 
@@ -332,8 +334,8 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndexer<E, T> {
                 sub_dis.push(self.get_distance_from_vec_range(
                     search_data,
                     &self._centers[i][j],
-                    i * self._n_sub,
-                    (i + 1) * self._n_sub,
+                    i * self._sub_demension,
+                    (i + 1) * self._sub_demension,
                 ));
             }
             dis2centers.push(sub_dis);
@@ -346,7 +348,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndexer<E, T> {
                 let center_id = self._assigned_center[j][i];
                 distance += dis2centers[j][center_id];
             }
-            top_candidate.push(Neighbor::new(i, -distance));
+            top_candidate.push(Neighbor::new(i, distance));
         }
         while top_candidate.len() > k {
             top_candidate.pop();
@@ -401,6 +403,6 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIn
     fn reconstruct(&mut self, mt: metrics::Metric) {}
 
     fn name(&self) -> &'static str {
-        "PQAIndex"
+        "PQIndex"
     }
 }
