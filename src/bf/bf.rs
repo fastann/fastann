@@ -3,7 +3,7 @@ use crate::core::metrics;
 use crate::core::neighbor;
 use crate::core::node;
 use crate::core::parameters;
-use std::cmp::Reverse;
+use core::cmp::Reverse;
 use std::collections::BinaryHeap;
 
 pub struct BruteForceIndex<E: node::FloatElement, T: node::IdxType> {
@@ -68,11 +68,11 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Brut
     }
 
     fn load(&self, path: &str) -> Result<(), &'static str> {
-        std::result::Result::Ok(())
+        Result::Ok(())
     }
 
     fn dump(&self, path: &str) -> Result<(), &'static str> {
-        std::result::Result::Ok(())
+        Result::Ok(())
     }
 
     fn name(&self) -> &'static str {

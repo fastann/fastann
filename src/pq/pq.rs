@@ -4,9 +4,9 @@ use crate::core::neighbor::Neighbor;
 use crate::core::node;
 use metrics::{metric, range_metric};
 use rand::prelude::*;
-use std::{collections::BinaryHeap, process::exit};
-use std::collections::HashMap;
-use std::collections::HashSet;
+use std::collections::BinaryHeap;
+use hashbrown::HashMap;
+use hashbrown::HashSet;
 
 #[derive(Default, Debug)]
 pub struct KmeansIndexer<E: node::FloatElement, T: node::IdxType> {
@@ -361,11 +361,11 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndexer<E, T> {
 impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIndexer<E, T> {
     fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
         self.train_center();
-        std::result::Result::Ok(())
+        Result::Ok(())
     }
     fn add_node(&mut self, item: &node::Node<E, T>) -> Result<(), &'static str> {
         self.add_item(item);
-        std::result::Result::Ok(())
+        Result::Ok(())
     }
     fn once_constructed(&self) -> bool {
         true
@@ -393,11 +393,11 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIn
     }
 
     fn load(&self, path: &str) -> Result<(), &'static str> {
-        std::result::Result::Ok(())
+        Result::Ok(())
     }
 
     fn dump(&self, path: &str) -> Result<(), &'static str> {
-        std::result::Result::Ok(())
+        Result::Ok(())
     }
 
     fn reconstruct(&mut self, mt: metrics::Metric) {}
