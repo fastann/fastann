@@ -214,7 +214,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
 }
 
 #[derive(Default, Debug)]
-pub struct PQIndexer<E: node::FloatElement, T: node::IdxType> {
+pub struct PQIndex<E: node::FloatElement, T: node::IdxType> {
     _demension: usize,     //dimension of data
     _n_sub: usize,         //num of subdata
     _sub_demension: usize, //dimension of subdata
@@ -235,21 +235,21 @@ pub struct PQIndexer<E: node::FloatElement, T: node::IdxType> {
                              // _item2id: HashMap<i32, usize>,
 }
 
-impl<E: node::FloatElement, T: node::IdxType> PQIndexer<E, T> {
+impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
     pub fn new(
         demension: usize,
         n_sub: usize,
         sub_bits: usize,
         train_epoch: usize,
         metri: metrics::Metric,
-    ) -> PQIndexer<E, T> {
+    ) -> PQIndex<E, T> {
         assert_eq!(demension % n_sub, 0);
         let sub_demension = demension / n_sub;
         let sub_bytes = (sub_bits + 7) / 8;
         assert_eq!(sub_bits <= 32, true);
         let n_center_per_sub = (1 << sub_bits) as usize;
         let codebytes = sub_bytes * n_sub;
-        return PQIndexer {
+        return PQIndex {
             _demension: demension,
             _n_sub: n_sub,
             _sub_demension: sub_demension,
@@ -358,7 +358,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndexer<E, T> {
     }
 }
 
-impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIndexer<E, T> {
+impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIndex<E, T> {
     fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
         self.train_center();
         Result::Ok(())
