@@ -5,8 +5,8 @@ use crate::core::node;
 use ann_index::ANNIndex;
 use rand::prelude::*;
 use std::collections::BinaryHeap;
-use std::collections::HashMap;
-use std::collections::HashSet;
+use hashbrown::HashMap;
+use hashbrown::HashSet;
 
 #[derive(Default, Debug)]
 pub struct HnswIndex<E: node::FloatElement, T: node::IdxType> {
@@ -515,7 +515,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
 
 impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for HnswIndex<E, T> {
     fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
-        std::result::Result::Ok(())
+        Result::Ok(())
     }
     fn add_node(&mut self, item: &node::Node<E, T>) -> Result<(), &'static str> {
         self.add_item(item)
@@ -546,11 +546,11 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Hnsw
     }
 
     fn load(&self, path: &str) -> Result<(), &'static str> {
-        std::result::Result::Ok(())
+        Result::Ok(())
     }
 
     fn dump(&self, path: &str) -> Result<(), &'static str> {
-        std::result::Result::Ok(())
+        Result::Ok(())
     }
 
     fn reconstruct(&mut self, mt: metrics::Metric) {}

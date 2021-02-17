@@ -4,9 +4,9 @@ use crate::core::metrics;
 use crate::core::neighbor;
 use crate::core::node;
 use crate::core::random;
-use std::cmp::Ordering;
+use core::cmp::Ordering;
 use std::collections::BinaryHeap;
-use std::collections::HashMap;
+use hashbrown::HashMap;
 
 // TODO: leaf as a trait with getter setter function
 #[derive(Default, Clone, Debug)]
@@ -613,11 +613,11 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
     }
 
     fn load(&self, path: &str) -> Result<(), &'static str> {
-        std::result::Result::Ok(())
+        Result::Ok(())
     }
 
     fn dump(&self, path: &str) -> Result<(), &'static str> {
-        std::result::Result::Ok(())
+        Result::Ok(())
     }
 
     fn reconstruct(&mut self, mt: metrics::Metric) {}

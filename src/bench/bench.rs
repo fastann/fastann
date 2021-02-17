@@ -12,7 +12,7 @@ use rand::distributions::{Alphanumeric, StandardNormal, Uniform};
 use rand::distributions::{Distribution, Normal};
 use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
-use std::collections::HashMap;
+use hashbrown::HashMap;
 use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
 use std::path::Path;
