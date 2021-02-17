@@ -1,12 +1,13 @@
 use crate::core::ann_index;
+use crate::core::arguments;
 use crate::core::metrics;
 use crate::core::neighbor::Neighbor;
 use crate::core::node;
+use hashbrown::HashMap;
+use hashbrown::HashSet;
 use metrics::{metric, range_metric};
 use rand::prelude::*;
 use std::collections::BinaryHeap;
-use hashbrown::HashMap;
-use hashbrown::HashSet;
 
 #[derive(Default, Debug)]
 pub struct KmeansIndexer<E: node::FloatElement, T: node::IdxType> {
@@ -16,15 +17,11 @@ pub struct KmeansIndexer<E: node::FloatElement, T: node::IdxType> {
     _data_range_begin: usize,
     _data_range_end: usize,
     _mean: T,
-    _metri: metrics::Metric,     //compute metrics
+    _metri: metrics::Metric, //compute metrics
 }
 
 impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
-    pub fn new(
-        demension: usize, 
-        n_center: usize, 
-        metri: metrics::Metric,
-    ) -> KmeansIndexer<E, T> {
+    pub fn new(demension: usize, n_center: usize, metri: metrics::Metric) -> KmeansIndexer<E, T> {
         return KmeansIndexer {
             _demension: demension,
             _n_center: n_center,
@@ -39,8 +36,9 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
         return metric(
             &x.vectors()[self._data_range_begin..self._data_range_end],
             y,
-            self._metri
-        ).unwrap();
+            self._metri,
+        )
+        .unwrap();
     }
 
     pub fn init_center(&mut self, batch_size: usize, batch_data: &Vec<Box<node::Node<E, T>>>) {
@@ -160,7 +158,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
         for i in 0..n_center {
             if n_assigned_per_center[i] == 0 {
                 //rand pick split center
-                let mut split_center_id = (i + 1)%n_center;
+                let mut split_center_id = (i + 1) % n_center;
                 loop {
                     let mut rng = rand::thread_rng();
                     let pick_percent =
@@ -173,11 +171,13 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
                 let EPS = 1.0 / 1024.0;
                 for j in 0..demension {
                     if j % 2 == 0 {
-                        self._centers[i][j] = self._centers[split_center_id][j] * E::from_f32(1.0 - EPS).unwrap();
+                        self._centers[i][j] =
+                            self._centers[split_center_id][j] * E::from_f32(1.0 - EPS).unwrap();
                         self._centers[split_center_id][j] =
                             self._centers[split_center_id][j] * E::from_f32(1.0 + EPS).unwrap();
                     } else {
-                        self._centers[i][j] = self._centers[split_center_id][j] * E::from_f32(1.0 + EPS).unwrap();
+                        self._centers[i][j] =
+                            self._centers[split_center_id][j] * E::from_f32(1.0 + EPS).unwrap();
                         self._centers[split_center_id][j] =
                             self._centers[split_center_id][j] * E::from_f32(1.0 - EPS).unwrap();
                     }
@@ -189,7 +189,12 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
         return Ok(());
     }
 
-    pub fn train(&mut self, batch_size: usize, batch_data: &Vec<Box<node::Node<E, T>>>, n_epoch: usize) {
+    pub fn train(
+        &mut self,
+        batch_size: usize,
+        batch_data: &Vec<Box<node::Node<E, T>>>,
+        n_epoch: usize,
+    ) {
         self.init_center(batch_size, batch_data);
         for epoch in 0..n_epoch {
             let mut assigned_center: Vec<usize> = Vec::new();
@@ -219,8 +224,8 @@ pub struct PQIndexer<E: node::FloatElement, T: node::IdxType> {
     _sub_bytes: usize,     //code save as byte: (_sub_bit + 7)//8
     _n_sub_center: usize,  //num of centers per subdata code
     //n_center_per_sub = 1 << sub_bits
-    _codebytes: usize,            // byte of code
-    _train_epoch: usize,          // training epoch
+    _codebytes: usize,          // byte of code
+    _train_epoch: usize,        // training epoch
     _centers: Vec<Vec<Vec<E>>>, // size to be _n_sub * _n_sub_center * _sub_demension
     _is_trained: bool,
 
@@ -228,17 +233,18 @@ pub struct PQIndexer<E: node::FloatElement, T: node::IdxType> {
     _max_item: usize,
     _datas: Vec<Box<node::Node<E, T>>>,
     _assigned_center: Vec<Vec<usize>>,
-    _metri: metrics::Metric,     //compute metrics
-    // _item2id: HashMap<i32, usize>,
+    _metri: metrics::Metric, //compute metrics
+                             // _item2id: HashMap<i32, usize>,
 }
 
 impl<E: node::FloatElement, T: node::IdxType> PQIndexer<E, T> {
-    pub fn new(demension: usize, 
-        n_sub: usize, 
-        sub_bits: usize, 
+    pub fn new(
+        demension: usize,
+        n_sub: usize,
+        sub_bits: usize,
         train_epoch: usize,
-        metri: metrics::Metric,   
-    )-> PQIndexer<E, T> {
+        metri: metrics::Metric,
+    ) -> PQIndexer<E, T> {
         assert_eq!(demension % n_sub, 0);
         let sub_demension = demension / n_sub;
         let sub_bytes = (sub_bits + 7) / 8;
@@ -314,11 +320,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndexer<E, T> {
         begin: usize,
         end: usize,
     ) -> E {
-        return metrics::metric(
-            &x.vectors()[begin..end], 
-            y, 
-            self._metri
-        ).unwrap()
+        return metrics::metric(&x.vectors()[begin..end], y, self._metri).unwrap();
         // return metrics::euclidean_distance_range(x.vectors(), y, begin, end).unwrap();
     }
 
@@ -371,7 +373,12 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIn
         true
     }
 
-    fn node_search_k(&self, item: &node::Node<E, T>, k: usize) -> Vec<(node::Node<E, T>, E)> {
+    fn node_search_k(
+        &self,
+        item: &node::Node<E, T>,
+        k: usize,
+        args: &arguments::Arguments,
+    ) -> Vec<(node::Node<E, T>, E)> {
         let mut ret: BinaryHeap<Neighbor<E, usize>> = self.search_knn_ADC(item, k).unwrap();
         let mut result: Vec<(node::Node<E, T>, E)> = Vec::new();
         let mut result_idx: Vec<(usize, E)> = Vec::new();

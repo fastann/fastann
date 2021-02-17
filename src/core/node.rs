@@ -1,7 +1,7 @@
 use crate::core::metrics;
 use crate::core::metrics::manhattan_distance;
-use num::traits::{FromPrimitive, NumAssign};
 use core::fmt::Display;
+use num::traits::{FromPrimitive, NumAssign};
 
 pub trait FloatElement:
     FromPrimitive
