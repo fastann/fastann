@@ -6,7 +6,6 @@ use crate::core::neighbor;
 use crate::core::node;
 use crate::core::random;
 use core::cmp::Ordering;
-use hashbrown::HashMap;
 use std::collections::BinaryHeap;
 
 // TODO: leaf as a trait with getter setter function
@@ -434,7 +433,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
 
         v_leaf.node.set_vectors(&vectors.to_vec());
 
-        if self._roots.len() == 0 || !self._built {
+        if self._roots.is_empty() || !self._built {
             return Err("empty tree");
         }
 
@@ -533,16 +532,16 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
 
     // means same side?
     fn margin(&self, src: &Leaf<E, T>, dst: &[E]) -> Result<E, &'static str> {
-        return calc::dot(&src.node.vectors(), &dst);
+        calc::dot(&src.node.vectors(), &dst)
     }
 
     fn side(&self, src: &Leaf<E, T>, dst: &[E]) -> bool {
         match self.margin(&src, &dst) {
             Ok(x) => {
-                return x > E::float_zero();
+                x > E::float_zero()
             }
             Err(e) => {
-                return random::flip();
+                random::flip()
             }
         }
     }
@@ -560,11 +559,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
             return Err("empty leaf input");
         }
 
-        let is_initial = if new_mean_leaf.node.len() == 0 {
-            true
-        } else {
-            false
-        };
+        let is_initial = new_mean_leaf.node.len() == 0;
         for i in 0..p.node.len() {
             if is_initial {
                 new_mean_leaf
@@ -577,7 +572,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
             }
         }
         new_mean_leaf.normalize();
-        return Ok(());
+        Ok(())
     }
 
     fn pq_distance(&self, distance: E, mut margin: E, child_nr: usize) -> E {
@@ -585,14 +580,14 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
             margin = -margin;
         }
         if distance < margin {
-            return distance;
+            distance
         } else {
-            return margin;
+            margin
         }
     }
 
     fn pq_initial_value(&self) -> E {
-        return E::max_value();
+        E::max_value()
     }
 }
 

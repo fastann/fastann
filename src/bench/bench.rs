@@ -4,7 +4,6 @@ use crate::bf;
 use crate::bpforest;
 use crate::core;
 use crate::core::ann_index::ANNIndex;
-use crate::core::parameters;
 use crate::hnsw;
 use crate::pq;
 use hashbrown::HashMap;
@@ -100,7 +99,6 @@ fn make_baseline_for_word_emb(
 pub fn run_demo() {
     let (base, ns, ts) = make_normal_distribution_clustering(5, 1000, 1, 2, 100.0);
     let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new(
-        parameters::Parameters::default(),
     ));
     make_baseline(ns, &mut bf_idx);
     for i in ts.iter() {
@@ -154,7 +152,6 @@ pub fn run_word_emb_demo() {
     }
 
     let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new(
-        parameters::Parameters::default(),
     ));
     make_baseline(train_data.clone(), &mut bf_idx);
     let mut bpforest_idx =

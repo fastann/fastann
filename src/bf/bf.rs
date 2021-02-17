@@ -3,7 +3,6 @@ use crate::core::arguments;
 use crate::core::metrics;
 use crate::core::neighbor;
 use crate::core::node;
-use crate::core::parameters;
 use core::cmp::Reverse;
 use std::collections::BinaryHeap;
 
@@ -13,7 +12,7 @@ pub struct BruteForceIndex<E: node::FloatElement, T: node::IdxType> {
 }
 
 impl<E: node::FloatElement, T: node::IdxType> BruteForceIndex<E, T> {
-    pub fn new(p: parameters::Parameters) -> BruteForceIndex<E, T> {
+    pub fn new() -> BruteForceIndex<E, T> {
         BruteForceIndex::<E, T> {
             nodes: Vec::new(),
             mt: metrics::Metric::Unknown,

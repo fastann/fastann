@@ -19,15 +19,15 @@ pub trait FloatElement:
 {
     // TODO: make it static
     fn float_one() -> Self {
-        return Self::from_f32(1.0).unwrap();
+        Self::from_f32(1.0).unwrap()
     }
 
     fn float_zero() -> Self {
-        return Self::from_f32(0.0).unwrap();
+        Self::from_f32(0.0).unwrap()
     }
 
     fn zero_patch_num() -> Self {
-        return Self::from_f32(1.34e-6_f32).unwrap();
+        Self::from_f32(1.34e-6_f32).unwrap()
     }
 }
 

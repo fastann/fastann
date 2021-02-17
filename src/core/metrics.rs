@@ -31,14 +31,14 @@ pub fn metric<T>(vec1: &[T], vec2: &[T], mt: Metric) -> Result<T, &'static str>
 where
     T: FloatElement,
 {
-    return match mt {
+    match mt {
         Metric::Euclidean => euclidean_distance(vec1, vec2),
         Metric::Manhattan => manhattan_distance(vec1, vec2),
         Metric::DotProduct => dot_product(vec1, vec2),
         Metric::CosineSimilarity => cosine_similarity(vec1, vec2),
         Metric::Angular => angular_distance(vec1, vec2),
         Metric::Unknown => Result::Err("unknown method"),
-    };
+    }
 }
 
 pub fn range_metric<T>(
@@ -60,10 +60,10 @@ where
 {
     same_dimension(vec1, vec2)?;
     // smaller means closer.
-    return match dot(vec1, vec2) {
+    match dot(vec1, vec2) {
         Ok(x) => Result::Ok(-x),
         Err(err) => Err(err),
-    };
+    }
 }
 
 pub fn manhattan_distance<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
@@ -75,7 +75,7 @@ where
     for i in 0..vec1.len() {
         res += vec1[i].abs() - vec2[i].abs();
     }
-    return Result::Ok(res.abs());
+    Result::Ok(res.abs())
 }
 
 pub fn euclidean_distance<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
@@ -88,7 +88,7 @@ where
         let diff = vec1[i] - vec2[i];
         res += diff * diff;
     }
-    return Result::Ok(res.sqrt());
+    Result::Ok(res.sqrt())
 }
 
 pub fn cosine_similarity<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>

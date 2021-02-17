@@ -3,9 +3,7 @@ use crate::core::arguments;
 use crate::core::metrics;
 use crate::core::neighbor::Neighbor;
 use crate::core::node;
-use hashbrown::HashMap;
-use hashbrown::HashSet;
-use metrics::{metric, range_metric};
+use metrics::metric;
 use rand::prelude::*;
 use std::collections::BinaryHeap;
 
@@ -209,7 +207,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
     }
 
     pub fn set_range(&mut self, begin: usize, end: usize) {
-        assert!(begin >= 0 && end - begin == self._demension);
+        assert!(end - begin == self._demension);
         self._data_range_begin = begin;
         self._data_range_end = end;
     }
@@ -324,7 +322,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndexer<E, T> {
         // return metrics::euclidean_distance_range(x.vectors(), y, begin, end).unwrap();
     }
 
-    pub fn search_knn_ADC(
+    pub fn search_knn_adc(
         &self,
         search_data: &node::Node<E, T>,
         k: usize,
@@ -379,7 +377,7 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIn
         k: usize,
         args: &arguments::Arguments,
     ) -> Vec<(node::Node<E, T>, E)> {
-        let mut ret: BinaryHeap<Neighbor<E, usize>> = self.search_knn_ADC(item, k).unwrap();
+        let mut ret: BinaryHeap<Neighbor<E, usize>> = self.search_knn_adc(item, k).unwrap();
         let mut result: Vec<(node::Node<E, T>, E)> = Vec::new();
         let mut result_idx: Vec<(usize, E)> = Vec::new();
         while (!ret.is_empty()) {

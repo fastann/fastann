@@ -60,7 +60,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
     fn get_random_level(&self) -> usize {
         let mut rng = rand::thread_rng();
         let mut ret = 0;
-        while (ret < self._max_level) {
+        while ret < self._max_level {
             if rng.gen_range(0.0, 1.0) > 0.5 {
                 ret += 1;
             } else {
@@ -534,7 +534,7 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Hnsw
         let mut ret: BinaryHeap<Neighbor<E, usize>> = self.search_knn(item, k).unwrap();
         let mut result: Vec<(node::Node<E, T>, E)> = Vec::new();
         let mut result_idx: Vec<(usize, E)> = Vec::new();
-        while (!ret.is_empty()) {
+        while !ret.is_empty() {
             let top = ret.peek().unwrap();
             let top_idx = top.idx();
             let top_distance = top.distance();
