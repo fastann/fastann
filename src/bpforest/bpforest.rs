@@ -1,12 +1,13 @@
 use crate::core::ann_index;
+use crate::core::arguments;
 use crate::core::calc;
 use crate::core::metrics;
 use crate::core::neighbor;
 use crate::core::node;
 use crate::core::random;
 use core::cmp::Ordering;
-use std::collections::BinaryHeap;
 use hashbrown::HashMap;
+use std::collections::BinaryHeap;
 
 // TODO: leaf as a trait with getter setter function
 #[derive(Default, Clone, Debug)]
@@ -608,7 +609,12 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
         self._built
     }
 
-    fn node_search_k(&self, item: &node::Node<E, T>, k: usize) -> Vec<(node::Node<E, T>, E)> {
+    fn node_search_k(
+        &self,
+        item: &node::Node<E, T>,
+        k: usize,
+        args: &arguments::Arguments,
+    ) -> Vec<(node::Node<E, T>, E)> {
         self._search_k(item.vectors(), k).unwrap()
     }
 

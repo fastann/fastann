@@ -1,12 +1,13 @@
 use crate::core::ann_index;
+use crate::core::arguments;
 use crate::core::metrics;
 use crate::core::neighbor::Neighbor;
 use crate::core::node;
 use ann_index::ANNIndex;
-use rand::prelude::*;
-use std::collections::BinaryHeap;
 use hashbrown::HashMap;
 use hashbrown::HashSet;
+use rand::prelude::*;
+use std::collections::BinaryHeap;
 
 #[derive(Default, Debug)]
 pub struct HnswIndex<E: node::FloatElement, T: node::IdxType> {
@@ -392,15 +393,15 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
             }
             cur_level -= 1;
         }
-        
+
         let search_range = if self._ef_default > k {
             self._ef_default
-        }
-        else{
+        } else {
             k
         };
 
-        top_candidate = self.search_laryer(cur_id, search_data, 0, search_range, self._has_deletons);
+        top_candidate =
+            self.search_laryer(cur_id, search_data, 0, search_range, self._has_deletons);
         while top_candidate.len() > k {
             top_candidate.pop();
         }
@@ -524,7 +525,12 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Hnsw
         true
     }
 
-    fn node_search_k(&self, item: &node::Node<E, T>, k: usize) -> Vec<(node::Node<E, T>, E)> {
+    fn node_search_k(
+        &self,
+        item: &node::Node<E, T>,
+        k: usize,
+        args: &arguments::Arguments,
+    ) -> Vec<(node::Node<E, T>, E)> {
         let mut ret: BinaryHeap<Neighbor<E, usize>> = self.search_knn(item, k).unwrap();
         let mut result: Vec<(node::Node<E, T>, E)> = Vec::new();
         let mut result_idx: Vec<(usize, E)> = Vec::new();

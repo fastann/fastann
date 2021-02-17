@@ -1,4 +1,5 @@
 use crate::core::ann_index;
+use crate::core::arguments;
 use crate::core::metrics;
 use crate::core::neighbor;
 use crate::core::node;
@@ -33,7 +34,12 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Brut
         true
     }
     fn reconstruct(&mut self, mt: metrics::Metric) {}
-    fn node_search_k(&self, item: &node::Node<E, T>, k: usize) -> Vec<(node::Node<E, T>, E)> {
+    fn node_search_k(
+        &self,
+        item: &node::Node<E, T>,
+        k: usize,
+        args: &arguments::Arguments,
+    ) -> Vec<(node::Node<E, T>, E)> {
         let mut heap = BinaryHeap::new();
         let mut base = E::default();
         for i in 0..self.nodes.len() {
@@ -60,11 +66,6 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Brut
         }
         result.reverse();
         result
-    }
-
-    fn search_k(&self, item: &[E], k: usize) -> Vec<(node::Node<E, T>, E)> {
-        let n = node::Node::new(item);
-        self.node_search_k(&n, k)
     }
 
     fn load(&self, path: &str) -> Result<(), &'static str> {

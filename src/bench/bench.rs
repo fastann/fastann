@@ -7,12 +7,12 @@ use crate::core::ann_index::ANNIndex;
 use crate::core::parameters;
 use crate::hnsw;
 use crate::pq;
+use hashbrown::HashMap;
 use pq::pq::PQIndexer;
 use rand::distributions::{Alphanumeric, StandardNormal, Uniform};
 use rand::distributions::{Distribution, Normal};
 use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
-use hashbrown::HashMap;
 use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
 use std::path::Path;
@@ -173,7 +173,7 @@ pub fn run_word_emb_demo() {
     ));
     make_hnsw_baseline(train_data.clone(), &mut hnsw_idx);
 
-    let mut pq_idx=Box::new(pq::pq::PQIndexer::<f64, usize>::new(
+    let mut pq_idx = Box::new(pq::pq::PQIndexer::<f64, usize>::new(
         50,
         10,
         4,
