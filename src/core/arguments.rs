@@ -38,12 +38,12 @@ impl Arguments {
         }
     }
 
-    pub fn fset(&mut self, key: &str, value: &f32) -> &mut Arguments {
+    pub fn fset(&mut self, key: &str, value: f32) -> &mut Arguments {
         self.float_args.insert(key.to_string(), value.clone());
         self
     }
 
-    pub fn iset(&mut self, key: &str, value: &i32) -> &mut Arguments {
+    pub fn iset(&mut self, key: &str, value: i32) -> &mut Arguments {
         self.int_args.insert(key.to_string(), value.clone());
         self
     }
