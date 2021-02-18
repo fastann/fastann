@@ -98,8 +98,7 @@ fn make_baseline_for_word_emb(
 // run for normal distribution test data
 pub fn run_demo() {
     let (base, ns, ts) = make_normal_distribution_clustering(5, 1000, 1, 2, 100.0);
-    let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new(
-    ));
+    let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new());
     make_baseline(ns, &mut bf_idx);
     for i in ts.iter() {
         let result = bf_idx.search_k(i, 5);
@@ -151,8 +150,7 @@ pub fn run_word_emb_demo() {
         }
     }
 
-    let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new(
-    ));
+    let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new());
     make_baseline(train_data.clone(), &mut bf_idx);
     let mut bpforest_idx =
         Box::new(bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(50, 6, -1));

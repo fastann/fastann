@@ -1,11 +1,11 @@
 use crate::core::ann_index;
 use crate::core::arguments;
+use crate::core::heap::BinaryHeap;
 use crate::core::metrics;
 use crate::core::neighbor::Neighbor;
 use crate::core::node;
 use metrics::metric;
 use rand::prelude::*;
-use std::collections::BinaryHeap;
 
 #[derive(Default, Debug)]
 pub struct KmeansIndexer<E: node::FloatElement, T: node::IdxType> {

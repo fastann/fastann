@@ -1,10 +1,10 @@
 use crate::core::ann_index;
 use crate::core::arguments;
+use crate::core::heap::BinaryHeap;
 use crate::core::metrics;
 use crate::core::neighbor;
 use crate::core::node;
 use core::cmp::Reverse;
-use std::collections::BinaryHeap;
 
 pub struct BruteForceIndex<E: node::FloatElement, T: node::IdxType> {
     nodes: Vec<Box<node::Node<E, T>>>,
