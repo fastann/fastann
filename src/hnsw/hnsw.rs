@@ -393,6 +393,13 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
             }
             cur_level -= 1;
         }
+        
+        let search_range = if self._ef_default > k {
+            self._ef_default
+        }
+        else{
+            k
+        };
 
         let search_range = if self._ef_default > k {
             self._ef_default
