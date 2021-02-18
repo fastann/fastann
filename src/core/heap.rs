@@ -1,4 +1,4 @@
-
+// this lib migrate from official lib, but without std dependency;
 use core::fmt;
 use core::mem::{self, swap, ManuallyDrop};
 use core::ptr;
@@ -7,23 +7,19 @@ pub struct BinaryHeap<T> {
     data: Vec<T>,
 }
 
-
 impl<T: Ord> BinaryHeap<T> {
-
     pub fn new() -> BinaryHeap<T> {
         BinaryHeap { data: vec![] }
     }
 
-
     pub fn with_capacity(capacity: usize) -> BinaryHeap<T> {
-        BinaryHeap { data: Vec::with_capacity(capacity) }
+        BinaryHeap {
+            data: Vec::with_capacity(capacity),
+        }
     }
 
     pub fn pop(&mut self) -> Option<T> {
-        self
-        .data
-        .pop()
-        .map(|mut item| {
+        self.data.pop().map(|mut item| {
             if !self.is_empty() {
                 swap(&mut item, &mut self.data[0]);
                 self.sift_down_to_bottom(0);
@@ -37,7 +33,6 @@ impl<T: Ord> BinaryHeap<T> {
         self.data.push(item);
         self.sift_up(0, old_len);
     }
-
 
     pub fn into_sorted_vec(mut self) -> Vec<T> {
         let mut end = self.len();
@@ -123,7 +118,7 @@ impl<T: Ord> BinaryHeap<T> {
             self.sift_down(n);
         }
     }
-    
+
     pub fn retain<F>(&mut self, f: F)
     where
         F: FnMut(&T) -> bool,
@@ -133,9 +128,7 @@ impl<T: Ord> BinaryHeap<T> {
     }
 }
 
-
 impl<T> BinaryHeap<T> {
-
     // pub fn iter(&self) -> Iter<'_, T> {
     //     Iter { iter: self.data.iter() }
     // }
@@ -146,7 +139,6 @@ impl<T> BinaryHeap<T> {
     pub fn capacity(&self) -> usize {
         self.data.capacity()
     }
-
 
     pub fn reserve_exact(&mut self, additional: usize) {
         self.data.reserve_exact(additional);
@@ -196,7 +188,11 @@ impl<'a, T> Hole<'a, T> {
         debug_assert!(pos < data.len());
         // SAFE: pos should be inside the slice
         let elt = unsafe { ptr::read(data.get_unchecked(pos)) };
-        Hole { data, elt: ManuallyDrop::new(elt), pos }
+        Hole {
+            data,
+            elt: ManuallyDrop::new(elt),
+            pos,
+        }
     }
 
     #[inline]

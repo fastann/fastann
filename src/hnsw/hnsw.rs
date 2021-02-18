@@ -1,5 +1,6 @@
 use crate::core::ann_index;
 use crate::core::arguments;
+use crate::core::heap::BinaryHeap;
 use crate::core::metrics;
 use crate::core::neighbor::Neighbor;
 use crate::core::node;
@@ -7,7 +8,6 @@ use ann_index::ANNIndex;
 use hashbrown::HashMap;
 use hashbrown::HashSet;
 use rand::prelude::*;
-use std::collections::BinaryHeap;
 
 #[derive(Default, Debug)]
 pub struct HnswIndex<E: node::FloatElement, T: node::IdxType> {
@@ -393,11 +393,10 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
             }
             cur_level -= 1;
         }
-        
+
         let search_range = if self._ef_default > k {
             self._ef_default
-        }
-        else{
+        } else {
             k
         };
 

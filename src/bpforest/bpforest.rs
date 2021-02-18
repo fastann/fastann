@@ -1,12 +1,12 @@
 use crate::core::ann_index;
 use crate::core::arguments;
 use crate::core::calc;
+use crate::core::heap::BinaryHeap;
 use crate::core::metrics;
 use crate::core::neighbor;
 use crate::core::node;
 use crate::core::random;
 use core::cmp::Ordering;
-use std::collections::BinaryHeap;
 
 // TODO: leaf as a trait with getter setter function
 #[derive(Default, Clone, Debug)]
@@ -537,12 +537,8 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
 
     fn side(&self, src: &Leaf<E, T>, dst: &[E]) -> bool {
         match self.margin(&src, &dst) {
-            Ok(x) => {
-                x > E::float_zero()
-            }
-            Err(e) => {
-                random::flip()
-            }
+            Ok(x) => x > E::float_zero(),
+            Err(e) => random::flip(),
         }
     }
 
