@@ -1,6 +1,6 @@
 extern crate num;
 use crate::core::node;
-use std::cmp::Ordering;
+use core::cmp::Ordering;
 
 // util class
 #[derive(Default, Clone, PartialEq, Debug)]

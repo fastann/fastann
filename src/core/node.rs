@@ -1,14 +1,14 @@
 use crate::core::metrics;
 use crate::core::metrics::manhattan_distance;
+use core::fmt::Display;
 use num::traits::{FromPrimitive, NumAssign};
-use std::fmt::Display;
 
 pub trait FloatElement:
     FromPrimitive
     + Sized
     + Default
     + num::Zero
-    + std::fmt::Debug
+    + core::fmt::Debug
     + Clone
     + Copy
     + PartialEq
@@ -19,19 +19,19 @@ pub trait FloatElement:
 {
     // TODO: make it static
     fn float_one() -> Self {
-        return Self::from_f32(1.0).unwrap();
+        Self::from_f32(1.0).unwrap()
     }
 
     fn float_zero() -> Self {
-        return Self::from_f32(0.0).unwrap();
+        Self::from_f32(0.0).unwrap()
     }
 
     fn zero_patch_num() -> Self {
-        return Self::from_f32(1.34e-6_f32).unwrap();
+        Self::from_f32(1.34e-6_f32).unwrap()
     }
 }
 
-pub trait IdxType: Sized + Clone + Default + std::fmt::Debug + Eq + Ord {}
+pub trait IdxType: Sized + Clone + Default + core::fmt::Debug + Eq + Ord {}
 
 #[macro_export]
 macro_rules! to_float_element {
@@ -127,8 +127,8 @@ impl<E: FloatElement, T: IdxType> Node<E, T> {
     }
 }
 
-impl<E: FloatElement, T: IdxType> std::fmt::Display for Node<E, T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl<E: FloatElement, T: IdxType> core::fmt::Display for Node<E, T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         write!(f, "(key: {:#?}, vectors: {:#?})", self.idx, self.vectors)
     }
 }

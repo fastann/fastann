@@ -1,9 +1,9 @@
 use crate::core::ann_index;
+use crate::core::arguments;
 use crate::core::metrics;
 use crate::core::neighbor;
 use crate::core::node;
-use crate::core::parameters;
-use std::cmp::Reverse;
+use core::cmp::Reverse;
 use std::collections::BinaryHeap;
 
 pub struct BruteForceIndex<E: node::FloatElement, T: node::IdxType> {
@@ -12,7 +12,7 @@ pub struct BruteForceIndex<E: node::FloatElement, T: node::IdxType> {
 }
 
 impl<E: node::FloatElement, T: node::IdxType> BruteForceIndex<E, T> {
-    pub fn new(p: parameters::Parameters) -> BruteForceIndex<E, T> {
+    pub fn new() -> BruteForceIndex<E, T> {
         BruteForceIndex::<E, T> {
             nodes: Vec::new(),
             mt: metrics::Metric::Unknown,
@@ -33,7 +33,12 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Brut
         true
     }
     fn reconstruct(&mut self, mt: metrics::Metric) {}
-    fn node_search_k(&self, item: &node::Node<E, T>, k: usize) -> Vec<(node::Node<E, T>, E)> {
+    fn node_search_k(
+        &self,
+        item: &node::Node<E, T>,
+        k: usize,
+        args: &arguments::Arguments,
+    ) -> Vec<(node::Node<E, T>, E)> {
         let mut heap = BinaryHeap::new();
         let mut base = E::default();
         for i in 0..self.nodes.len() {
@@ -62,17 +67,12 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Brut
         result
     }
 
-    fn search_k(&self, item: &[E], k: usize) -> Vec<(node::Node<E, T>, E)> {
-        let n = node::Node::new(item);
-        self.node_search_k(&n, k)
-    }
-
     fn load(&self, path: &str) -> Result<(), &'static str> {
-        std::result::Result::Ok(())
+        Result::Ok(())
     }
 
     fn dump(&self, path: &str) -> Result<(), &'static str> {
-        std::result::Result::Ok(())
+        Result::Ok(())
     }
 
     fn name(&self) -> &'static str {

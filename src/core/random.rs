@@ -10,12 +10,12 @@ pub trait Random<T> {
 // TODO: use random
 pub fn flip() -> bool {
     let mut rng = rand::thread_rng();
-    return rng.gen_range(0, 10) > 5;
+    rng.gen_range(0, 10) > 5
 }
 
 pub fn index(n: usize) -> usize {
     let mut rng = rand::thread_rng();
-    return rng.gen_range(0, n);
+    rng.gen_range(0, n)
 }
 
 pub fn set_seed(n: i32) {}

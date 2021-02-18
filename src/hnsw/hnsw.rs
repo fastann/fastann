@@ -1,12 +1,13 @@
 use crate::core::ann_index;
+use crate::core::arguments;
 use crate::core::metrics;
 use crate::core::neighbor::Neighbor;
 use crate::core::node;
 use ann_index::ANNIndex;
+use hashbrown::HashMap;
+use hashbrown::HashSet;
 use rand::prelude::*;
 use std::collections::BinaryHeap;
-use std::collections::HashMap;
-use std::collections::HashSet;
 
 #[derive(Default, Debug)]
 pub struct HnswIndex<E: node::FloatElement, T: node::IdxType> {
@@ -59,7 +60,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
     fn get_random_level(&self) -> usize {
         let mut rng = rand::thread_rng();
         let mut ret = 0;
-        while (ret < self._max_level) {
+        while ret < self._max_level {
             if rng.gen_range(0.0, 1.0) > 0.5 {
                 ret += 1;
             } else {
@@ -400,7 +401,14 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
             k
         };
 
-        top_candidate = self.search_laryer(cur_id, search_data, 0, search_range, self._has_deletons);
+        let search_range = if self._ef_default > k {
+            self._ef_default
+        } else {
+            k
+        };
+
+        top_candidate =
+            self.search_laryer(cur_id, search_data, 0, search_range, self._has_deletons);
         while top_candidate.len() > k {
             top_candidate.pop();
         }
@@ -515,7 +523,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
 
 impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for HnswIndex<E, T> {
     fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
-        std::result::Result::Ok(())
+        Result::Ok(())
     }
     fn add_node(&mut self, item: &node::Node<E, T>) -> Result<(), &'static str> {
         self.add_item(item)
@@ -524,11 +532,16 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Hnsw
         true
     }
 
-    fn node_search_k(&self, item: &node::Node<E, T>, k: usize) -> Vec<(node::Node<E, T>, E)> {
+    fn node_search_k(
+        &self,
+        item: &node::Node<E, T>,
+        k: usize,
+        args: &arguments::Arguments,
+    ) -> Vec<(node::Node<E, T>, E)> {
         let mut ret: BinaryHeap<Neighbor<E, usize>> = self.search_knn(item, k).unwrap();
         let mut result: Vec<(node::Node<E, T>, E)> = Vec::new();
         let mut result_idx: Vec<(usize, E)> = Vec::new();
-        while (!ret.is_empty()) {
+        while !ret.is_empty() {
             let top = ret.peek().unwrap();
             let top_idx = top.idx();
             let top_distance = top.distance();
@@ -546,11 +559,11 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Hnsw
     }
 
     fn load(&self, path: &str) -> Result<(), &'static str> {
-        std::result::Result::Ok(())
+        Result::Ok(())
     }
 
     fn dump(&self, path: &str) -> Result<(), &'static str> {
-        std::result::Result::Ok(())
+        Result::Ok(())
     }
 
     fn reconstruct(&mut self, mt: metrics::Metric) {}
