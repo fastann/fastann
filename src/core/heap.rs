@@ -1,4 +1,3 @@
-// this lib migrate from official lib, but without std dependency;
 use core::fmt;
 use core::mem::{self, swap, ManuallyDrop};
 use core::ptr;
