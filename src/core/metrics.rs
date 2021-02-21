@@ -69,7 +69,7 @@ where
     Result::Ok(
         vec1.iter()
             .zip(vec2.iter())
-            .map(|v| (v.0.abs() - v.1.abs()))
+            .map(|v| (*v.0 - *v.1).abs())
             .sum(),
     )
 }

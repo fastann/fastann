@@ -2,7 +2,7 @@ use crate::core::arguments;
 use crate::core::metrics;
 use crate::core::node;
 
-pub trait ANNIndex<E: node::FloatElement, T: node::IdxType> {
+pub trait ANNIndex<E: node::FloatElement, T: node::IdxType>: Send + Sync {
     fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str>; // construct algorithm structure
     fn add_node(&mut self, item: &node::Node<E, T>) -> Result<(), &'static str>;
     fn add_without_idx(&mut self, vs: &[E]) -> Result<(), &'static str> {

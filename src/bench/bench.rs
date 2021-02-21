@@ -34,7 +34,7 @@ fn make_normal_distribution_clustering(
 
     let mut bases: Vec<Vec<f64>> = Vec::new();
     let mut ns: Vec<Vec<f64>> = Vec::new();
-    let normal = Normal::new(0.0, (range / 200.0));
+    let normal = Normal::new(0.0, (range / 50.0));
     for i in 0..clustering_n {
         let mut base: Vec<f64> = Vec::with_capacity(dimension);
         for i in 0..dimension {
@@ -61,8 +61,8 @@ fn make_normal_distribution_clustering(
 // run for normal distribution test data
 pub fn run_similarity_profile(test_time: usize) {
     let dimension = 50;
-    let nodes_every_cluster = 2;
-    let node_n = 30000;
+    let nodes_every_cluster = 20;
+    let node_n = 4000;
 
     let (_, ns) =
         make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 10000000.0);
@@ -279,5 +279,5 @@ fn make_idx_baseline<T: ANNIndex<f64, usize> + ?Sized>(embs: Vec<Vec<f64>>, idx:
     for i in 0..embs.len() {
         idx.add_node(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
     }
-    idx.construct(core::metrics::Metric::DotProduct).unwrap();
+    idx.construct(core::metrics::Metric::Manhattan).unwrap();
 }
