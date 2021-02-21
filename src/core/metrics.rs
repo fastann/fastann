@@ -66,7 +66,12 @@ where
     T: FloatElement,
 {
     same_dimension(vec1, vec2)?;
-    Result::Ok(vec1.iter().zip(vec2.iter()).map(|v| (v.0.abs() - v.1.abs())).sum())
+    Result::Ok(
+        vec1.iter()
+            .zip(vec2.iter())
+            .map(|v| (v.0.abs() - v.1.abs()))
+            .sum(),
+    )
 }
 
 pub fn euclidean_distance<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
@@ -74,7 +79,12 @@ where
     T: FloatElement,
 {
     same_dimension(vec1, vec2)?;
-    Result::Ok(vec1.iter().zip(vec2.iter()).map(|v| (*v.0 - *v.1).powi(2)).sum())
+    Result::Ok(
+        vec1.iter()
+            .zip(vec2.iter())
+            .map(|v| (*v.0 - *v.1).powi(2))
+            .sum(),
+    )
 }
 
 pub fn cosine_similarity<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
@@ -101,7 +111,7 @@ where
     let lhd = dot(vec2, vec2).unwrap();
     let rldot = dot(vec1, vec2).unwrap();
     let rlmul = rhd * lhd;
-    let two = T::from_f32(2.0).unwrap();
+    let two = T::float_two();
     if rlmul > T::float_zero() {
         Result::Ok(two - two * rldot / rlmul.sqrt())
     } else {

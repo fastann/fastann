@@ -116,9 +116,9 @@ pub fn run_word_emb_demo() {
     let mut idx = 0;
     for line in reader.lines() {
         if let Ok(l) = line {
-            // if idx == 20000 {
-            //     break;
-            // }
+            if idx == 80000 {
+                break;
+            }
             let split_line = l.split(" ").collect::<Vec<&str>>();
             let word = split_line[0];
             let mut vecs = Vec::with_capacity(split_line.len() - 1);
@@ -222,5 +222,5 @@ fn make_idx_baseline<T: ANNIndex<f64, usize> + ?Sized>(embs: Vec<Vec<f64>>, idx:
     for i in 0..embs.len() {
         idx.add_node(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
     }
-    idx.construct(core::metrics::Metric::Euclidean).unwrap();
+    idx.construct(core::metrics::Metric::DotProduct).unwrap();
 }
