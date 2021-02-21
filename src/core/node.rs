@@ -2,6 +2,7 @@ use crate::core::metrics;
 use crate::core::metrics::manhattan_distance;
 use core::fmt::Display;
 use num::traits::{FromPrimitive, NumAssign};
+use core::iter::Sum;
 
 pub trait FloatElement:
     FromPrimitive
@@ -18,6 +19,7 @@ pub trait FloatElement:
     + num::Float
     + Sync
     + Send
+    + Sum
 {
     // TODO: make it static
     fn float_one() -> Self {

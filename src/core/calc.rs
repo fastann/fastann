@@ -15,11 +15,7 @@ where
     T: FloatElement,
 {
     same_dimension(vec1, vec2)?;
-    let mut res = T::default();
-    for i in 0..vec1.len() {
-        res += vec1[i] * vec2[i];
-    }
-    Result::Ok(res)
+    Result::Ok(vec1.iter().zip(vec2.iter()).map(|v| *v.0 * *v.1).sum())
 }
 
 pub fn same_dimension<T>(vec1: &[T], vec2: &[T]) -> Result<(), &'static str>

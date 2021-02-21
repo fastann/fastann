@@ -320,7 +320,6 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         end: usize,
     ) -> E {
         return metrics::metric(&x.vectors()[begin..end], y, self._metri).unwrap();
-        // return metrics::euclidean_distance_range(x.vectors(), y, begin, end).unwrap();
     }
 
     pub fn search_knn_adc(
