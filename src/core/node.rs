@@ -2,6 +2,7 @@ use crate::core::metrics;
 use crate::core::metrics::manhattan_distance;
 use core::fmt::Display;
 use num::traits::{FromPrimitive, NumAssign};
+use core::iter::Sum;
 
 pub trait FloatElement:
     FromPrimitive
@@ -16,6 +17,9 @@ pub trait FloatElement:
     + NumAssign
     + num::Signed
     + num::Float
+    + Sync
+    + Send
+    + Sum
 {
     // TODO: make it static
     fn float_one() -> Self {
@@ -31,7 +35,7 @@ pub trait FloatElement:
     }
 }
 
-pub trait IdxType: Sized + Clone + Default + core::fmt::Debug + Eq + Ord {}
+pub trait IdxType: Sized + Clone + Default + core::fmt::Debug + Eq + Ord + Sync + Send {}
 
 #[macro_export]
 macro_rules! to_float_element {

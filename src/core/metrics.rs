@@ -66,11 +66,7 @@ where
     T: FloatElement,
 {
     same_dimension(vec1, vec2)?;
-    let mut res = T::default();
-    for i in 0..vec1.len() {
-        res += vec1[i].abs() - vec2[i].abs();
-    }
-    Result::Ok(res.abs())
+    Result::Ok(vec1.iter().zip(vec2.iter()).map(|v| (v.0.abs() - v.1.abs())).sum())
 }
 
 pub fn euclidean_distance<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
@@ -78,12 +74,7 @@ where
     T: FloatElement,
 {
     same_dimension(vec1, vec2)?;
-    let mut res = T::default();
-    for i in 0..vec1.len() {
-        let diff = vec1[i] - vec2[i];
-        res += diff * diff;
-    }
-    Result::Ok(res.sqrt())
+    Result::Ok(vec1.iter().zip(vec2.iter()).map(|v| (*v.0 - *v.1).powi(2)).sum())
 }
 
 pub fn cosine_similarity<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
