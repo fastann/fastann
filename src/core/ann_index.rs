@@ -13,6 +13,17 @@ pub trait ANNIndex<E: node::FloatElement, T: node::IdxType> {
         let n = node::Node::new_with_idx(vs, idx);
         self.add_node(&n)
     }
+
+    fn batch_add(&mut self, vss: &[&[E]], indices: &[T]) -> Result<(), &'static str> {
+        for idx in 0..vss.len() {
+            let n = node::Node::new_with_idx(vss[idx], indices[idx].clone());
+            match self.add_node(&n) {
+                Err(err) => return Err(err),
+                _ => (),
+            }
+        }
+        Ok(())
+    }
     fn once_constructed(&self) -> bool; // has already been constructed?
     fn reconstruct(&mut self, mt: metrics::Metric);
     fn node_search_k(
