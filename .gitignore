@@ -3,3 +3,4 @@
 /src/bench/*.txt
 /src/bench/*.zip
 /src/bench/*.tar.gz
+*.svg
