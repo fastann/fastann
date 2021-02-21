@@ -243,7 +243,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         self._dimension
     }
 
-    pub fn get_K(&self) -> i32 {
+    pub fn get_k(&self) -> i32 {
         self._leaf_max_items
     }
 
@@ -359,12 +359,13 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         let mut new_parent_leaf = Leaf::new();
         let mut children_indices: [Vec<i32>; 2] = [Vec::new(), Vec::new()];
 
-        const attempt: usize = 5;
+        const ATTEMPT: usize = 5;
         // find split hyperplane
-        for i in 0..attempt {
+        for i in 0..ATTEMPT {
             children_indices[0].clear();
             children_indices[1].clear();
-            self.create_split(children.as_slice(), &mut new_parent_leaf, mt);
+            self.create_split(children.as_slice(), &mut new_parent_leaf, mt)
+                .unwrap();
 
             for i in 1..indices.len() {
                 let leaf_idx = indices[i];

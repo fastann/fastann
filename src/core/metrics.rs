@@ -4,12 +4,6 @@ use crate::core::calc::same_dimension;
 use crate::core::node::FloatElement;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum Comparison {
-    Bigger,
-    Smaller,
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Metric {
     Unknown,
     Manhattan,
@@ -41,6 +35,7 @@ where
     }
 }
 
+#[allow(dead_code)]
 pub fn range_metric<T>(
     vec1: &[T],
     vec2: &[T],
@@ -121,17 +116,4 @@ where
     } else {
         Result::Ok(two)
     }
-}
-
-pub fn euclidean_distance_range<T>(
-    vec1: &[T],
-    vec2: &[T],
-    begin: usize,
-    end: usize,
-) -> Result<T, &'static str>
-where
-    T: FloatElement,
-{
-    same_dimension(vec1, vec2)?;
-    euclidean_distance(&vec1[begin..end], &vec2[begin..end])
 }
