@@ -56,7 +56,7 @@ fn make_normal_distribution_clustering(
 // run for normal distribution test data
 pub fn run_similarity_profile(test_time: usize) {
     let dimension = 2;
-    let nodes = 2000;
+    let nodes = 20000;
 
     let (_, ns) = make_normal_distribution_clustering(10, nodes, dimension, 1000.0);
     let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new());
@@ -73,15 +73,15 @@ pub fn run_similarity_profile(test_time: usize) {
         false,
     ));
 
-    // let mut pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(
-    //     dimension,
-    //     10,
-    //     4,
-    //     100,
-    //     core::metrics::Metric::DotProduct,
-    // ));
+    let mut pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(
+        dimension,
+        dimension / 2,
+        4,
+        100,
+        core::metrics::Metric::DotProduct,
+    ));
 
-    let mut indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bpforest_idx];
+    let mut indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bpforest_idx, hnsw_idx, pq_idx];
     let mut accuracy= Vec::new();
     let mut cost= Vec::new();
     for i in 0..indices.len() {
