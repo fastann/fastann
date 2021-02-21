@@ -8,15 +8,18 @@ use crate::hnsw;
 use crate::pq;
 use hashbrown::HashMap;
 use pq::pq::PQIndex;
+use prgrs::{writeln, Length, Prgrs};
 use rand::distributions::{Alphanumeric, StandardNormal, Uniform};
 use rand::distributions::{Distribution, Normal};
 use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
+use rayon::prelude::*;
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
 use std::path::Path;
-use std::time::{SystemTime, UNIX_EPOCH, Duration};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 fn make_normal_distribution_clustering(
     clustering_n: usize,
@@ -31,20 +34,22 @@ fn make_normal_distribution_clustering(
 
     let mut bases: Vec<Vec<f64>> = Vec::new();
     let mut ns: Vec<Vec<f64>> = Vec::new();
+    let normal = Normal::new(0.0, (range / 200.0));
     for i in 0..clustering_n {
         let mut base: Vec<f64> = Vec::with_capacity(dimension);
         for i in 0..dimension {
-            let n: f64 = rng.gen_range(0.0, range); // base number
+            let n: f64 = rng.gen_range(-range, range); // base number
             base.push(n);
         }
 
         for i in 0..node_n {
-            let v_iter: Vec<f64> = rng.sample_iter(&StandardNormal).take(dimension).collect();
+            let v_iter: Vec<f64> = rng.sample_iter(&normal).take(dimension).collect();
             let mut vec_item = Vec::with_capacity(dimension);
             for i in 0..dimension {
                 let vv = v_iter[i] + base[i]; // add normal distribution noise
                 vec_item.push(vv);
             }
+            // println!("{:?}", vec_item);
             ns.push(vec_item);
         }
         bases.push(base);
@@ -55,13 +60,16 @@ fn make_normal_distribution_clustering(
 
 // run for normal distribution test data
 pub fn run_similarity_profile(test_time: usize) {
-    let dimension = 2;
-    let nodes = 20000;
+    let dimension = 50;
+    let nodes_every_cluster = 2;
+    let node_n = 30000;
 
-    let (_, ns) = make_normal_distribution_clustering(10, nodes, dimension, 1000.0);
+    let (_, ns) =
+        make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 10000000.0);
     let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new());
-    let mut bpforest_idx =
-        Box::new(bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(dimension, 6, -1));
+    let mut bpforest_idx = Box::new(
+        bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(dimension, 6, -1),
+    );
     let mut hnsw_idx = Box::new(hnsw::hnsw::HnswIndex::<f64, usize>::new(
         dimension,
         2,
@@ -81,50 +89,65 @@ pub fn run_similarity_profile(test_time: usize) {
         core::metrics::Metric::DotProduct,
     ));
 
-    let mut indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bpforest_idx, hnsw_idx, pq_idx];
-    let mut accuracy= Vec::new();
-    let mut cost= Vec::new();
+    let mut indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bpforest_idx];
+    let mut accuracy = Arc::new(Mutex::new(Vec::new()));
+    let mut cost = Arc::new(Mutex::new(Vec::new()));
+    let mut base_cost = Arc::new(Mutex::new(Duration::default()));
     for i in 0..indices.len() {
         make_idx_baseline(ns.clone(), &mut indices[i]);
-        accuracy.push(0.);
-        cost.push(Duration::default());
+        accuracy.lock().unwrap().push(0.);
+        cost.lock().unwrap().push(Duration::default());
     }
     make_idx_baseline(ns.clone(), &mut bf_idx);
 
-    for i in 0..test_time {
+    for i in Prgrs::new(0..test_time, 1000).set_length_move(Length::Proportional(0.5)) {
+        // (0..test_time).into_par_iter().for_each(|_| {
         let mut rng = rand::thread_rng();
 
         let target: usize = rng.gen_range(0, ns.len());
         let w = ns.get(target).unwrap();
 
+        let base_start = SystemTime::now();
         let base_result = bf_idx.search_k(&w, 100);
         let mut base_set = HashSet::new();
-        for (n, d) in base_result.iter() {
+        for (n, _) in base_result.iter() {
             base_set.insert(n.idx().unwrap().clone());
         }
+        let base_since_the_epoch = SystemTime::now()
+            .duration_since(base_start)
+            .expect("Time went backwards");
+        *base_cost.lock().unwrap() += base_since_the_epoch;
 
         for j in 0..indices.len() {
             let start = SystemTime::now();
             let result = indices[j].search_k(&w, 100);
-            for (n, d) in base_result.iter() {
-                if (base_set.contains(&n.idx().unwrap())) {
-                    accuracy[j] += 1.0;
+            for (n, _) in result.iter() {
+                if base_set.contains(&n.idx().unwrap()) {
+                    accuracy.lock().unwrap()[j] += 1.0;
                 }
             }
             let since_the_epoch = SystemTime::now()
                 .duration_since(start)
                 .expect("Time went backwards");
-            cost[j] += since_the_epoch;
+            cost.lock().unwrap()[j] += since_the_epoch;
         }
     }
+    // });
 
-    println!("test for {:?} times", test_time);
+    println!(
+        "test for {:?} times, nodes {:?}, base use {:?} millisecond",
+        test_time,
+        nodes_every_cluster * node_n,
+        base_cost.lock().unwrap().as_millis() as f64 / (test_time as f64)
+    );
     for i in 0..indices.len() {
+        let a = accuracy.lock().unwrap()[i];
         println!(
-            "index: {:?}, avg accuracy: {:?}, avg cost {:?} millisecond",
+            "index: {:?}, avg accuracy: {:?}, hit {:?}, avg cost {:?} millisecond",
             indices[i].name(),
-            accuracy[i] / (test_time as f64),
-            cost[i].as_millis() as f64 / (test_time as f64),
+            a / (test_time as f64),
+            a,
+            cost.lock().unwrap()[i].as_millis() as f64 / (test_time as f64),
         );
     }
 }

@@ -176,6 +176,7 @@ dependencies = [
  "log",
  "num",
  "pprof",
+ "prgrs",
  "rand 0.7.3",
  "rayon",
 ]
@@ -540,6 +541,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac74c624d6b2d21f425f752262f42188365d7b8ff1aff74c82e45136510a4857"
 
 [[package]]
+name = "prgrs"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "655a23d5a5a5b57776f2a7c1e9cfebcec4db24faf0e1654d1d7765212a2c62e9"
+dependencies = [
+ "terminal_size",
+]
+
+[[package]]
 name = "proc-macro2"
 version = "1.0.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -804,6 +814,16 @@ dependencies = [
  "rand 0.8.3",
  "redox_syscall",
  "remove_dir_all",
+ "winapi",
+]
+
+[[package]]
+name = "terminal_size"
+version = "0.1.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "86ca8ced750734db02076f44132d802af0b33b09942331f4459dde8636fd2406"
+dependencies = [
+ "libc",
  "winapi",
 ]
 
