@@ -10,3 +10,4 @@ rand = "0.7.3"
 log = "0.4"
 hashbrown = "0.9.1"
 rayon = "1.5"
+pprof = { version = "0.4", features = ["flamegraph"] } 

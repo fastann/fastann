@@ -16,6 +16,8 @@ pub trait FloatElement:
     + NumAssign
     + num::Signed
     + num::Float
+    + Sync
+    + Send
 {
     // TODO: make it static
     fn float_one() -> Self {
@@ -31,7 +33,7 @@ pub trait FloatElement:
     }
 }
 
-pub trait IdxType: Sized + Clone + Default + core::fmt::Debug + Eq + Ord {}
+pub trait IdxType: Sized + Clone + Default + core::fmt::Debug + Eq + Ord + Sync + Send {}
 
 #[macro_export]
 macro_rules! to_float_element {
