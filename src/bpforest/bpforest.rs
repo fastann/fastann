@@ -218,7 +218,13 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         self._tot_leaves_cnt = self._tot_items_cnt; // init with build.
         self._build(self._tree_num, self.mt);
         self._built = true;
-        debug!("tree number: {:?}, leaves: {:?}, items: {:?}, leaf size: {:?}", self._tree_num, self._tot_leaves_cnt, self._tot_items_cnt, self.get_k());
+        debug!(
+            "tree number: {:?}, leaves: {:?}, items: {:?}, leaf size: {:?}",
+            self._tree_num,
+            self._tot_leaves_cnt,
+            self._tot_items_cnt,
+            self.get_k()
+        );
         return Ok(());
     }
 

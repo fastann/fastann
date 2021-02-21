@@ -6,5 +6,5 @@ mod hnsw;
 mod pq;
 
 fn main() {
-    bench::bench::run_word_emb_demo();
+    bench::bench::run_similarity_profile(1000);
 }
