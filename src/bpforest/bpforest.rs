@@ -607,7 +607,7 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
         &self,
         item: &node::Node<E, T>,
         k: usize,
-        args: &arguments::Arguments,
+        args: &arguments::Args,
     ) -> Vec<(node::Node<E, T>, E)> {
         self._search_k(item.vectors(), k).unwrap()
     }
