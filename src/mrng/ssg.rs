@@ -8,6 +8,7 @@ use core::cmp::Reverse;
 use rand::prelude::*;
 extern crate num;
 use core::cmp::Ordering;
+use std::collections::VecDeque;
 
 // TODO: migrate to neighbor
 #[derive(Default, Clone, PartialEq, Debug)]
@@ -57,6 +58,7 @@ pub struct SatelliteSystemGraphIndex<E: node::FloatElement, T: node::IdxType> {
     graph: Vec<Vec<usize>>, // as final_graph_
     init_k: usize,          // as knn's k
     ep_: usize,
+    eps: Vec<usize>,
 }
 
 impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
@@ -69,6 +71,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
             init_k: init_k,
             graph: Vec::new(),
             ep_: 0,
+            eps: Vec::new(),
         }
     }
 
@@ -164,7 +167,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
             }
             left -= 1;
         }
-        if (addr[left].idx() == nn.idx() || addr[right].idx() == nn.idx()) {
+        if addr[left].idx() == nn.idx() || addr[right].idx() == nn.idx() {
             return k + 1;
         }
         addr[right] = nn.clone();
@@ -228,6 +231,103 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
                 }
             }
         }
+    }
+
+    fn get_point_neighbors_v2(&self, q:usize, pool: &mut Vec<SubNeighbor<E, usize>>) {
+        let flags = vec![false; self.nodes.len()];
+        let L = 5;
+
+        flags[q] = true;
+        for i in 0..self.graph[q].len() {
+            let nid = self.graph[q][i];
+            for nn in self.graph[nid].len() {
+                let nnid = self.graph[nid][nn];
+                if flags[nnid] {
+                    continue;
+                }
+                flags[nnid] = true;
+                let dist = self.nodes[q].metric(&self.nodes[nnid], self.mt).unwrap();
+                pool.push(SubNeighbor::new(nnid,dist,true));
+                if pool.len() >= L {
+                    return;
+                }
+            }
+        }
+    }
+
+    fn expand_dfs(&mut self) {
+        let n_try = 5; // TODO: Params
+        let range = 10; // TODO: Params
+
+        let mut ids: Vec<usize> = (0..self.nodes.len()).collect();
+        ids.shuffle(&mut thread_rng());
+        for i in 0..n_try {
+            self.eps.push(ids[i]);
+        }
+
+        for i in 0..n_try {
+            let root_id = self.eps[i];
+            let mut flags = vec![false; self.nodes.len()];
+            let mut my_queue = VecDeque::new();
+            my_queue.push_back(root_id);
+            flags[root_id] = true;
+
+            let mut unknown_set: Vec<usize> = Vec::with_capacity(1);
+            while unknown_set.len() > 0 {
+                while (!my_queue.is_empty()) {
+                    let q_front = my_queue.pop_front().unwrap();
+
+                    for j in 0..self.graph[q_front].len() {
+                        let child = self.graph[q_front][j];
+                        if flags[child] {
+                            continue;
+                        }
+                        flags[child] = true;
+                        my_queue.push_back(child);
+                    }
+                }
+                unknown_set.clear();
+                for j in 0..self.nodes.len() {
+                    if flags[j] {
+                        continue;
+                    }
+                    unknown_set.push(j);
+                }
+                if unknown_set.len() > 0 {
+                    for j in 0..self.nodes.len() {
+                        if flags[j] && self.graph[j].len() < range {
+                            self.graph[j].push(unknown_set[0]);
+                            break;
+                        }
+                    }
+                    my_queue.push_back(unknown_set[0]);
+                    flags[unknown_set[0]] = true;
+                }
+            }
+        }
+    }
+
+    fn link(&self, cut_graph: &Vec<node::Neighbor<E, usize>>) {
+        let range = 5;
+        let angle :f32= 0.5;
+        let threshold : f32= (angle/180.0 * 3.14).cos();
+        let pool = Vec::new();
+        let tmp = Vec::new();
+        for i in 0..self.nodes.len() {
+            pool.clear();
+            tmp.clear();
+
+        }
+    }
+
+    fn build(&mut self) {
+        let range = 5;
+
+        self.build_knn_graph();
+        self.initialize_graph();
+
+        let cut_graph :Vec<node::Neighbor<E, usize>> = Vec::with_capacity(self.nodes.len() * range);
+
     }
 }
 
