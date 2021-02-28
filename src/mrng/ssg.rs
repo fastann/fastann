@@ -11,7 +11,7 @@ use core::cmp::Ordering;
 use std::collections::VecDeque;
 
 // TODO: migrate to neighbor
-#[derive(Default, Clone, PartialEq, Debug)]
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct SubNeighbor<E: node::FloatElement, T: node::IdxType> {
     pub _idx: T,
     pub _distance: E,
@@ -59,6 +59,7 @@ pub struct SatelliteSystemGraphIndex<E: node::FloatElement, T: node::IdxType> {
     init_k: usize,          // as knn's k
     ep_: usize,
     eps: Vec<usize>,
+    width: usize,
 }
 
 impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
@@ -72,6 +73,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
             graph: Vec::new(),
             ep_: 0,
             eps: Vec::new(),
+            width: 0,
         }
     }
 
@@ -233,21 +235,21 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         }
     }
 
-    fn get_point_neighbors_v2(&self, q:usize, pool: &mut Vec<SubNeighbor<E, usize>>) {
-        let flags = vec![false; self.nodes.len()];
+    fn get_point_neighbors_v2(&self, q: usize, pool: &mut Vec<SubNeighbor<E, usize>>) {
+        let mut flags = vec![false; self.nodes.len()];
         let L = 5;
 
         flags[q] = true;
         for i in 0..self.graph[q].len() {
             let nid = self.graph[q][i];
-            for nn in self.graph[nid].len() {
+            for nn in 0..self.graph[nid].len() {
                 let nnid = self.graph[nid][nn];
                 if flags[nnid] {
                     continue;
                 }
                 flags[nnid] = true;
                 let dist = self.nodes[q].metric(&self.nodes[nnid], self.mt).unwrap();
-                pool.push(SubNeighbor::new(nnid,dist,true));
+                pool.push(SubNeighbor::new(nnid, dist, true));
                 if pool.len() >= L {
                     return;
                 }
@@ -307,16 +309,177 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         }
     }
 
-    fn link(&self, cut_graph: &Vec<node::Neighbor<E, usize>>) {
+    fn link(&mut self, cut_graph: &mut Vec<neighbor::Neighbor<E, usize>>) {
         let range = 5;
-        let angle :f32= 0.5;
-        let threshold : f32= (angle/180.0 * 3.14).cos();
-        let pool = Vec::new();
-        let tmp = Vec::new();
+        let angle = E::from_f32(0.5).unwrap();
+        let threshold = (angle / E::from_f32(180.0).unwrap() * E::from_f32(3.14).unwrap()).cos();
+        let mut pool = Vec::new();
+        let mut tmp: Vec<SubNeighbor<E, usize>> = Vec::new();
         for i in 0..self.nodes.len() {
             pool.clear();
             tmp.clear();
+            self.get_point_neighbors_v2(i, &mut pool);
+            self.sync_prune(i, &mut pool, threshold, cut_graph);
+        }
+        for i in 0..self.nodes.len() {
+            self.inter_insert(i, range, threshold, cut_graph);
+        }
+    }
 
+    fn sync_prune(
+        &mut self,
+        q: usize,
+        pool: &mut Vec<SubNeighbor<E, usize>>,
+        threshold: E,
+        cut_graph: &mut Vec<neighbor::Neighbor<E, usize>>,
+    ) {
+        let range = 5;
+        self.width = range;
+        let mut start = 0;
+        let mut flags = vec![false; self.nodes.len()];
+        for i in 0..pool.len() {
+            flags[pool[i].idx()] = true;
+        }
+        for nn in 0..self.graph[q].len() {
+            let id = self.graph[q][nn];
+            if flags[id] {
+                continue;
+            }
+            pool.push(SubNeighbor::new(
+                id,
+                self.nodes[q].metric(&self.nodes[id], self.mt).unwrap(),
+                true,
+            ));
+        }
+        pool.sort();
+        let mut result = Vec::new();
+        if pool[start].idx() == 1 {
+            start += 1;
+        }
+        result.push(pool[start]);
+
+        start += 1;
+        while result.len() < range && start < pool.len() {
+            let p = pool[start];
+            let mut occlude = false;
+            for t in 0..result.len() {
+                if p.idx() == result[t].idx() {
+                    occlude = true;
+                    break;
+                }
+                let djk = self.nodes[result[t].idx()]
+                    .metric(&self.nodes[p.idx()], self.mt)
+                    .unwrap();
+                let cos_ij = (p.distance() + result[t].distance() - djk)
+                    / E::from_usize(2).unwrap()
+                    / (p.distance() * result[t].distance()).sqrt();
+
+                if cos_ij > threshold {
+                    occlude = true;
+                    break;
+                }
+            }
+            if !occlude {
+                result.push(p.clone());
+            }
+            start += 1;
+        }
+
+        let des_pool = &mut cut_graph[q..];
+        for t in 0..result.len() {
+            des_pool[t]._idx = result[t].idx();
+            des_pool[t]._distance = result[t].distance();
+        }
+        if result.len() < range {
+            des_pool[result.len()]._distance = E::from_isize(-1).unwrap();
+        }
+    }
+
+    fn inter_insert(
+        &self,
+        n: usize,
+        range: usize,
+        threshold: E,
+        cut_graph: &mut Vec<neighbor::Neighbor<E, usize>>,
+    ) {
+        let mut src_pool = Vec::new();
+        cut_graph[n..].clone_from_slice(&src_pool);
+        for i in 0..range {
+            if src_pool[i].distance() == E::from_isize(-1).unwrap() {
+                break;
+            }
+
+            let sn = neighbor::Neighbor::new(n, src_pool[i].distance());
+            let des = src_pool[i].idx();
+            let des_pool = &mut cut_graph[des..];
+            let mut temp_pool = Vec::new();
+            let mut dup = 0;
+
+            for j in 0..range {
+                if des_pool[j].distance() == E::from_isize(-1).unwrap() {
+                    break;
+                }
+                if n == des_pool[j].idx() {
+                    dup = 1;
+                    break;
+                }
+                temp_pool.push(des_pool[j].clone());
+            }
+
+            if dup == 1 {
+                continue;
+            }
+
+            temp_pool.push(sn.clone());
+            if temp_pool.len() > range {
+                let mut result = Vec::new();
+                let mut start = 0;
+                temp_pool.sort();
+                result.push(temp_pool[start].clone());
+                start += 1;
+                while result.len() < range && start < temp_pool.len() {
+                    let p = &temp_pool[start];
+                    let mut occlude = false;
+                    for t in 0..result.len() {
+                        if p.idx() == result[t].idx() {
+                            occlude = true;
+                            break;
+                        }
+                        let djk = self.nodes[result[t].idx()]
+                            .metric(&self.nodes[p.idx()], self.mt)
+                            .unwrap();
+                        let cos_ij = (p.distance() + result[t].distance() - djk)
+                            / E::from_usize(2).unwrap()
+                            / (p.distance() * result[t].distance()).sqrt();
+
+                        if cos_ij > threshold {
+                            occlude = true;
+                            break;
+                        }
+                    }
+                    if !occlude {
+                        result.push(p.clone());
+                    }
+                    start += 1;
+                }
+                for t in 0..result.len() {
+                    des_pool[t] = result[t].clone();
+                }
+
+                if result.len() < range {
+                    des_pool[result.len()]._distance = E::from_isize(-1).unwrap();
+                }
+            } else {
+                for t in 0..range {
+                    if des_pool[t].distance() == E::from_isize(-1).unwrap() {
+                        des_pool[t] = sn.clone();
+                        if (t + 1) < range {
+                            des_pool[t]._distance = E::from_isize(-1).unwrap();
+                            break;
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -326,8 +489,38 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         self.build_knn_graph();
         self.initialize_graph();
 
-        let cut_graph :Vec<node::Neighbor<E, usize>> = Vec::with_capacity(self.nodes.len() * range);
+        let mut cut_graph: Vec<neighbor::Neighbor<E, usize>> =
+            Vec::with_capacity(self.nodes.len() * range);
+        self.link(&mut cut_graph);
 
+        for i in 0..self.nodes.len() {
+            let pool = &cut_graph[i..];
+            let mut pool_size = 0;
+            for j in 0..range {
+                if pool[j].distance() == E::from_isize(-1).unwrap() {
+                    break;
+                }
+                pool_size = j;
+            }
+            pool_size += 1;
+            self.graph[i] = Vec::with_capacity(pool_size);
+            for j in 0..pool_size {
+                self.graph[i][j] = pool[j].idx();
+            }
+        }
+
+        self.expand_dfs();
+
+        let mut max = 0;
+        let mut min = self.nodes.len();
+        let mut avg: f32 = 0.;
+        for t in 0..self.nodes.len() {
+            let size = self.graph[t].len();
+            max = if max < size { size } else { max };
+            min = if min > size { size } else { min };
+            avg += size as f32;
+        }
+        avg /= 1.0 * self.nodes.len() as f32;
     }
 }
 
