@@ -60,6 +60,7 @@ pub struct SatelliteSystemGraphIndex<E: node::FloatElement, T: node::IdxType> {
     ep_: usize,
     eps: Vec<usize>,
     width: usize,
+    opt_graph: Vec<Vec<usize>>,
 }
 
 impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
@@ -74,6 +75,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
             ep_: 0,
             eps: Vec::new(),
             width: 0,
+            opt_graph: Vec::new(),
         }
     }
 
@@ -522,6 +524,135 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         }
         avg /= 1.0 * self.nodes.len() as f32;
     }
+
+    fn search_with_opt_graph() {}
+
+    fn optimize_graph(&mut self, data: &[E]) {}
+
+    fn search(&mut self, query: &node::Node<E, T>, k: usize) {
+        let L = 5;
+        let mut result_set = Vec::new();
+        let mut init_ids = Vec::new();
+        let mut flags = vec![false; self.nodes.len()];
+
+        self.get_random_nodes_idx(&mut init_ids);
+        assert!(self.eps.len() < L);
+        for i in 0..self.eps.len() {
+            init_ids[i] = self.eps[i];
+        }
+
+        for i in 0..L {
+            let id = init_ids[i];
+            let dist = self.nodes[id].metric(query, self.mt).unwrap();
+            result_set.push(SubNeighbor::new(id, dist, true));
+            flags[id] = true;
+        }
+        result_set.sort();
+        let mut k = 0;
+        while k < L {
+            let mut nk = L;
+
+            if result_set[k].flag {
+                result_set[k].flag = false;
+                let n = result_set[k].idx();
+
+                for m in 0..self.graph[n].len() {
+                    let id = self.graph[n][m];
+                    if flags[id] {
+                        continue;
+                    }
+                    flags[id] = true;
+                    let dist = self.nodes[id].metric(query, self.mt).unwrap();
+                    if dist >= result_set[L - 1].distance() {
+                        continue;
+                    }
+                    let nn = SubNeighbor::new(id, dist, true);
+                    let r = self.insert_into_pools(&mut result_set, L, &nn);
+                    if r < nk {
+                        nk = r;
+                    }
+                }
+            }
+            if nk <= k {
+                k = nk;
+            } else {
+                k += 1;
+            }
+        }
+
+        // return top K result;
+    }
+
+    fn check_edge(&self, h: usize, t: usize) -> bool {
+        let mut flag = true;
+        for i in 0..self.graph[h].len() {
+            if t == self.graph[h][i] {
+                flag = false;
+            }
+        }
+        return flag;
+    }
+
+    fn dfs(
+        &mut self,
+        flags: &mut [bool],
+        edges: &mut Vec<(usize, usize)>,
+        root: usize,
+        cnt: &mut usize,
+    ) {
+        let mut tmp = root;
+        let mut s = Vec::new(); // as stack
+        s.push(root.clone());
+        if !flags[root] {
+            *cnt += 1;
+        }
+        flags[root] = true;
+        while !s.is_empty() {
+            let next = self.nodes.len();
+            for i in 0..self.graph[tmp].len() {
+                if !flags[self.graph[tmp][i]] {
+                    let next = self.graph[tmp][i];
+                    break;
+                }
+            }
+
+            if next == self.nodes.len() {
+                let head = s.pop().unwrap();
+                if s.is_empty() {
+                    break;
+                }
+                tmp = s[s.len() - 1];
+                let tail = tmp;
+                if self.check_edge(head, tail) {
+                    edges.push((head, tail));
+                }
+                continue;
+            }
+            tmp = next;
+            flags[tmp] = true;
+            s.push(tmp.clone());
+            *cnt += 1;
+        }
+    }
+
+    // fn strong_connect(&self) {
+    //     let n_try = 5;
+    //     let edges_all = Vec::new();
+
+    //     for i in 0..n_try {
+    //         let root = rand::thread_rng().gen_range(0..self.nodes.len());
+    //         flags = vec![false;self.nodes.len()];
+    //         let unlinked_cnt = 0;
+    //         let edges = Vec::new();
+    //         while unlinked_cnt < self.nodes.len() {
+    //             self.dfs(flags,edges,root,unlinked_cnt);
+    //             if unlinked_cnt >= self.nodes.len() {
+    //                 break;
+    //             }
+
+    //         }
+    //     }
+    // }
 }
 
 impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
