@@ -1,10 +1,10 @@
 use crate::core::ann_index;
 use crate::core::arguments;
+use crate::core::heap::BinaryHeap;
 use crate::core::metrics;
 use crate::core::neighbor;
 use crate::core::node;
 use core::cmp::Reverse;
-use std::collections::BinaryHeap;
 
 pub struct BruteForceIndex<E: node::FloatElement, T: node::IdxType> {
     nodes: Vec<Box<node::Node<E, T>>>,
@@ -39,8 +39,8 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Brut
         k: usize,
         args: &arguments::Arguments,
     ) -> Vec<(node::Node<E, T>, E)> {
+        // let start = SystemTime::now();
         let mut heap = BinaryHeap::new();
-        let mut base = E::default();
         for i in 0..self.nodes.len() {
             heap.push(neighbor::Neighbor::new(
                 // use max heap, and every time pop out the greatest one in the heap
@@ -49,11 +49,29 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Brut
             ));
             if heap.len() > k {
                 let xp = heap.pop().unwrap();
-                if xp.distance() > base {
-                    base = xp.distance();
-                }
             }
         }
+        // let since_the_epoch = SystemTime::now()
+        //     .duration_since(start)
+        //     .expect("Time went backwards");
+        // println!("{:?}: {:?}", "general", since_the_epoch);
+
+        // let start = SystemTime::now();
+        // let atomic_heap = Arc::new(Mutex::new(BinaryHeap::new()));
+        // (0..self.nodes.len()).into_par_iter().for_each(|i| {
+        //     let m = item.metric(&self.nodes[i], self.mt).unwrap();
+        //     atomic_heap.lock().unwrap().push(neighbor::Neighbor::new(
+        //         // use max heap, and every time pop out the greatest one in the heap
+        //         i, m,
+        //     ));
+        //     if atomic_heap.lock().unwrap().len() > k {
+        //         atomic_heap.lock().unwrap().pop().unwrap();
+        //     }
+        // });
+        // let since_the_epoch = SystemTime::now()
+        //     .duration_since(start)
+        //     .expect("Time went backwards");
+        // println!("{:?}: {:?}", "parallelism", since_the_epoch);
 
         let mut result = Vec::new();
         while !heap.is_empty() {

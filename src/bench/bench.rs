@@ -8,104 +8,147 @@ use crate::hnsw;
 use crate::pq;
 use hashbrown::HashMap;
 use pq::pq::PQIndex;
+use prgrs::{writeln, Length, Prgrs};
 use rand::distributions::{Alphanumeric, StandardNormal, Uniform};
 use rand::distributions::{Distribution, Normal};
 use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
+use rayon::prelude::*;
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
 use std::path::Path;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 fn make_normal_distribution_clustering(
     clustering_n: usize,
     node_n: usize,
-    test_n: usize,
     dimension: usize,
     range: f64,
 ) -> (
     Vec<Vec<f64>>, // center of cluster
     Vec<Vec<f64>>, // cluster data
-    Vec<Vec<f64>>, // test data
 ) {
     let mut rng = rand::thread_rng();
 
     let mut bases: Vec<Vec<f64>> = Vec::new();
     let mut ns: Vec<Vec<f64>> = Vec::new();
-    let mut ts: Vec<Vec<f64>> = Vec::new();
+    let normal = Normal::new(0.0, (range / 50.0));
     for i in 0..clustering_n {
-        let mut base: Vec<f64> = Vec::new();
+        let mut base: Vec<f64> = Vec::with_capacity(dimension);
         for i in 0..dimension {
-            let n: f64 = rng.gen_range(0.0, range); // base number
+            let n: f64 = rng.gen_range(-range, range); // base number
             base.push(n);
         }
 
         for i in 0..node_n {
-            let v_iter: Vec<f64> = rng.sample_iter(&StandardNormal).take(dimension).collect();
-            let mut vec_item = Vec::new();
+            let v_iter: Vec<f64> = rng.sample_iter(&normal).take(dimension).collect();
+            let mut vec_item = Vec::with_capacity(dimension);
             for i in 0..dimension {
                 let vv = v_iter[i] + base[i]; // add normal distribution noise
                 vec_item.push(vv);
             }
+            // println!("{:?}", vec_item);
             ns.push(vec_item);
-        }
-
-        for i in 0..test_n {
-            let v_iter: Vec<f64> = rng.sample_iter(&StandardNormal).take(dimension).collect();
-            let mut vec_item = Vec::new();
-            for i in 0..dimension {
-                let vv = v_iter[i] + base[i]; // add normal distribution noise
-                vec_item.push(vv);
-            }
-            ts.push(vec_item);
         }
         bases.push(base);
     }
 
-    return (bases, ns, ts);
-}
-
-fn make_baseline(embs: Vec<Vec<f64>>, bf_idx: &mut Box<bf::bf::BruteForceIndex<f64, usize>>) {
-    for i in 0..embs.len() {
-        bf_idx.add_node(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
-    }
-    bf_idx.construct(core::metrics::Metric::CosineSimilarity);
-}
-
-fn make_bp_forest_baseline(
-    embs: Vec<Vec<f64>>,
-    bpforest_idx: &mut Box<bpforest::bpforest::BinaryProjectionForestIndex<f64, usize>>,
-) {
-    for i in 0..embs.len() {
-        bpforest_idx.add_node(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
-    }
-    bpforest_idx.construct(core::metrics::Metric::CosineSimilarity);
-}
-
-fn make_baseline_for_word_emb(
-    embs: &HashMap<String, Vec<f64>>,
-    bf_idx: &mut bf::bf::BruteForceIndex<f64, String>,
-) {
-    for (key, value) in embs {
-        bf_idx.add_node(&core::node::Node::<f64, String>::new_with_idx(
-            &value,
-            key.to_string(),
-        ));
-    }
-    bf_idx.construct(core::metrics::Metric::CosineSimilarity);
+    return (bases, ns);
 }
 
 // run for normal distribution test data
-pub fn run_demo() {
-    let (base, ns, ts) = make_normal_distribution_clustering(5, 1000, 1, 2, 100.0);
-    let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new(
+pub fn run_similarity_profile(test_time: usize) {
+    let dimension = 50;
+    let nodes_every_cluster = 20;
+    let node_n = 4000;
+
+    let (_, ns) =
+        make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 10000000.0);
+    let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new());
+    let mut bpforest_idx = Box::new(
+        bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(dimension, 6, -1),
+    );
+    let mut hnsw_idx = Box::new(hnsw::hnsw::HnswIndex::<f64, usize>::new(
+        dimension,
+        2,
+        16,
+        32,
+        20,
+        core::metrics::Metric::DotProduct,
+        40,
+        false,
     ));
-    make_baseline(ns, &mut bf_idx);
-    for i in ts.iter() {
-        let result = bf_idx.search_k(i, 5);
-        for j in result.iter() {
-            println!("test base: {:?} neighbor: {:?}", i, j);
+
+    let mut pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(
+        dimension,
+        dimension / 2,
+        4,
+        100,
+        core::metrics::Metric::DotProduct,
+    ));
+
+    let mut indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bpforest_idx];
+    let mut accuracy = Arc::new(Mutex::new(Vec::new()));
+    let mut cost = Arc::new(Mutex::new(Vec::new()));
+    let mut base_cost = Arc::new(Mutex::new(Duration::default()));
+    for i in 0..indices.len() {
+        make_idx_baseline(ns.clone(), &mut indices[i]);
+        accuracy.lock().unwrap().push(0.);
+        cost.lock().unwrap().push(Duration::default());
+    }
+    make_idx_baseline(ns.clone(), &mut bf_idx);
+
+    for i in Prgrs::new(0..test_time, 1000).set_length_move(Length::Proportional(0.5)) {
+        // (0..test_time).into_par_iter().for_each(|_| {
+        let mut rng = rand::thread_rng();
+
+        let target: usize = rng.gen_range(0, ns.len());
+        let w = ns.get(target).unwrap();
+
+        let base_start = SystemTime::now();
+        let base_result = bf_idx.search_k(&w, 100);
+        let mut base_set = HashSet::new();
+        for (n, _) in base_result.iter() {
+            base_set.insert(n.idx().unwrap().clone());
         }
+        let base_since_the_epoch = SystemTime::now()
+            .duration_since(base_start)
+            .expect("Time went backwards");
+        *base_cost.lock().unwrap() += base_since_the_epoch;
+
+        for j in 0..indices.len() {
+            let start = SystemTime::now();
+            let result = indices[j].search_k(&w, 100);
+            for (n, _) in result.iter() {
+                if base_set.contains(&n.idx().unwrap()) {
+                    accuracy.lock().unwrap()[j] += 1.0;
+                }
+            }
+            let since_the_epoch = SystemTime::now()
+                .duration_since(start)
+                .expect("Time went backwards");
+            cost.lock().unwrap()[j] += since_the_epoch;
+        }
+    }
+    // });
+
+    println!(
+        "test for {:?} times, nodes {:?}, base use {:?} millisecond",
+        test_time,
+        nodes_every_cluster * node_n,
+        base_cost.lock().unwrap().as_millis() as f64 / (test_time as f64)
+    );
+    for i in 0..indices.len() {
+        let a = accuracy.lock().unwrap()[i];
+        println!(
+            "index: {:?}, avg accuracy: {:?}, hit {:?}, avg cost {:?} millisecond",
+            indices[i].name(),
+            a / (test_time as f64),
+            a,
+            cost.lock().unwrap()[i].as_millis() as f64 / (test_time as f64),
+        );
     }
 }
 
@@ -130,7 +173,7 @@ pub fn run_word_emb_demo() {
     let mut idx = 0;
     for line in reader.lines() {
         if let Ok(l) = line {
-            if idx == 500 {
+            if idx == 80000 {
                 break;
             }
             let split_line = l.split(" ").collect::<Vec<&str>>();
@@ -151,12 +194,9 @@ pub fn run_word_emb_demo() {
         }
     }
 
-    let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new(
-    ));
-    make_baseline(train_data.clone(), &mut bf_idx);
+    let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new());
     let mut bpforest_idx =
         Box::new(bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(50, 6, -1));
-    make_bp_forest_baseline(train_data.clone(), &mut bpforest_idx);
     // bpforest_idx.show_trees();
     let mut hnsw_idx = Box::new(hnsw::hnsw::HnswIndex::<f64, usize>::new(
         50,
@@ -164,22 +204,24 @@ pub fn run_word_emb_demo() {
         16,
         32,
         20,
-        core::metrics::Metric::CosineSimilarity,
+        core::metrics::Metric::DotProduct,
         40,
         false,
     ));
-    make_hnsw_baseline(train_data.clone(), &mut hnsw_idx);
 
     let mut pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(
         50,
         10,
         4,
         100,
-        core::metrics::Metric::Euclidean,
+        core::metrics::Metric::DotProduct,
     ));
-    make_pq_baseline(train_data.clone(), &mut pq_idx);
 
-    let indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bf_idx, bpforest_idx, hnsw_idx, pq_idx];
+    // let indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bf_idx, bpforest_idx, hnsw_idx, pq_idx];
+    let mut indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bf_idx, bpforest_idx];
+    for i in 0..indices.len() {
+        make_idx_baseline(train_data.clone(), &mut indices[i]);
+    }
 
     const K: i32 = 10;
     for i in 0..K {
@@ -190,7 +232,7 @@ pub fn run_word_emb_demo() {
 
         for idx in indices.iter() {
             let start = SystemTime::now();
-            let mut result = idx.search_k(&train_data[*w as usize], 20);
+            let mut result = idx.search_k(&train_data[*w as usize], 10);
             for (n, d) in result.iter() {
                 println!(
                     "{:?} target word: {}, neighbor: {:?}, distance: {:?}",
@@ -214,7 +256,7 @@ pub fn run_word_emb_demo() {
         if let Some(w) = words.get(&tw.to_string()) {
             for idx in indices.iter() {
                 let start = SystemTime::now();
-                let mut result = idx.search_k(&train_data[*w as usize], 20);
+                let mut result = idx.search_k(&train_data[*w as usize], 10);
                 for (n, d) in result.iter() {
                     println!(
                         "{:?} target word: {}, neighbor: {:?}, distance: {:?}",
@@ -233,21 +275,9 @@ pub fn run_word_emb_demo() {
     }
 }
 
-fn make_hnsw_baseline(embs: Vec<Vec<f64>>, hnsw_idx: &mut Box<hnsw::hnsw::HnswIndex<f64, usize>>) {
+fn make_idx_baseline<T: ANNIndex<f64, usize> + ?Sized>(embs: Vec<Vec<f64>>, idx: &mut Box<T>) {
     for i in 0..embs.len() {
-        // println!("addword i {:?}", i);
-        hnsw_idx.add_node(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
+        idx.add_node(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
     }
-    println!("addword len {:?}", embs.len());
-    // bpforest_idx.construct(core::metrics::Metric::CosineSimilarity);
-}
-
-fn make_pq_baseline(embs: Vec<Vec<f64>>, pq_idx: &mut Box<pq::pq::PQIndex<f64, usize>>) {
-    for i in 0..embs.len() {
-        // println!("addword i {:?}", i);
-        pq_idx.add_node(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
-    }
-    pq_idx.construct(core::metrics::Metric::Euclidean);
-    println!("addword len {:?}", embs.len());
-    // bpforest_idx.construct(core::metrics::Metric::CosineSimilarity);
+    idx.construct(core::metrics::Metric::Manhattan).unwrap();
 }

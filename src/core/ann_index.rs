@@ -2,7 +2,7 @@ use crate::core::arguments;
 use crate::core::metrics;
 use crate::core::node;
 
-pub trait ANNIndex<E: node::FloatElement, T: node::IdxType> {
+pub trait ANNIndex<E: node::FloatElement, T: node::IdxType>: Send + Sync {
     fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str>; // construct algorithm structure
     fn add_node(&mut self, item: &node::Node<E, T>) -> Result<(), &'static str>;
     fn add_without_idx(&mut self, vs: &[E]) -> Result<(), &'static str> {
@@ -12,6 +12,17 @@ pub trait ANNIndex<E: node::FloatElement, T: node::IdxType> {
     fn add(&mut self, vs: &[E], idx: T) -> Result<(), &'static str> {
         let n = node::Node::new_with_idx(vs, idx);
         self.add_node(&n)
+    }
+
+    fn batch_add(&mut self, vss: &[&[E]], indices: &[T]) -> Result<(), &'static str> {
+        for idx in 0..vss.len() {
+            let n = node::Node::new_with_idx(vss[idx], indices[idx].clone());
+            match self.add_node(&n) {
+                Err(err) => return Err(err),
+                _ => (),
+            }
+        }
+        Ok(())
     }
     fn once_constructed(&self) -> bool; // has already been constructed?
     fn reconstruct(&mut self, mt: metrics::Metric);

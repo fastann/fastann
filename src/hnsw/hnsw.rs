@@ -1,5 +1,6 @@
 use crate::core::ann_index;
 use crate::core::arguments;
+use crate::core::heap::BinaryHeap;
 use crate::core::metrics;
 use crate::core::neighbor::Neighbor;
 use crate::core::node;
@@ -7,7 +8,6 @@ use ann_index::ANNIndex;
 use hashbrown::HashMap;
 use hashbrown::HashSet;
 use rand::prelude::*;
-use std::collections::BinaryHeap;
 
 #[derive(Default, Debug)]
 pub struct HnswIndex<E: node::FloatElement, T: node::IdxType> {
@@ -135,6 +135,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
         }
     }
 
+    #[allow(dead_code)]
     fn set_neighbor(&mut self, id: usize, level: usize, pos: usize, neighbor_id: usize) {
         if level == 0 {
             self._id2neigh0[id][pos] = neighbor_id;
@@ -151,6 +152,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
         }
     }
 
+    #[allow(dead_code)]
     fn get_level(&self, id: usize) -> usize {
         return self._id2level[id];
     }
@@ -167,7 +169,8 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
         } else {
             self._n_neigh
         };
-        self.get_neighbors_by_heuristic2(top_candidates, n_neigh);
+        self.get_neighbors_by_heuristic2(top_candidates, n_neigh)
+            .unwrap();
         if top_candidates.len() > n_neigh {
             return Err("Should be not be more than M_ candidates returned by the heuristic");
         }
@@ -238,7 +241,8 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
                         candidates.push(Neighbor::new(*neighbor_id, d_neigh));
                     }
 
-                    self.get_neighbors_by_heuristic2(&mut candidates, n_neigh);
+                    self.get_neighbors_by_heuristic2(&mut candidates, n_neigh)
+                        .unwrap();
 
                     self.clear_neighbor(selected_neighbor, level);
                     while !candidates.is_empty() {
@@ -257,6 +261,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
         return Ok(next_closest_entry_point);
     }
 
+    #[allow(dead_code)]
     pub fn delete_id(&mut self, id: usize) -> Result<(), &'static str> {
         if id > self._n_items {
             return Err("Invalid delete id");
@@ -407,6 +412,12 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
             k
         };
 
+        let search_range = if self._ef_default > k {
+            self._ef_default
+        } else {
+            k
+        };
+
         top_candidate =
             self.search_laryer(cur_id, search_data, 0, search_range, self._has_deletons);
         while top_candidate.len() > k {
@@ -419,7 +430,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
     pub fn init_item(&mut self, data: &node::Node<E, T>) -> usize {
         let cur_id = self._n_items;
         let cur_level = self.get_random_level();
-        let mut neigh0: Vec<usize> = Vec::new();
+        let neigh0: Vec<usize> = Vec::new();
         let mut neigh: Vec<Vec<usize>> = Vec::new();
         for i in 0..cur_level {
             let level_neigh: Vec<usize> = Vec::new();

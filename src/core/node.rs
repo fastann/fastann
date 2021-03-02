@@ -1,6 +1,7 @@
 use crate::core::metrics;
 use crate::core::metrics::manhattan_distance;
 use core::fmt::Display;
+use core::iter::Sum;
 use num::traits::{FromPrimitive, NumAssign};
 
 pub trait FloatElement:
@@ -16,27 +17,42 @@ pub trait FloatElement:
     + NumAssign
     + num::Signed
     + num::Float
+    + Sync
+    + Send
+    + Sum
 {
     // TODO: make it static
-    fn float_one() -> Self {
-        Self::from_f32(1.0).unwrap()
-    }
+    fn float_one() -> Self;
 
-    fn float_zero() -> Self {
-        Self::from_f32(0.0).unwrap()
-    }
+    fn float_two() -> Self;
 
-    fn zero_patch_num() -> Self {
-        Self::from_f32(1.34e-6_f32).unwrap()
-    }
+    fn float_zero() -> Self;
+
+    fn zero_patch_num() -> Self;
 }
 
-pub trait IdxType: Sized + Clone + Default + core::fmt::Debug + Eq + Ord {}
+pub trait IdxType: Sized + Clone + Default + core::fmt::Debug + Eq + Ord + Sync + Send {}
 
 #[macro_export]
 macro_rules! to_float_element {
     (  $x:ident  ) => {
-        impl FloatElement for $x {}
+        impl FloatElement for $x {
+            fn float_one() -> Self {
+                1.0
+            }
+
+            fn float_two() -> Self {
+                1.0
+            }
+
+            fn float_zero() -> Self {
+                0.0
+            }
+
+            fn zero_patch_num() -> Self {
+                1.34e-6
+            }
+        }
     };
 }
 
@@ -117,12 +133,12 @@ impl<E: FloatElement, T: IdxType> Node<E, T> {
     }
 
     fn valid_elements(vectors: &[E]) -> bool {
-        vectors.iter().map(|e| {
+        for e in vectors.iter() {
             if e.is_nan() || e.is_infinite() || !e.is_normal() {
                 //TODO: log
                 panic!("invalid float elemet");
             }
-        });
+        }
         true
     }
 }

@@ -1,11 +1,11 @@
 use crate::core::ann_index;
 use crate::core::arguments;
+use crate::core::heap::BinaryHeap;
 use crate::core::metrics;
 use crate::core::neighbor::Neighbor;
 use crate::core::node;
 use metrics::metric;
 use rand::prelude::*;
-use std::collections::BinaryHeap;
 
 #[derive(Default, Debug)]
 pub struct KmeansIndexer<E: node::FloatElement, T: node::IdxType> {
@@ -166,7 +166,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
                     }
                     split_center_id = (split_center_id + 1) % n_center;
                 }
-                let EPS = 1.0 / 1024.0;
+                const EPS: f32 = 1.0 / 1024.0;
                 for j in 0..demension {
                     if j % 2 == 0 {
                         self._centers[i][j] =
@@ -201,7 +201,8 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
                 .update_center(batch_size, batch_data, &assigned_center)
                 .unwrap();
             if epoch < n_epoch - 1 {
-                self.split_center(batch_size, &mut n_assigned_per_center);
+                self.split_center(batch_size, &mut n_assigned_per_center)
+                    .unwrap();
             }
         }
     }
@@ -319,7 +320,6 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         end: usize,
     ) -> E {
         return metrics::metric(&x.vectors()[begin..end], y, self._metri).unwrap();
-        // return metrics::euclidean_distance_range(x.vectors(), y, begin, end).unwrap();
     }
 
     pub fn search_knn_adc(
@@ -364,8 +364,10 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIn
         Result::Ok(())
     }
     fn add_node(&mut self, item: &node::Node<E, T>) -> Result<(), &'static str> {
-        self.add_item(item);
-        Result::Ok(())
+        match self.add_item(item) {
+            Err(err) => Err(err),
+            _ => Ok(()),
+        }
     }
     fn once_constructed(&self) -> bool {
         true

@@ -1,12 +1,13 @@
 use crate::core::ann_index;
 use crate::core::arguments;
 use crate::core::calc;
+use crate::core::heap::BinaryHeap;
 use crate::core::metrics;
 use crate::core::neighbor;
 use crate::core::node;
 use crate::core::random;
 use core::cmp::Ordering;
-use std::collections::BinaryHeap;
+use log::debug;
 
 // TODO: leaf as a trait with getter setter function
 #[derive(Default, Clone, Debug)]
@@ -117,8 +118,11 @@ fn two_means<E: node::FloatElement, T: node::IdxType>(
     }
     // TODO: dot normalize
 
-    let mut ic: E = E::float_one();
-    let mut jc: E = E::float_one();
+    let one = E::float_one();
+    let zero = E::float_zero();
+
+    let mut ic: E = one.clone();
+    let mut jc: E = one.clone();
 
     // produce two mean point.
     for _z in 0..ITERATION_STEPS {
@@ -127,30 +131,27 @@ fn two_means<E: node::FloatElement, T: node::IdxType>(
         let dj = jc * metrics::metric(&q.node.vectors(), &leaves[k].node.vectors(), mt).unwrap();
 
         //
-        let norm = if mt == metrics::Metric::CosineSimilarity {
-            calc::get_norm(&leaves[k].node.vectors()).unwrap()
-        } else {
-            E::float_one()
-        };
-        if !(norm > E::float_zero()) {
-            continue;
+        let mut norm = one.clone();
+        if mt == metrics::Metric::CosineSimilarity {
+            norm = calc::get_norm(&leaves[k].node.vectors()).unwrap();
+            if !(norm > zero) {
+                continue;
+            }
         }
 
         // make p more closer to k in space.
         if di < dj {
             for l in 0..p.node.len() {
-                p.node.mut_vectors()[l] = (p.node.vectors()[l] * ic
-                    + leaves[k].node.vectors()[l] / norm)
-                    / (ic + E::float_one());
+                p.node.mut_vectors()[l] =
+                    (p.node.vectors()[l] * ic + leaves[k].node.vectors()[l] / norm) / (ic + one);
             }
-            ic += E::float_one();
+            ic += one;
         } else if dj < di {
             for l in 0..q.node.len() {
-                q.node.mut_vectors()[l] = (q.node.vectors()[l] * jc
-                    + leaves[k].node.vectors()[l] / norm)
-                    / (jc + E::float_one());
+                q.node.mut_vectors()[l] =
+                    (q.node.vectors()[l] * jc + leaves[k].node.vectors()[l] / norm) / (jc + one);
             }
-            jc += E::float_one();
+            jc += one;
         }
     }
     return Ok((p, q));
@@ -217,6 +218,13 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         self._tot_leaves_cnt = self._tot_items_cnt; // init with build.
         self._build(self._tree_num, self.mt);
         self._built = true;
+        println!(
+            "tree number: {:?}, leaves: {:?}, items: {:?}, leaf size: {:?}",
+            self._tree_num,
+            self._tot_leaves_cnt,
+            self._tot_items_cnt,
+            self.get_k()
+        );
         return Ok(());
     }
 
@@ -243,7 +251,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         self._dimension
     }
 
-    pub fn get_K(&self) -> i32 {
+    pub fn get_k(&self) -> i32 {
         self._leaf_max_items
     }
 
@@ -359,12 +367,13 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         let mut new_parent_leaf = Leaf::new();
         let mut children_indices: [Vec<i32>; 2] = [Vec::new(), Vec::new()];
 
-        const attempt: usize = 5;
+        const ATTEMPT: usize = 5;
         // find split hyperplane
-        for i in 0..attempt {
+        for i in 0..ATTEMPT {
             children_indices[0].clear();
             children_indices[1].clear();
-            self.create_split(children.as_slice(), &mut new_parent_leaf, mt);
+            self.create_split(children.as_slice(), &mut new_parent_leaf, mt)
+                .unwrap();
 
             for i in 1..indices.len() {
                 let leaf_idx = indices[i];
@@ -537,12 +546,8 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
 
     fn side(&self, src: &Leaf<E, T>, dst: &[E]) -> bool {
         match self.margin(&src, &dst) {
-            Ok(x) => {
-                x > E::float_zero()
-            }
-            Err(e) => {
-                random::flip()
-            }
+            Ok(x) => x > E::float_zero(),
+            Err(e) => random::flip(),
         }
     }
 
@@ -559,18 +564,12 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
             return Err("empty leaf input");
         }
 
-        let is_initial = new_mean_leaf.node.len() == 0;
+        // // get mean point between p and q.
+        let mut v = Vec::with_capacity(p.node.len());
         for i in 0..p.node.len() {
-            if is_initial {
-                new_mean_leaf
-                    .node
-                    .mut_vectors()
-                    .push(p.node.vectors()[i] - q.node.vectors()[i]);
-            } else {
-                new_mean_leaf.node.mut_vectors()[i] = p.node.vectors()[i] - q.node.vectors()[i];
-                // get mean point between p and q.
-            }
+            v.push(p.node.vectors()[i] - q.node.vectors()[i]);
         }
+        new_mean_leaf.node.set_vectors(&v);
         new_mean_leaf.normalize();
         Ok(())
     }

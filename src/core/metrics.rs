@@ -4,12 +4,6 @@ use crate::core::calc::same_dimension;
 use crate::core::node::FloatElement;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum Comparison {
-    Bigger,
-    Smaller,
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Metric {
     Unknown,
     Manhattan,
@@ -41,6 +35,7 @@ where
     }
 }
 
+#[allow(dead_code)]
 pub fn range_metric<T>(
     vec1: &[T],
     vec2: &[T],
@@ -71,11 +66,12 @@ where
     T: FloatElement,
 {
     same_dimension(vec1, vec2)?;
-    let mut res = T::default();
-    for i in 0..vec1.len() {
-        res += vec1[i].abs() - vec2[i].abs();
-    }
-    Result::Ok(res.abs())
+    Result::Ok(
+        vec1.iter()
+            .zip(vec2.iter())
+            .map(|v| (*v.0 - *v.1).abs())
+            .sum(),
+    )
 }
 
 pub fn euclidean_distance<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
@@ -83,12 +79,12 @@ where
     T: FloatElement,
 {
     same_dimension(vec1, vec2)?;
-    let mut res = T::default();
-    for i in 0..vec1.len() {
-        let diff = vec1[i] - vec2[i];
-        res += diff * diff;
-    }
-    Result::Ok(res.sqrt())
+    Result::Ok(
+        vec1.iter()
+            .zip(vec2.iter())
+            .map(|v| (*v.0 - *v.1).powi(2))
+            .sum(),
+    )
 }
 
 pub fn cosine_similarity<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
@@ -115,23 +111,10 @@ where
     let lhd = dot(vec2, vec2).unwrap();
     let rldot = dot(vec1, vec2).unwrap();
     let rlmul = rhd * lhd;
-    let two = T::from_f32(2.0).unwrap();
+    let two = T::float_two();
     if rlmul > T::float_zero() {
         Result::Ok(two - two * rldot / rlmul.sqrt())
     } else {
         Result::Ok(two)
     }
-}
-
-pub fn euclidean_distance_range<T>(
-    vec1: &[T],
-    vec2: &[T],
-    begin: usize,
-    end: usize,
-) -> Result<T, &'static str>
-where
-    T: FloatElement,
-{
-    same_dimension(vec1, vec2)?;
-    euclidean_distance(&vec1[begin..end], &vec2[begin..end])
 }
