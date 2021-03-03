@@ -81,7 +81,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
 
     fn initialize_graph(&mut self) {
         let mut center = Vec::with_capacity(self.dimension);
-        for i in 0..self.dimension {
+        for _i in 0..self.dimension {
             center.push(E::float_zero());
         }
         for i in 0..self.nodes.len() {
@@ -188,16 +188,19 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         self.get_random_nodes_idx(&mut init_ids);
         let mut flags = vec![false; self.nodes.len()]; // as bitmap;
         let mut _L = 0;
-        for id in init_ids.iter() {
-            if *id > self.nodes.len() {
+        let mut return_set_flags = vec![false; self.nodes.len()];
+        for i in 0..init_ids.len() {
+            let id = init_ids[i];
+            if id > self.nodes.len() {
                 continue;
             }
             return_set.push(SubNeighbor::new(
                 id.clone(),
-                item.metric(&self.nodes[*id], self.mt).unwrap(),
+                item.metric(&self.nodes[id], self.mt).unwrap(),
                 true,
             ));
-            flags[*id] = true;
+            return_set_flags[id] = true;
+            flags[id] = true;
             _L += 1;
         }
         return_set.sort_by(|a, b| a.partial_cmp(b).unwrap());
@@ -205,8 +208,8 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         let mut k = 0;
         while k < _L {
             let mut nk = _L;
-            if return_set[k].flag {
-                return_set[k].flag = false;
+            if return_set_flags[k] {
+                return_set_flags[k] = false;
                 let n = return_set[k].idx();
 
                 for m in 0..self.graph[n].len() {
@@ -220,7 +223,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
                     if dist > return_set[self.L - 1].distance() {
                         continue;
                     }
-                    let r = self.insert_into_pools(return_set, _L, &full_set[full_set.len() - 1]);
+                    let r = self.insert_into_pools(return_set, _L, &full_set[full_set.len() - 1]); // TODO: 考虑用堆
                     if _L + 1 < return_set.len() {
                         _L += 1;
                     }
@@ -635,24 +638,64 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         }
     }
 
-    // fn strong_connect(&self) {
-    //     let n_try = 5;
-    //     let edges_all = Vec::new();
+    fn find_root(&mut self, flags: &mut [bool], root: &mut usize) {
+        let mut id = self.nodes.len();
+        for i in 0..self.nodes.len() {
+            if !flags[i] {
+                id = i;
+                break;
+            }
+        }
 
-    //     for i in 0..n_try {
-    //         let root = rand::thread_rng().gen_range(0..self.nodes.len());
-    //         flags = vec![false;self.nodes.len()];
-    //         let unlinked_cnt = 0;
-    //         let edges = Vec::new();
-    //         while unlinked_cnt < self.nodes.len() {
-    //             self.dfs(flags,edges,root,unlinked_cnt);
-    //             if unlinked_cnt >= self.nodes.len() {
-    //                 break;
-    //             }
+        if id == self.nodes.len() {
+            return;
+        }
 
-    //         }
-    //     }
-    // }
+        let mut tmp = Vec::new();
+        let mut pool = Vec::new();
+        self.get_point_neighbors(&self.nodes[id], &mut tmp, &mut pool);
+
+        let mut found = false;
+        for i in 0..pool.len() {
+            if flags[pool[i].idx()] {
+                *root = pool[i].idx();
+                found = true;
+                break;
+            }
+        }
+        if !found {
+            for retry in 0..1000 {
+                let rid = rand::thread_rng().gen_range(0, self.nodes.len());
+                if flags[rid] {
+                    *root = rid;
+                    break;
+                }
+            }
+        }
+        self.graph[*root].push(id);
+    }
+
+    fn strong_connect(&mut self) {
+        let n_try = 5;
+        let mut edges_all = Vec::new();
+
+        for i in 0..n_try {
+            let mut root = rand::thread_rng().gen_range(0, self.nodes.len());
+            let mut flags = vec![false; self.nodes.len()];
+            let mut unlinked_cnt = 0;
+            let mut edges = Vec::new();
+            while unlinked_cnt < self.nodes.len() {
+                self.dfs(&mut flags, &mut edges, root, &mut unlinked_cnt);
+                if unlinked_cnt >= self.nodes.len() {
+                    break;
+                }
+                self.find_root(&mut flags, &mut root);
+            }
+            for i in 0..edges_all.len() {
+                edges_all.push(edges[i]);
+            }
+        }
+    }
 }
 
 impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
