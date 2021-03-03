@@ -72,12 +72,11 @@ pub fn run_similarity_profile(test_time: usize) {
     );
     let mut hnsw_idx = Box::new(hnsw::hnsw::HnswIndex::<f64, usize>::new(
         dimension,
-        2,
+        100000,
         16,
         32,
         20,
-        core::metrics::Metric::DotProduct,
-        40,
+        500,
         false,
     ));
 
@@ -86,10 +85,11 @@ pub fn run_similarity_profile(test_time: usize) {
         dimension / 2,
         4,
         100,
-        core::metrics::Metric::DotProduct,
+        core::metrics::Metric::Manhattan,
     ));
 
-    let mut indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bpforest_idx];
+    // let mut indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bpforest_idx];
+    let mut indices: Vec<Box<ANNIndex<f64, usize>>> = vec![hnsw_idx];
     let mut accuracy = Arc::new(Mutex::new(Vec::new()));
     let mut cost = Arc::new(Mutex::new(Vec::new()));
     let mut base_cost = Arc::new(Mutex::new(Duration::default()));
@@ -204,8 +204,7 @@ pub fn run_word_emb_demo() {
         16,
         32,
         20,
-        core::metrics::Metric::DotProduct,
-        40,
+        500,
         false,
     ));
 
@@ -214,7 +213,7 @@ pub fn run_word_emb_demo() {
         10,
         4,
         100,
-        core::metrics::Metric::DotProduct,
+        core::metrics::Metric::Manhattan,
     ));
 
     // let indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bf_idx, bpforest_idx, hnsw_idx, pq_idx];
