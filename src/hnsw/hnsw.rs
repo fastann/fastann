@@ -8,18 +8,22 @@ use ann_index::ANNIndex;
 use hashbrown::HashMap;
 use hashbrown::HashSet;
 use rand::prelude::*;
-
+use rayon::{iter::IntoParallelIterator, prelude::*};
+use std::sync::RwLock;
+use std::thread;
+use std::sync::Arc;
 #[derive(Default, Debug)]
 pub struct HnswIndex<E: node::FloatElement, T: node::IdxType> {
     _demension: usize, // dimension
     _n_items: usize,   // next item count
+    _n_contructed_items:usize,
     _max_item: usize,
     _n_neigh: usize,                    // neighbor num except level 0
     _n_neigh0: usize,                   // neight num of level 0
     _max_level: usize,                  //max level
     _cur_level: usize,                  //current level
-    _id2neigh: Vec<Vec<Vec<usize>>>,    //neight_id from level 1 to level _max_level
-    _id2neigh0: Vec<Vec<usize>>,        //neigh_id at level 0
+    _id2neigh: Vec<Vec<RwLock<Vec<usize>>>>,    //neight_id from level 1 to level _max_level
+    _id2neigh0: Vec<RwLock<Vec<usize>>>,        //neigh_id at level 0
     _datas: Vec<Box<node::Node<E, T>>>, // data saver
     _item2id: HashMap<T, usize>,        //item_id to id in Hnsw
     _root_id: usize,                    //root of hnsw
@@ -37,13 +41,13 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
         n_neigh: usize,
         n_neigh0: usize,
         max_level: usize,
-        metri: metrics::Metric,
         ef: usize,
         has_deletion: bool,
     ) -> HnswIndex<E, T> {
         return HnswIndex {
             _demension: demension,
             _n_items: 0,
+            _n_contructed_items: 0,
             _max_item: max_item,
             _n_neigh: n_neigh,
             _n_neigh0: n_neigh0,
@@ -52,7 +56,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
             _root_id: 0,
             _has_deletons: has_deletion,
             _ef_default: ef,
-            _metri: metri,
+            _metri: metrics::Metric::Manhattan,
             ..Default::default()
         };
     }
@@ -66,9 +70,6 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
             } else {
                 break;
             }
-        }
-        if ret > self._cur_level {
-            ret = self._cur_level + 1
         }
         return ret;
     }
@@ -120,36 +121,11 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
         return Ok(());
     }
 
-    fn get_neighbor(&self, id: usize, level: usize) -> &Vec<usize> {
+    fn get_neighbor(&self, id: usize, level: usize) -> &RwLock<Vec<usize>> {
         if level == 0 {
             return &self._id2neigh0[id];
         }
         return &self._id2neigh[id][level - 1];
-    }
-
-    fn clear_neighbor(&mut self, id: usize, level: usize) {
-        if level == 0 {
-            self._id2neigh0[id].clear();
-        } else {
-            self._id2neigh[id][level - 1].clear();
-        }
-    }
-
-    #[allow(dead_code)]
-    fn set_neighbor(&mut self, id: usize, level: usize, pos: usize, neighbor_id: usize) {
-        if level == 0 {
-            self._id2neigh0[id][pos] = neighbor_id;
-        } else {
-            self._id2neigh[id][level - 1][pos] = neighbor_id;
-        }
-    }
-
-    fn push_neighbor(&mut self, id: usize, level: usize, neighbor_id: usize) {
-        if level == 0 {
-            self._id2neigh0[id].push(neighbor_id);
-        } else {
-            self._id2neigh[id][level - 1].push(neighbor_id);
-        }
     }
 
     #[allow(dead_code)]
@@ -158,7 +134,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
     }
 
     fn connect_neighbor(
-        &mut self,
+        &self,
         cur_id: usize,
         top_candidates: &mut BinaryHeap<Neighbor<E, usize>>,
         level: usize,
@@ -186,29 +162,15 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
         let next_closest_entry_point = selected_neighbors[0];
 
         {
-            //only one mutable borrow || several immutable borrow
-            // let neighbor = self.get_neighbor(cur_id, level);
-            // if neighbor.len() == 0 && !is_update {
-            //     return Err("The newly inserted element should have blank link list");
-            // }
-
-            // for i in 0..selected_neighbors.len() {
-            //     if neighbor[i] != 0 && !is_update {
-            //         return Err("Possible memory corruption");
-            //     }
-            //     if level > self.get_level(selected_neighbors[i]) {
-            //         return Err("Trying to make a link on a non-existent level");
-            //     }
-            // }
-
-            self.clear_neighbor(cur_id, level);
+            let mut cur_neigh = self.get_neighbor(cur_id, level).write().unwrap();
+            cur_neigh.clear();
             for i in 0..selected_neighbors.len() {
-                self.push_neighbor(cur_id, level, selected_neighbors[i]);
+                cur_neigh.push(selected_neighbors[i]);
             }
         }
 
         for selected_neighbor in selected_neighbors {
-            let neighbor_of_selected_neighbors = self.get_neighbor(selected_neighbor, level);
+            let mut neighbor_of_selected_neighbors = self.get_neighbor(selected_neighbor, level).write().unwrap();
             if neighbor_of_selected_neighbors.len() > n_neigh {
                 return Err("Bad Value of neighbor_of_selected_neighbors");
             }
@@ -229,29 +191,24 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
 
             if !is_cur_id_present {
                 if neighbor_of_selected_neighbors.len() < n_neigh {
-                    // neighbor_of_selected_neighbors.push(cur_id);
-                    self.push_neighbor(selected_neighbor, level, cur_id)
+                    neighbor_of_selected_neighbors.push(cur_id);
                 } else {
                     let d_max = self.get_distance_from_id(cur_id, selected_neighbor);
 
                     let mut candidates: BinaryHeap<Neighbor<E, usize>> = BinaryHeap::new();
                     candidates.push(Neighbor::new(cur_id, d_max));
-                    for neighbor_id in neighbor_of_selected_neighbors {
-                        let d_neigh = self.get_distance_from_id(*neighbor_id, selected_neighbor);
-                        candidates.push(Neighbor::new(*neighbor_id, d_neigh));
+                    for i in 0..neighbor_of_selected_neighbors.len(){
+                        let neighbor_id = neighbor_of_selected_neighbors[i];
+                        let d_neigh = self.get_distance_from_id(neighbor_id, selected_neighbor);
+                        candidates.push(Neighbor::new(neighbor_id, d_neigh));
                     }
-
                     self.get_neighbors_by_heuristic2(&mut candidates, n_neigh)
                         .unwrap();
 
-                    self.clear_neighbor(selected_neighbor, level);
+                    neighbor_of_selected_neighbors.clear();
                     while !candidates.is_empty() {
                         // selected_neighbor = candidates.peek().unwrap().idx();
-                        self.push_neighbor(
-                            selected_neighbor,
-                            level,
-                            candidates.peek().unwrap().idx(),
-                        );
+                        neighbor_of_selected_neighbors.push(candidates.peek().unwrap().idx());
                         candidates.pop();
                     }
                 }
@@ -263,7 +220,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
 
     #[allow(dead_code)]
     pub fn delete_id(&mut self, id: usize) -> Result<(), &'static str> {
-        if id > self._n_items {
+        if id > self._n_contructed_items {
             return Err("Invalid delete id");
         }
         if self.is_deleted(id) {
@@ -327,18 +284,19 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
             if cur_dist > lower_bound {
                 break;
             }
-            let cur_neighbors = self.get_neighbor(cur_id, level);
-            for neigh in cur_neighbors {
-                if visted_id.contains(neigh) {
+            let cur_neighbors = self.get_neighbor(cur_id, level).read().unwrap();
+            for i in 0..cur_neighbors.len() {
+                let neigh = cur_neighbors[i];
+                if visted_id.contains(&neigh) {
                     continue;
                 }
-                visted_id.insert(*neigh);
-                let dist = self.get_distance_from_vec(self.get_data(*neigh), search_data);
+                visted_id.insert(neigh);
+                let dist = self.get_distance_from_vec(self.get_data(neigh), search_data);
                 if top_candidates.len() < ef || dist < lower_bound {
-                    candidates.push(Neighbor::new(*neigh, -dist));
+                    candidates.push(Neighbor::new(neigh, -dist));
 
-                    if !self.is_deleted(*neigh) {
-                        top_candidates.push(Neighbor::new(*neigh, dist))
+                    if !self.is_deleted(neigh) {
+                        top_candidates.push(Neighbor::new(neigh, dist))
                     }
 
                     if top_candidates.len() > ef {
@@ -370,7 +328,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
         k: usize,
     ) -> Result<BinaryHeap<Neighbor<E, usize>>, &'static str> {
         let mut top_candidate: BinaryHeap<Neighbor<E, usize>> = BinaryHeap::new();
-        if self._n_items == 0 {
+        if self._n_contructed_items == 0 {
             return Ok(top_candidate);
         }
         let mut cur_id = self._root_id;
@@ -380,15 +338,16 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
             let mut changed = true;
             while changed {
                 changed = false;
-                let cur_neighs = self.get_neighbor(cur_id, cur_level as usize);
-                for neigh in cur_neighs {
-                    if *neigh > self._max_item {
+                let cur_neighs = self.get_neighbor(cur_id, cur_level as usize).read().unwrap();
+                for i in 0..cur_neighs.len() {
+                    let neigh = cur_neighs[i];
+                    if neigh > self._max_item {
                         return Err("cand error");
                     }
                     let dist = self.get_distance_from_vec(self.get_data(cur_id), search_data);
                     if dist < cur_dist {
                         cur_dist = dist;
-                        cur_id = *neigh;
+                        cur_id = neigh;
                         changed = true;
                     }
                 }
@@ -398,12 +357,6 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
             }
             cur_level -= 1;
         }
-
-        let search_range = if self._ef_default > k {
-            self._ef_default
-        } else {
-            k
-        };
 
         let search_range = if self._ef_default > k {
             self._ef_default
@@ -422,11 +375,16 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
 
     pub fn init_item(&mut self, data: &node::Node<E, T>) -> usize {
         let cur_id = self._n_items;
-        let cur_level = self.get_random_level();
-        let neigh0: Vec<usize> = Vec::new();
-        let mut neigh: Vec<Vec<usize>> = Vec::new();
+        let mut cur_level = self.get_random_level();
+        if cur_id == 0 {
+            cur_level = self._max_level;
+            self._cur_level = cur_level;
+            self._root_id = cur_id;
+        }
+        let neigh0: RwLock<Vec<usize>> = RwLock::new(Vec::new());
+        let mut neigh: Vec<RwLock<Vec<usize>>> = Vec::new();
         for i in 0..cur_level {
-            let level_neigh: Vec<usize> = Vec::new();
+            let level_neigh:  RwLock<Vec<usize>> = RwLock::new(Vec::new());
             neigh.push(level_neigh);
         }
         self._datas.push(Box::new(data.clone()));
@@ -438,7 +396,32 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
         return cur_id;
     }
 
-    pub fn add_item(&mut self, data: &node::Node<E, T>) -> Result<(), &'static str> {
+    fn batch_construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
+        if self._n_items < self._n_contructed_items{
+            return Err("contruct error");
+        }
+
+        (self._n_contructed_items..self._n_items)
+        .into_par_iter()
+        .for_each(|insert_id: usize|
+        {
+            self.construct_single_item(insert_id);
+            // println!("insert_id {}", insert_id);
+            return;
+        });
+        
+        // for insert_id in self._n_contructed_items..self._n_items{
+        //     // println!("insert id {}", insert_id);
+        //     self.construct_single_item(insert_id);
+        // }
+
+
+        self._n_contructed_items = self._n_items;
+        return Ok(());
+    }
+
+
+    pub fn add_item_not_constructed(&mut self, data: &node::Node<E, T>) -> Result<(), &'static str> {
         if data.len() != self._demension {
             return Err("dimension is different");
         }
@@ -448,19 +431,48 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
             //     return Ok(self._item2id[data.idx().unwrap()]);
             // }
 
-            if self._n_items > self._max_item {
+            if self._n_items >= self._max_item {
                 return Err("The number of elements exceeds the specified limit");
             }
         }
 
         let insert_id = self.init_item(data);
+        let insert_level = self.get_level(insert_id);
+        return Ok(());
+    }
+
+    pub fn add_single_item(&mut self, data: &node::Node<E, T>) -> Result<(), &'static str> {//not support asysn
+        if data.len() != self._demension {
+            return Err("dimension is different");
+        }
+        {
+            // if self._item2id.contains_key(data.idx().unwrap()) {
+            //     //to_do update point
+            //     return Ok(self._item2id[data.idx().unwrap()]);
+            // }
+
+            if self._n_items >= self._max_item {
+                return Err("The number of elements exceeds the specified limit");
+            }
+        }
+
+        let insert_id = self.init_item(data);
+        let insert_level= self.get_level(insert_id);
+        self.construct_single_item(insert_id);
+
+        self._n_contructed_items += 1;
+
+        return Ok(());
+    }
+
+    pub fn construct_single_item(&self, insert_id: usize) -> Result<(), &'static str>{
         let insert_level = self._id2level[insert_id];
+        // println!("insert id {} insert_level {}", insert_id, insert_level);
+        // println!("self._cur_level {}", self._cur_level);
         let mut cur_id = self._root_id;
         // println!("insert_id {:?}, insert_level {:?} ", insert_id, insert_level);
 
         if insert_id == 0 {
-            self._root_id = 0;
-            self._cur_level = insert_level;
             return Ok(());
         }
 
@@ -471,15 +483,16 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
                 let mut changed = true;
                 while changed {
                     changed = false;
-                    let cur_neighs = self.get_neighbor(cur_id, cur_level);
-                    for cur_neigh in cur_neighs {
-                        if *cur_neigh > self._n_items {
+                    let cur_neighs = self.get_neighbor(cur_id, cur_level).read().unwrap();
+                    for i in 0..cur_neighs.len() {
+                        let cur_neigh = cur_neighs[i];
+                        if cur_neigh > self._n_items {
                             return Err("cand error");
                         }
-                        let neigh_dist = self.get_distance_from_id(*cur_neigh, insert_id);
+                        let neigh_dist = self.get_distance_from_id(cur_neigh, insert_id);
                         if neigh_dist < cur_dist {
                             cur_dist = neigh_dist;
-                            cur_id = *cur_neigh;
+                            cur_id = cur_neigh;
                             changed = true;
                         }
                     }
@@ -515,22 +528,16 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
             }
             level -= 1;
         }
-
-        if insert_level > self._cur_level {
-            self._root_id = insert_id;
-            self._cur_level = insert_level;
-        }
-
         return Ok(());
     }
 }
 
 impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for HnswIndex<E, T> {
     fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
-        Result::Ok(())
+        return self.batch_construct(mt);
     }
     fn add_node(&mut self, item: &node::Node<E, T>) -> Result<(), &'static str> {
-        self.add_item(item)
+        self.add_item_not_constructed(item)
     }
     fn once_constructed(&self) -> bool {
         true
