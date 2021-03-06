@@ -399,7 +399,7 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIn
         return result;
     }
 
-    fn load(&self, path: &str) -> Result<(), &'static str> {
+    fn load(&mut self, path: &str) -> Result<(), &'static str> {
         Result::Ok(())
     }
 

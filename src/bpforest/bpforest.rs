@@ -613,7 +613,7 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
         self._search_k(item.vectors(), k).unwrap()
     }
 
-    fn load(&self, path: &str) -> Result<(), &'static str> {
+    fn load(&mut self, path: &str) -> Result<(), &'static str> {
         Result::Ok(())
     }
 

@@ -1,6 +1,8 @@
 use crate::core::arguments;
 use crate::core::metrics;
 use crate::core::node;
+use serde::{Deserialize, Serialize};
+use serde::de::DeserializeOwned;
 
 pub trait ANNIndex<E: node::FloatElement, T: node::IdxType>: Send + Sync {
     fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str>; // construct algorithm structure
@@ -58,9 +60,27 @@ pub trait ANNIndex<E: node::FloatElement, T: node::IdxType>: Send + Sync {
         self.node_search_k(&n, k, args)
     }
 
-    fn load(&self, path: &str) -> Result<(), &'static str>;
+    fn load(&mut self, path: &str) -> Result<(), &'static str>;
 
     fn dump(&self, path: &str) -> Result<(), &'static str>;
 
     fn name(&self) -> &'static str;
 }
+
+pub trait SerializableANNIndex<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwned>: Send + Sync + ANNIndex<E,T> {
+
+    fn load(path: &str) -> Result<Self, &'static str> where Self: Sized {
+        Err("empty")
+    }
+}
+
+// fn load_ann_idx<
+//     'a,
+//     E: node::FloatElement + Deserialize<'a>,
+//     T: node::IdxType + Deserialize<'a>,
+//     A: ANNIndex<E, T>
+// >(
+//     path: &str,
+// ) -> Result<Box<A>, &'static str> {
+//     Err("www")
+// }
