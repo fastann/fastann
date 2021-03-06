@@ -9,24 +9,24 @@ use hashbrown::HashMap;
 use hashbrown::HashSet;
 use rand::prelude::*;
 use rayon::{iter::IntoParallelIterator, prelude::*};
+use std::sync::Arc;
 use std::sync::RwLock;
 use std::thread;
-use std::sync::Arc;
 #[derive(Default, Debug)]
 pub struct HnswIndex<E: node::FloatElement, T: node::IdxType> {
     _demension: usize, // dimension
     _n_items: usize,   // next item count
-    _n_contructed_items:usize,
+    _n_contructed_items: usize,
     _max_item: usize,
-    _n_neigh: usize,                    // neighbor num except level 0
-    _n_neigh0: usize,                   // neight num of level 0
-    _max_level: usize,                  //max level
-    _cur_level: usize,                  //current level
-    _id2neigh: Vec<Vec<RwLock<Vec<usize>>>>,    //neight_id from level 1 to level _max_level
-    _id2neigh0: Vec<RwLock<Vec<usize>>>,        //neigh_id at level 0
-    _datas: Vec<Box<node::Node<E, T>>>, // data saver
-    _item2id: HashMap<T, usize>,        //item_id to id in Hnsw
-    _root_id: usize,                    //root of hnsw
+    _n_neigh: usize,                         // neighbor num except level 0
+    _n_neigh0: usize,                        // neight num of level 0
+    _max_level: usize,                       //max level
+    _cur_level: usize,                       //current level
+    _id2neigh: Vec<Vec<RwLock<Vec<usize>>>>, //neight_id from level 1 to level _max_level
+    _id2neigh0: Vec<RwLock<Vec<usize>>>,     //neigh_id at level 0
+    _datas: Vec<Box<node::Node<E, T>>>,      // data saver
+    _item2id: HashMap<T, usize>,             //item_id to id in Hnsw
+    _root_id: usize,                         //root of hnsw
     _id2level: Vec<usize>,
     _has_deletons: bool,
     _ef_default: usize,          // num of max candidates when searching
@@ -170,7 +170,8 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
         }
 
         for selected_neighbor in selected_neighbors {
-            let mut neighbor_of_selected_neighbors = self.get_neighbor(selected_neighbor, level).write().unwrap();
+            let mut neighbor_of_selected_neighbors =
+                self.get_neighbor(selected_neighbor, level).write().unwrap();
             if neighbor_of_selected_neighbors.len() > n_neigh {
                 return Err("Bad Value of neighbor_of_selected_neighbors");
             }
@@ -197,7 +198,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
 
                     let mut candidates: BinaryHeap<Neighbor<E, usize>> = BinaryHeap::new();
                     candidates.push(Neighbor::new(cur_id, d_max));
-                    for i in 0..neighbor_of_selected_neighbors.len(){
+                    for i in 0..neighbor_of_selected_neighbors.len() {
                         let neighbor_id = neighbor_of_selected_neighbors[i];
                         let d_neigh = self.get_distance_from_id(neighbor_id, selected_neighbor);
                         candidates.push(Neighbor::new(neighbor_id, d_neigh));
@@ -338,7 +339,10 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
             let mut changed = true;
             while changed {
                 changed = false;
-                let cur_neighs = self.get_neighbor(cur_id, cur_level as usize).read().unwrap();
+                let cur_neighs = self
+                    .get_neighbor(cur_id, cur_level as usize)
+                    .read()
+                    .unwrap();
                 for i in 0..cur_neighs.len() {
                     let neigh = cur_neighs[i];
                     if neigh > self._max_item {
@@ -384,7 +388,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
         let neigh0: RwLock<Vec<usize>> = RwLock::new(Vec::new());
         let mut neigh: Vec<RwLock<Vec<usize>>> = Vec::new();
         for i in 0..cur_level {
-            let level_neigh:  RwLock<Vec<usize>> = RwLock::new(Vec::new());
+            let level_neigh: RwLock<Vec<usize>> = RwLock::new(Vec::new());
             neigh.push(level_neigh);
         }
         self._datas.push(Box::new(data.clone()));
@@ -397,31 +401,31 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
     }
 
     fn batch_construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
-        if self._n_items < self._n_contructed_items{
+        if self._n_items < self._n_contructed_items {
             return Err("contruct error");
         }
 
         (self._n_contructed_items..self._n_items)
-        .into_par_iter()
-        .for_each(|insert_id: usize|
-        {
-            self.construct_single_item(insert_id);
-            // println!("insert_id {}", insert_id);
-            return;
-        });
-        
+            .into_par_iter()
+            .for_each(|insert_id: usize| {
+                self.construct_single_item(insert_id);
+                // println!("insert_id {}", insert_id);
+                return;
+            });
+
         // for insert_id in self._n_contructed_items..self._n_items{
         //     // println!("insert id {}", insert_id);
         //     self.construct_single_item(insert_id);
         // }
 
-
         self._n_contructed_items = self._n_items;
         return Ok(());
     }
 
-
-    pub fn add_item_not_constructed(&mut self, data: &node::Node<E, T>) -> Result<(), &'static str> {
+    pub fn add_item_not_constructed(
+        &mut self,
+        data: &node::Node<E, T>,
+    ) -> Result<(), &'static str> {
         if data.len() != self._demension {
             return Err("dimension is different");
         }
@@ -441,7 +445,8 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
         return Ok(());
     }
 
-    pub fn add_single_item(&mut self, data: &node::Node<E, T>) -> Result<(), &'static str> {//not support asysn
+    pub fn add_single_item(&mut self, data: &node::Node<E, T>) -> Result<(), &'static str> {
+        //not support asysn
         if data.len() != self._demension {
             return Err("dimension is different");
         }
@@ -457,7 +462,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
         }
 
         let insert_id = self.init_item(data);
-        let insert_level= self.get_level(insert_id);
+        let insert_level = self.get_level(insert_id);
         self.construct_single_item(insert_id);
 
         self._n_contructed_items += 1;
@@ -465,7 +470,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
         return Ok(());
     }
 
-    pub fn construct_single_item(&self, insert_id: usize) -> Result<(), &'static str>{
+    pub fn construct_single_item(&self, insert_id: usize) -> Result<(), &'static str> {
         let insert_level = self._id2level[insert_id];
         // println!("insert id {} insert_level {}", insert_id, insert_level);
         // println!("self._cur_level {}", self._cur_level);
@@ -567,14 +572,6 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Hnsw
             ));
         }
         return result;
-    }
-
-    fn load(&self, path: &str) -> Result<(), &'static str> {
-        Result::Ok(())
-    }
-
-    fn dump(&self, path: &str) -> Result<(), &'static str> {
-        Result::Ok(())
     }
 
     fn reconstruct(&mut self, mt: metrics::Metric) {}

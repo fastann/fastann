@@ -8,13 +8,21 @@ use crate::core::node;
 use crate::core::random;
 use core::cmp::Ordering;
 use log::debug;
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::fs::File;
+use std::io::Read;
+use std::io::Write;
 
 // TODO: leaf as a trait with getter setter function
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize)]
 struct Leaf<E: node::FloatElement, T: node::IdxType> {
     n_descendants: i32, // tot n_descendants
     children: Vec<i32>, // left and right and if it's a leaf leaf, children would be very large (depend on _K)
+    #[serde(skip_serializing, skip_deserializing)]
     node: Box<node::Node<E, T>>,
+    tmp_node: Option<node::Node<E, T>>,
 
     // biz field
     norm: E,
@@ -157,7 +165,7 @@ fn two_means<E: node::FloatElement, T: node::IdxType>(
     return Ok((p, q));
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct BinaryProjectionForestIndex<E: node::FloatElement, T: node::IdxType> {
     _dimension: usize,    // dimension
     _tot_items_cnt: i32, // add items count, means the physically the item count, _tot_items_cnt == leaves.size()
@@ -612,17 +620,38 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
         self._search_k(item.vectors(), k).unwrap()
     }
 
-    fn load(&self, path: &str) -> Result<(), &'static str> {
-        Result::Ok(())
-    }
-
-    fn dump(&self, path: &str) -> Result<(), &'static str> {
-        Result::Ok(())
-    }
-
     fn reconstruct(&mut self, mt: metrics::Metric) {}
 
     fn name(&self) -> &'static str {
         "BPForestIndex"
+    }
+}
+
+impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwned>
+    ann_index::SerializableANNIndex<E, T> for BinaryProjectionForestIndex<E, T>
+{
+    fn load(path: &str, args: &arguments::Args) -> Result<Self, &'static str> {
+        let mut file = File::open(path).expect(&format!("unable to open file {:?}", path));
+        let mut instance: BinaryProjectionForestIndex<E, T> =
+            bincode::deserialize_from(&file).unwrap();
+
+        for i in 0..instance.leaves.len() {
+            instance.leaves[i].node =
+                Box::new(instance.leaves[i].tmp_node.as_ref().unwrap().clone());
+            instance.leaves[i].tmp_node = None;
+        }
+
+        Ok(instance)
+    }
+
+    fn dump(&mut self, path: &str, args: &arguments::Args) -> Result<(), &'static str> {
+        self.leaves
+            .iter_mut()
+            .for_each(|x| x.tmp_node = Some(*x.node.clone()));
+        let encoded_bytes = bincode::serialize(&self).unwrap();
+        let mut file = File::create(path).unwrap();
+        file.write_all(&encoded_bytes)
+            .expect(&format!("unable to write file {:?}", path));
+        Result::Ok(())
     }
 }

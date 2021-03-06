@@ -4,14 +4,22 @@ use crate::core::heap::BinaryHeap;
 use crate::core::metrics;
 use crate::core::neighbor;
 use crate::core::node;
-use core::cmp::Reverse;
 use rand::prelude::*;
 extern crate num;
+use bincode;
 use core::cmp::Ordering;
 use rayon::prelude::*;
+use serde::de::DeserializeOwned;
+use serde::de::{self, Deserializer, MapAccess, SeqAccess, Visitor};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
+use std::fmt;
+use std::fs;
+use std::fs::File;
+use std::io::Read;
+use std::io::Write;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -55,16 +63,18 @@ impl<E: node::FloatElement, T: node::IdxType> PartialOrd for SubNeighbor<E, T> {
 
 impl<E: node::FloatElement, T: node::IdxType> Eq for SubNeighbor<E, T> {}
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SatelliteSystemGraphIndex<E: node::FloatElement, T: node::IdxType> {
+    #[serde(skip_serializing, skip_deserializing)]
     nodes: Vec<Box<node::Node<E, T>>>,
+    tmp_nodes: Vec<node::Node<E, T>>, // only use for serialization scene
     mt: metrics::Metric,
     dimension: usize,
     L: usize,
     index_size: usize,      // as R
     graph: Vec<Vec<usize>>, // as final_graph_
     knn_graph: Vec<Vec<usize>>,
-    init_k: usize, // as knn's k
-    ep_: usize,
+    init_k: usize,          // as knn's k
     root_nodes: Vec<usize>, // eps
     width: usize,
     opt_graph: Vec<Vec<usize>>,
@@ -84,13 +94,13 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
     ) -> SatelliteSystemGraphIndex<E, T> {
         SatelliteSystemGraphIndex::<E, T> {
             nodes: Vec::new(),
+            tmp_nodes: Vec::new(),
             mt: metrics::Metric::Unknown,
             dimension: dimension,
             L: L,
             init_k: init_k,
             graph: Vec::new(),
             knn_graph: Vec::new(),
-            ep_: 0,
             root_nodes: Vec::new(),
             width: 0,
             opt_graph: Vec::new(),
@@ -119,7 +129,6 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         let mut pool: Vec<SubNeighbor<E, usize>> = Vec::new();
         let n = node::Node::new(&center);
         self.get_point_neighbors(&n, &mut tmp, &mut pool);
-        self.ep_ = tmp[0].idx();
     }
 
     fn build_knn_graph(&mut self) {
@@ -745,6 +754,31 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
     }
 }
 
+impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwned>
+    ann_index::SerializableANNIndex<E, T> for SatelliteSystemGraphIndex<E, T>
+{
+    fn load(path: &str, args: &arguments::Args) -> Result<Self, &'static str> {
+        let mut file = File::open(path).expect(&format!("unable to open file {:?}", path));
+        let mut instance: SatelliteSystemGraphIndex<E, T> =
+            bincode::deserialize_from(&file).unwrap();
+        instance.nodes = instance
+            .tmp_nodes
+            .iter()
+            .map(|x| Box::new(x.clone()))
+            .collect();
+        Ok(instance)
+    }
+
+    fn dump(&mut self, path: &str, args: &arguments::Args) -> Result<(), &'static str> {
+        self.tmp_nodes = self.nodes.iter().map(|x| *x.clone()).collect();
+        let encoded_bytes = bincode::serialize(&self).unwrap();
+        let mut file = File::create(path).unwrap();
+        file.write_all(&encoded_bytes)
+            .expect(&format!("unable to write file {:?}", path));
+        Result::Ok(())
+    }
+}
+
 impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
     for SatelliteSystemGraphIndex<E, T>
 {
@@ -771,15 +805,7 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
         self.search(&item, k, &args)
     }
 
-    fn load(&self, path: &str) -> Result<(), &'static str> {
-        Result::Ok(())
-    }
-
-    fn dump(&self, path: &str) -> Result<(), &'static str> {
-        Result::Ok(())
-    }
-
     fn name(&self) -> &'static str {
-        "BruteForceIndex"
+        "SatelliteSystemGraphIndex"
     }
 }
