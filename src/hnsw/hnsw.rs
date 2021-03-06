@@ -574,14 +574,6 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Hnsw
         return result;
     }
 
-    fn load(&mut self, path: &str) -> Result<(), &'static str> {
-        Result::Ok(())
-    }
-
-    fn dump(&self, path: &str) -> Result<(), &'static str> {
-        Result::Ok(())
-    }
-
     fn reconstruct(&mut self, mt: metrics::Metric) {}
 
     fn name(&self) -> &'static str {

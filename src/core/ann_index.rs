@@ -1,8 +1,10 @@
 use crate::core::arguments;
 use crate::core::metrics;
 use crate::core::node;
-use serde::{Deserialize, Serialize};
+use bincode;
 use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
+use std::fs::File;
 
 pub trait ANNIndex<E: node::FloatElement, T: node::IdxType>: Send + Sync {
     fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str>; // construct algorithm structure
@@ -60,27 +62,22 @@ pub trait ANNIndex<E: node::FloatElement, T: node::IdxType>: Send + Sync {
         self.node_search_k(&n, k, args)
     }
 
-    fn load(&mut self, path: &str) -> Result<(), &'static str>;
-
-    fn dump(&self, path: &str) -> Result<(), &'static str>;
-
     fn name(&self) -> &'static str;
 }
 
-pub trait SerializableANNIndex<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwned>: Send + Sync + ANNIndex<E,T> {
+pub trait SerializableANNIndex<
+    E: node::FloatElement + DeserializeOwned,
+    T: node::IdxType + DeserializeOwned,
+>: Send + Sync + ANNIndex<E, T>
+{
+    fn load(path: &str, args: &arguments::Args) -> Result<Self, &'static str>
+    where
+        Self: Sized,
+    {
+        Err("empty implementation")
+    }
 
-    fn load(path: &str) -> Result<Self, &'static str> where Self: Sized {
-        Err("empty")
+    fn dump(&mut self, path: &str, args: &arguments::Args) -> Result<(), &'static str> {
+        Err("empty implementation")
     }
 }
-
-// fn load_ann_idx<
-//     'a,
-//     E: node::FloatElement + Deserialize<'a>,
-//     T: node::IdxType + Deserialize<'a>,
-//     A: ANNIndex<E, T>
-// >(
-//     path: &str,
-// ) -> Result<Box<A>, &'static str> {
-//     Err("www")
-// }

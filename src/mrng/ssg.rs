@@ -4,7 +4,6 @@ use crate::core::heap::BinaryHeap;
 use crate::core::metrics;
 use crate::core::neighbor;
 use crate::core::node;
-use core::cmp::Reverse;
 use rand::prelude::*;
 extern crate num;
 use bincode;
@@ -12,7 +11,6 @@ use core::cmp::Ordering;
 use rayon::prelude::*;
 use serde::de::DeserializeOwned;
 use serde::de::{self, Deserializer, MapAccess, SeqAccess, Visitor};
-use serde::ser::{SerializeStruct, Serializer};
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
@@ -70,6 +68,7 @@ impl<E: node::FloatElement, T: node::IdxType> Eq for SubNeighbor<E, T> {}
 pub struct SatelliteSystemGraphIndex<E: node::FloatElement, T: node::IdxType> {
     #[serde(skip_serializing)]
     nodes: Vec<Box<node::Node<E, T>>>,
+    tmp_nodes: Vec<node::Node<E, T>>, // only use for serialization scene
     mt: metrics::Metric,
     dimension: usize,
     L: usize,
@@ -86,57 +85,6 @@ pub struct SatelliteSystemGraphIndex<E: node::FloatElement, T: node::IdxType> {
     buffer: Vec<u8>, // use for serialize
 }
 
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct SatelliteSystemGraphIndexCore<E: node::FloatElement, T: node::IdxType> {
-//     tmp_nodes: Vec<node::Node<E, T>>,
-//     mt: metrics::Metric,
-//     dimension: usize,
-//     L: usize,
-//     index_size: usize,      // as R
-//     graph: Vec<Vec<usize>>, // as final_graph_
-//     knn_graph: Vec<Vec<usize>>,
-//     init_k: usize,          // as knn's k
-//     root_nodes: Vec<usize>, // eps
-//     width: usize,
-//     opt_graph: Vec<Vec<usize>>,
-//     angle: E,
-//     threshold: E,
-//     n_try: usize,
-// }
-
-// impl<'a, E: node::FloatElement + Deserialize<'a>, T: node::IdxType + Deserialize<'a>>
-//     SatelliteSystemGraphIndexCore<E, T>
-// {
-//     fn new(src: &SatelliteSystemGraphIndex<E, T>) -> Self {
-//         SatelliteSystemGraphIndexCore {
-//             tmp_nodes: src.nodes.iter().map(|x| *x.clone()).collect::<Vec<_>>(),
-//             mt: src.mt,
-//             dimension: src.dimension,
-//             L: src.L,
-//             index_size: src.index_size,
-//             graph: src.graph.clone(),
-//             knn_graph: src.knn_graph.clone(),
-//             init_k: src.init_k,
-//             root_nodes: src.root_nodes.clone(),
-//             width: src.width,
-//             opt_graph: src.opt_graph.clone(),
-//             angle: src.angle,
-//             threshold: src.threshold,
-//             n_try: src.n_try,
-//         }
-//     }
-//     fn load_(path: &str, buffer: &'a mut Vec<u8>) -> Result<(), &'static str> {
-//         let mut file = File::open(path).expect(&format!("unable to open file {:?}", path));
-//         let metadata =
-//             fs::metadata(path).expect(&format!("unable to read metadata file {:?}", path));
-//         // let mut 'a buffer = vec![0; metadata.len() as usize];
-//         file.read(buffer).expect("buffer overflow");
-//         // let decoded: SatelliteSystemGraphIndex<E,T> = bincode::deserialize_from(file).unwrap();
-//         let decoded: SatelliteSystemGraphIndex<E, T> = bincode::deserialize(&buffer[..]).unwrap();
-//         Result::Ok(())
-//     }
-// }
-
 impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
     pub fn new(
         dimension: usize,
@@ -148,6 +96,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
     ) -> SatelliteSystemGraphIndex<E, T> {
         SatelliteSystemGraphIndex::<E, T> {
             nodes: Vec::new(),
+            tmp_nodes: Vec::new(),
             mt: metrics::Metric::Unknown,
             dimension: dimension,
             L: L,
@@ -808,33 +757,28 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
     }
 }
 
-// impl<E: node::FloatElement , T: node::IdxType> SatelliteSystemGraphIndex<E, T>
-// {
-//     fn load_(&mut self, path: &str, buffer: & 'a mut Vec<u8>) -> Result<(), &'static str> {
-//         let mut file = File::open(path).expect(&format!("unable to open file {:?}", path));
-//         let metadata =
-//             fs::metadata(path).expect(&format!("unable to read metadata file {:?}", path));
-//         let mut buffer = vec![0; metadata.len() as usize];
-//         file.read(buffer).expect("buffer overflow");
-//         // let decoded: SatelliteSystemGraphIndex<E,T> = bincode::deserialize_from(file).unwrap();
-//         let decoded: SatelliteSystemGraphIndex<OE,OT> =
-//             bincode::deserialize(&buffer[..]).unwrap();
-//         Result::Ok(())
-//     }
-// }
-
-impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwned> ann_index::SerializableANNIndex<E,T> for SatelliteSystemGraphIndex<E, T> {
-    fn load(
-        path: &str,
-    ) -> Result<Self, &'static str> {
+impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwned>
+    ann_index::SerializableANNIndex<E, T> for SatelliteSystemGraphIndex<E, T>
+{
+    fn load(path: &str, args: &arguments::Args) -> Result<Self, &'static str> {
         let mut file = File::open(path).expect(&format!("unable to open file {:?}", path));
-        let metadata =
-            fs::metadata(path).expect(&format!("unable to read metadata file {:?}", path));
-        let mut buffer = vec![0; metadata.len() as usize];
-        file.read(&mut buffer).expect("buffer overflow");
-        let instance: SatelliteSystemGraphIndex<E, T> = bincode::deserialize(&buffer[..]).unwrap();
-
+        let mut instance: SatelliteSystemGraphIndex<E, T> =
+            bincode::deserialize_from(&file).unwrap();
+        instance.nodes = instance
+            .tmp_nodes
+            .iter()
+            .map(|x| Box::new(x.clone()))
+            .collect();
         Ok(instance)
+    }
+
+    fn dump(&mut self, path: &str, args: &arguments::Args) -> Result<(), &'static str> {
+        self.tmp_nodes = self.nodes.iter().map(|x| *x.clone()).collect();
+        let encoded_bytes = bincode::serialize(&self).unwrap();
+        let mut file = File::create(path).unwrap();
+        file.write_all(&encoded_bytes)
+            .expect(&format!("unable to write file {:?}", path));
+        Result::Ok(())
     }
 }
 
@@ -864,21 +808,7 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
         self.search(&item, k, &args)
     }
 
-    fn load(&mut self, path: &str) -> Result<(), &'static str> {
-        // self.load_::<E,T>("xxx", &mut Vec::new());
-        // SatelliteSystemGraphIndexCore::<E, T>::load_("xxx", &mut Vec::new());
-        Result::Ok(())
-    }
-
-    fn dump(&self, path: &str) -> Result<(), &'static str> {
-        let encoded_bytes = bincode::serialize(&self).unwrap();
-        let mut file = File::create(path).unwrap();
-        file.write_all(&encoded_bytes)
-            .expect(&format!("unable to write file {:?}", path));
-        Result::Ok(())
-    }
-
     fn name(&self) -> &'static str {
-        "BruteForceIndex"
+        "SatelliteSystemGraphIndex"
     }
 }
