@@ -30,14 +30,14 @@ pub trait ANNIndex<E: node::FloatElement, T: node::IdxType>: Send + Sync {
         &self,
         item: &node::Node<E, T>,
         k: usize,
-        args: &arguments::Arguments,
+        args: &arguments::Args,
     ) -> Vec<(node::Node<E, T>, E)>;
 
     // e.g.
     //idx.node_search_k(
     //     &n,
     //     k,
-    //     &arguments::Arguments::new()
+    //     &arguments::Args::new()
     //         .fset("hello", 0.1)
     //         .iset("word", 2)
     //         .fset("aljun", 0.2)
@@ -45,14 +45,14 @@ pub trait ANNIndex<E: node::FloatElement, T: node::IdxType>: Send + Sync {
     // )
     fn search_k(&self, item: &[E], k: usize) -> Vec<(node::Node<E, T>, E)> {
         let n = node::Node::new(item);
-        self.node_search_k(&n, k, &arguments::Arguments::new())
+        self.node_search_k(&n, k, &arguments::Args::new())
     }
 
     fn search_k_with_args(
         &self,
         item: &[E],
         k: usize,
-        args: &arguments::Arguments,
+        args: &arguments::Args,
     ) -> Vec<(node::Node<E, T>, E)> {
         let n = node::Node::new(item);
         self.node_search_k(&n, k, args)
