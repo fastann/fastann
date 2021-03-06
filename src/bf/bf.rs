@@ -13,7 +13,7 @@ use std::io::Write;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BruteForceIndex<E: node::FloatElement, T: node::IdxType> {
-    #[serde(skip_serializing)]
+    #[serde(skip_serializing, skip_deserializing)]
     nodes: Vec<Box<node::Node<E, T>>>,
     tmp_nodes: Vec<node::Node<E, T>>, // only use for serialization scene
     mt: metrics::Metric,
@@ -83,7 +83,7 @@ impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwn
 {
     fn load(path: &str, args: &arguments::Args) -> Result<Self, &'static str> {
         let mut file = File::open(path).expect(&format!("unable to open file {:?}", path));
-        let mut instance: BruteForceIndex<E, T> = bincode::deserialize_from(&file).unwrap();
+        let mut instance: BruteForceIndex<E, T> = bincode::deserialize_from(file).unwrap();
         instance.nodes = instance
             .tmp_nodes
             .iter()

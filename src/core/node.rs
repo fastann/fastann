@@ -73,10 +73,14 @@ to_float_element!(f32);
 
 to_idx_type!(String);
 to_idx_type!(usize);
+to_idx_type!(i16);
 to_idx_type!(i32);
 to_idx_type!(i64);
+to_idx_type!(i128);
+to_idx_type!(u16);
 to_idx_type!(u32);
 to_idx_type!(u64);
+to_idx_type!(u128);
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Node<E: FloatElement, T: IdxType> {

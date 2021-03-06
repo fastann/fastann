@@ -4,6 +4,8 @@ use crate::bf;
 use crate::bpforest;
 use crate::core;
 use crate::core::ann_index::ANNIndex;
+use crate::core::ann_index::SerializableANNIndex;
+use crate::core::arguments;
 use crate::hnsw;
 use crate::mrng;
 use crate::pq;
@@ -63,7 +65,7 @@ fn make_normal_distribution_clustering(
 pub fn run_similarity_profile(test_time: usize) {
     let dimension = 50;
     let nodes_every_cluster = 40;
-    let node_n = 200;
+    let node_n = 5;
 
     let (_, ns) =
         make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 10000000.0);
@@ -82,7 +84,7 @@ pub fn run_similarity_profile(test_time: usize) {
         100,
         core::metrics::Metric::Manhattan,
     ));
-    let ssg_idx = Box::new(mrng::ssg::SatelliteSystemGraphIndex::<f64, usize>::new(
+    let mut ssg_idx = Box::new(mrng::ssg::SatelliteSystemGraphIndex::<f64, usize>::new(
         dimension, 5, 10, 5, 20.0, 5,
     ));
 
@@ -148,6 +150,15 @@ pub fn run_similarity_profile(test_time: usize) {
             cost.lock().unwrap()[i].as_millis() as f64 / (test_time as f64),
         );
     }
+    bf_idx.dump("bf_idx.idx", &arguments::Args::new());
+    let bf_idx_v2 =
+        bf::bf::BruteForceIndex::<f64, usize>::load("bf_idx.idx", &arguments::Args::new());
+    make_idx_baseline(ns.clone(), &mut ssg_idx);
+    ssg_idx.dump("ssg_idx.idx", &arguments::Args::new());
+    let ssg_idx_v2 = mrng::ssg::SatelliteSystemGraphIndex::<f64, usize>::load(
+        "ssg_idx.idx",
+        &arguments::Args::new(),
+    );
 }
 
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>

@@ -20,7 +20,7 @@ use std::io::Write;
 struct Leaf<E: node::FloatElement, T: node::IdxType> {
     n_descendants: i32, // tot n_descendants
     children: Vec<i32>, // left and right and if it's a leaf leaf, children would be very large (depend on _K)
-    #[serde(skip_serializing)]
+    #[serde(skip_serializing, skip_deserializing)]
     node: Box<node::Node<E, T>>,
     tmp_node: Option<node::Node<E, T>>,
 

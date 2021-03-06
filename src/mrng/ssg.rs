@@ -12,7 +12,6 @@ use rayon::prelude::*;
 use serde::de::DeserializeOwned;
 use serde::de::{self, Deserializer, MapAccess, SeqAccess, Visitor};
 use serde::{Deserialize, Serialize};
-use serde_json;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
@@ -66,7 +65,7 @@ impl<E: node::FloatElement, T: node::IdxType> Eq for SubNeighbor<E, T> {}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SatelliteSystemGraphIndex<E: node::FloatElement, T: node::IdxType> {
-    #[serde(skip_serializing)]
+    #[serde(skip_serializing, skip_deserializing)]
     nodes: Vec<Box<node::Node<E, T>>>,
     tmp_nodes: Vec<node::Node<E, T>>, // only use for serialization scene
     mt: metrics::Metric,
@@ -82,7 +81,6 @@ pub struct SatelliteSystemGraphIndex<E: node::FloatElement, T: node::IdxType> {
     angle: E,
     threshold: E,
     n_try: usize,
-    buffer: Vec<u8>, // use for serialize
 }
 
 impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
@@ -110,7 +108,6 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
             angle: angle,
             threshold: (angle / E::from_f32(180.0).unwrap() * E::from_f32(3.14).unwrap()).cos(),
             n_try: n_try,
-            buffer: Vec::new(),
         }
     }
 
