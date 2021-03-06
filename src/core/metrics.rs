@@ -2,8 +2,9 @@ extern crate num;
 use crate::core::calc::dot;
 use crate::core::calc::same_dimension;
 use crate::core::node::FloatElement;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Metric {
     Unknown,
     Manhattan,

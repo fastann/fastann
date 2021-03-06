@@ -69,17 +69,10 @@ pub fn run_similarity_profile(test_time: usize) {
         make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 10000000.0);
     let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new());
     let bpforest_idx = Box::new(
-        bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(
-            dimension, 6, -1),
+        bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(dimension, 6, -1),
     );
     let hnsw_idx = Box::new(hnsw::hnsw::HnswIndex::<f64, usize>::new(
-        dimension,
-        100000,
-        16,
-        32,
-        20,
-        500,
-        false,
+        dimension, 100000, 16, 32, 20, 500, false,
     ));
 
     let pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(
@@ -204,13 +197,7 @@ pub fn run_word_emb_demo() {
         Box::new(bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(50, 6, -1));
     // bpforest_idx.show_trees();
     let mut hnsw_idx = Box::new(hnsw::hnsw::HnswIndex::<f64, usize>::new(
-        50,
-        10000000,
-        16,
-        32,
-        20,
-        500,
-        false,
+        50, 10000000, 16, 32, 20, 500, false,
     ));
 
     let mut pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(

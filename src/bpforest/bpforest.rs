@@ -8,6 +8,7 @@ use crate::core::node;
 use crate::core::random;
 use core::cmp::Ordering;
 use log::debug;
+use serde::{Deserialize, Serialize};
 
 // TODO: leaf as a trait with getter setter function
 #[derive(Default, Clone, Debug)]

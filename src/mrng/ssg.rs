@@ -9,9 +9,13 @@ use rand::prelude::*;
 extern crate num;
 use core::cmp::Ordering;
 use rayon::prelude::*;
+use serde::de::{self, Deserializer, MapAccess, SeqAccess, Visitor};
+use serde::ser::{SerializeStruct, Serializer};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
+use std::fmt;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -55,16 +59,18 @@ impl<E: node::FloatElement, T: node::IdxType> PartialOrd for SubNeighbor<E, T> {
 
 impl<E: node::FloatElement, T: node::IdxType> Eq for SubNeighbor<E, T> {}
 
+#[derive(Serialize, Deserialize)]
 pub struct SatelliteSystemGraphIndex<E: node::FloatElement, T: node::IdxType> {
+    #[serde(skip_serializing)]
     nodes: Vec<Box<node::Node<E, T>>>,
+    tmp_nodes: Vec<node::Node<E,T>>, 
     mt: metrics::Metric,
     dimension: usize,
     L: usize,
     index_size: usize,      // as R
     graph: Vec<Vec<usize>>, // as final_graph_
     knn_graph: Vec<Vec<usize>>,
-    init_k: usize, // as knn's k
-    ep_: usize,
+    init_k: usize,          // as knn's k
     root_nodes: Vec<usize>, // eps
     width: usize,
     opt_graph: Vec<Vec<usize>>,
@@ -72,6 +78,85 @@ pub struct SatelliteSystemGraphIndex<E: node::FloatElement, T: node::IdxType> {
     threshold: E,
     n_try: usize,
 }
+
+// impl<E: node::FloatElement, T: node::IdxType> Serialize for SatelliteSystemGraphIndex<E, T> {
+//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+//     where
+//         S: Serializer,
+//     {
+//         let mut state = serializer.serialize_struct("SatelliteSystemGraphIndex", 14)?;
+//         state.serialize_field("l", &self.L)?;
+//         state.serialize_field("mt", &self.mt)?;
+//         state.serialize_field("dimension", &self.dimension)?;
+//         state.serialize_field("index_size", &self.index_size)?;
+//         state.serialize_field("graph", &self.graph)?;
+//         state.serialize_field("knn_graph", &self.knn_graph)?;
+//         state.serialize_field("init_k", &self.init_k)?;
+//         state.serialize_field("root_nodes", &self.root_nodes)?;
+//         state.serialize_field("width", &self.width)?;
+//         state.serialize_field("opt_graph", &self.opt_graph)?;
+//         state.serialize_field("angle", &self.angle)?;
+//         state.serialize_field("threshold", &self.threshold)?;
+//         state.serialize_field("n_try", &self.n_try)?;
+//         let mut tmp = Vec::with_capacity(self.nodes.len());
+//         for i in 0..self.nodes.len() {
+//             tmp.push(*self.nodes[i].clone());
+//         }
+//         state.serialize_field("nodes", &tmp)?;
+//         state.end()
+//     }
+// }
+
+// impl<'de, E: node::FloatElement, T: node::IdxType> Deserialize<'de>
+//     for SatelliteSystemGraphIndex<E, T>
+// {
+//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+//     where
+//         D: Deserializer<'de>,
+//     {
+//         #[derive(Deserialize)]
+//         #[serde(field_identifier, rename_all = "lowercase")]
+//         enum Field {
+//             Nodes,
+//             Mt,
+//             Dimension,
+//             L,
+//             IndexSize,
+//             Graph,
+//             KNNGraph,
+//             InitK,
+//             RootNodes,
+//             Width,
+//             OptGraph,
+//             Angle,
+//             Threshold,
+//             NTry,
+//         }
+//         #[derive(Default)]
+//         struct IdxVisitor<OE: node::FloatElement, OT: node::IdxType>{
+//             a:OE,
+//             b:OT,
+//         }
+        
+//         impl<E: node::FloatElement, T: node::IdxType> IdxVisitor<E, T> {
+//             fn new() -> Self {
+//                 IdxVisitor {
+//                     ..Default::default()
+//                 }
+//             }
+//         }
+
+//         impl<'de, OE: node::FloatElement, OT: node::IdxType> Visitor<'de> for IdxVisitor<OT,OE> {
+//             type Value = SatelliteSystemGraphIndex<OE, OT>;
+//             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+//                 formatter.write_str("struct SatelliteSystemGraphIndex")
+//             }
+//         }
+
+//         const FIELDS: &'static [&'static str] = &["secs", "nanos"];
+//         deserializer.deserialize_struct("SatelliteSystemGraphIndex", FIELDS, IdxVisitor::<E,T>::new())
+//     }
+// }
 
 impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
     pub fn new(
@@ -84,13 +169,13 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
     ) -> SatelliteSystemGraphIndex<E, T> {
         SatelliteSystemGraphIndex::<E, T> {
             nodes: Vec::new(),
+            tmp_nodes: Vec::new(),
             mt: metrics::Metric::Unknown,
             dimension: dimension,
             L: L,
             init_k: init_k,
             graph: Vec::new(),
             knn_graph: Vec::new(),
-            ep_: 0,
             root_nodes: Vec::new(),
             width: 0,
             opt_graph: Vec::new(),
@@ -119,7 +204,6 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         let mut pool: Vec<SubNeighbor<E, usize>> = Vec::new();
         let n = node::Node::new(&center);
         self.get_point_neighbors(&n, &mut tmp, &mut pool);
-        self.ep_ = tmp[0].idx();
     }
 
     fn build_knn_graph(&mut self) {
