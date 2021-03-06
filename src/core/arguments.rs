@@ -7,6 +7,7 @@ pub enum ArgsBox {
     Float(f32),
     Int(i32),
     Str(String),
+    Usize(usize),
 }
 
 // TODO: make this optional
@@ -45,6 +46,14 @@ impl Args {
         }
     }
 
+    pub fn uget(&self, key: &str) -> Option<usize> {
+        let val = self.args.get(key)?;
+        match val {
+            ArgsBox::Usize(s) => Some(s.clone()),
+            _ => None,
+        }
+    }
+
     pub fn get(&self, key: &str) -> Option<ArgsBox> {
         let val = self.args.get(key)?;
         Some(val.clone())
@@ -59,6 +68,12 @@ impl Args {
     pub fn iset(&mut self, key: &str, value: i32) -> &mut Args {
         self.args
             .insert(key.to_string(), ArgsBox::Int(value.clone()));
+        self
+    }
+
+    pub fn uset(&mut self, key: &str, value: usize) -> &mut Args {
+        self.args
+            .insert(key.to_string(), ArgsBox::Usize(value.clone()));
         self
     }
 
