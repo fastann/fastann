@@ -1,5 +1,6 @@
 use crate::core::metrics;
 use crate::core::metrics::manhattan_distance;
+use crate::core::simd_metrics;
 use core::fmt::Display;
 use core::iter::Sum;
 use num::traits::{FromPrimitive, NumAssign};
@@ -10,6 +11,7 @@ pub trait FloatElement:
     + Sized
     + Default
     + num::Zero
+    + num::traits::FloatConst
     + core::fmt::Debug
     + Clone
     + Copy
@@ -22,6 +24,7 @@ pub trait FloatElement:
     + Send
     + Sum
     + Serialize
+    + simd_metrics::SIMDOptmized
 {
     // TODO: make it static
     fn float_one() -> Self;

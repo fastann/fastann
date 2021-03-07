@@ -106,7 +106,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
             opt_graph: Vec::new(),
             index_size: index_size,
             angle: angle,
-            threshold: (angle / E::from_f32(180.0).unwrap() * E::from_f32(3.14).unwrap()).cos(),
+            threshold: (angle / E::from_f32(180.0).unwrap() * E::PI()).cos(),
             n_try: n_try,
         }
     }

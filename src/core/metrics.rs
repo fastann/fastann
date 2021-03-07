@@ -4,6 +4,10 @@ use crate::core::calc::same_dimension;
 use crate::core::node::FloatElement;
 use serde::{Deserialize, Serialize};
 
+pub trait SIMDOptmized<T = Self> {
+    fn dot(a: &[T], b: &[T]) -> T;
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Metric {
     Unknown,
@@ -66,26 +70,14 @@ pub fn manhattan_distance<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
 where
     T: FloatElement,
 {
-    same_dimension(vec1, vec2)?;
-    Result::Ok(
-        vec1.iter()
-            .zip(vec2.iter())
-            .map(|v| (*v.0 - *v.1).abs())
-            .sum(),
-    )
+    T::manhattan_distance(vec1, vec2)
 }
 
 pub fn euclidean_distance<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
 where
     T: FloatElement,
 {
-    same_dimension(vec1, vec2)?;
-    Result::Ok(
-        vec1.iter()
-            .zip(vec2.iter())
-            .map(|v| (*v.0 - *v.1).powi(2))
-            .sum(),
-    )
+    T::euclidean_distance(vec1, vec2)
 }
 
 pub fn cosine_similarity<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
