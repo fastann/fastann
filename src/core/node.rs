@@ -3,6 +3,7 @@ use crate::core::metrics::manhattan_distance;
 use core::fmt::Display;
 use core::iter::Sum;
 use num::traits::{FromPrimitive, NumAssign};
+use serde::{Deserialize, Serialize};
 
 pub trait FloatElement:
     FromPrimitive
@@ -20,6 +21,7 @@ pub trait FloatElement:
     + Sync
     + Send
     + Sum
+    + Serialize
 {
     // TODO: make it static
     fn float_one() -> Self;
@@ -31,7 +33,10 @@ pub trait FloatElement:
     fn zero_patch_num() -> Self;
 }
 
-pub trait IdxType: Sized + Clone + Default + core::fmt::Debug + Eq + Ord + Sync + Send {}
+pub trait IdxType:
+    Sized + Clone + Default + core::fmt::Debug + Eq + Ord + Sync + Send + Serialize
+{
+}
 
 #[macro_export]
 macro_rules! to_float_element {
@@ -77,7 +82,7 @@ to_idx_type!(u32);
 to_idx_type!(u64);
 to_idx_type!(u128);
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Node<E: FloatElement, T: IdxType> {
     vectors: Vec<E>, // the vectors;
     idx: Option<T>,  // data id, it can be any type;

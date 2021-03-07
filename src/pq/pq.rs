@@ -377,7 +377,7 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIn
         &self,
         item: &node::Node<E, T>,
         k: usize,
-        args: &arguments::Arguments,
+        args: &arguments::Args,
     ) -> Vec<(node::Node<E, T>, E)> {
         let mut ret: BinaryHeap<Neighbor<E, usize>> = self.search_knn_adc(item, k).unwrap();
         let mut result: Vec<(node::Node<E, T>, E)> = Vec::new();
@@ -397,14 +397,6 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIn
             ));
         }
         return result;
-    }
-
-    fn load(&self, path: &str) -> Result<(), &'static str> {
-        Result::Ok(())
-    }
-
-    fn dump(&self, path: &str) -> Result<(), &'static str> {
-        Result::Ok(())
     }
 
     fn reconstruct(&mut self, mt: metrics::Metric) {}

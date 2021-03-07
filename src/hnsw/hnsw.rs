@@ -467,8 +467,6 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
         //     // println!("insert id {}", insert_id);
         //     self.construct_single_item(insert_id);
         // }
-
-
         self._n_contructed_items = self._n_items;
         return Ok(());
     }
@@ -613,7 +611,7 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Hnsw
         &self,
         item: &node::Node<E, T>,
         k: usize,
-        args: &arguments::Arguments,
+        args: &arguments::Args,
     ) -> Vec<(node::Node<E, T>, E)> {
         let mut ret: BinaryHeap<Neighbor<E, usize>> = self.search_knn(item, k).unwrap();
         let mut result: Vec<(node::Node<E, T>, E)> = Vec::with_capacity(k);
@@ -633,14 +631,6 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Hnsw
             ));
         }
         return result;
-    }
-
-    fn load(&self, path: &str) -> Result<(), &'static str> {
-        Result::Ok(())
-    }
-
-    fn dump(&self, path: &str) -> Result<(), &'static str> {
-        Result::Ok(())
     }
 
     fn reconstruct(&mut self, mt: metrics::Metric) {}

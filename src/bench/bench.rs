@@ -4,7 +4,10 @@ use crate::bf;
 use crate::bpforest;
 use crate::core;
 use crate::core::ann_index::ANNIndex;
+use crate::core::ann_index::SerializableANNIndex;
+use crate::core::arguments;
 use crate::hnsw;
+use crate::mrng;
 use crate::pq;
 use hashbrown::HashMap;
 use pq::pq::PQIndex;
@@ -61,13 +64,13 @@ fn make_normal_distribution_clustering(
 // run for normal distribution test data
 pub fn run_similarity_profile(test_time: usize) {
     let dimension = 50;
-    let nodes_every_cluster = 20;
-    let node_n = 4000;
+    let nodes_every_cluster = 40;
+    let node_n = 5;
 
     let (_, ns) =
         make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 10000000.0);
     let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new());
-    let mut bpforest_idx = Box::new(
+    let bpforest_idx = Box::new(
         bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(dimension, 6, -1),
     );
     let mut hnsw_idx = Box::new(hnsw::hnsw::HnswIndex::<f64, usize>::new(
@@ -80,12 +83,15 @@ pub fn run_similarity_profile(test_time: usize) {
         false,
     ));
 
-    let mut pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(
+    let pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(
         dimension,
         dimension / 2,
         4,
         100,
         core::metrics::Metric::Manhattan,
+    ));
+    let mut ssg_idx = Box::new(mrng::ssg::SatelliteSystemGraphIndex::<f64, usize>::new(
+        dimension, 5, 10, 5, 20.0, 5,
     ));
 
     // let mut indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bpforest_idx];
@@ -143,13 +149,22 @@ pub fn run_similarity_profile(test_time: usize) {
     for i in 0..indices.len() {
         let a = accuracy.lock().unwrap()[i];
         println!(
-            "index: {:?}, avg accuracy: {:?}, hit {:?}, avg cost {:?} millisecond",
+            "index: {:?}, avg accuracy: {:?}%, hit {:?}, avg cost {:?} millisecond",
             indices[i].name(),
-            a / (test_time as f64),
+            a / (test_time as f64) * 100.,
             a,
             cost.lock().unwrap()[i].as_millis() as f64 / (test_time as f64),
         );
     }
+    bf_idx.dump("bf_idx.idx", &arguments::Args::new());
+    let bf_idx_v2 =
+        bf::bf::BruteForceIndex::<f64, usize>::load("bf_idx.idx", &arguments::Args::new());
+    make_idx_baseline(ns.clone(), &mut ssg_idx);
+    ssg_idx.dump("ssg_idx.idx", &arguments::Args::new());
+    let ssg_idx_v2 = mrng::ssg::SatelliteSystemGraphIndex::<f64, usize>::load(
+        "ssg_idx.idx",
+        &arguments::Args::new(),
+    );
 }
 
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
