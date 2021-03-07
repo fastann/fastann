@@ -4,6 +4,7 @@ use core::fmt::Display;
 use core::iter::Sum;
 use num::traits::{FromPrimitive, NumAssign};
 use serde::{Deserialize, Serialize};
+use crate::core::simd;
 
 pub trait FloatElement:
     FromPrimitive
@@ -22,6 +23,7 @@ pub trait FloatElement:
     + Send
     + Sum
     + Serialize
+    + simd::SIMDCalculable
 {
     // TODO: make it static
     fn float_one() -> Self;
