@@ -7,4 +7,4 @@ pub mod metrics;
 pub mod neighbor;
 pub mod node;
 pub mod random;
-pub mod simd;
+pub mod simd_metrics;

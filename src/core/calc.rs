@@ -14,8 +14,7 @@ pub fn dot<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
 where
     T: FloatElement,
 {
-    same_dimension(vec1, vec2)?;
-    Result::Ok(vec1.iter().zip(vec2.iter()).map(|v| *v.0 * *v.1).sum())
+    T::dot_product(&vec1, &vec2)
 }
 
 pub fn same_dimension<T>(vec1: &[T], vec2: &[T]) -> Result<(), &'static str>
@@ -42,7 +41,8 @@ pub fn split_imbalance<T>(vec1: &[T], vec2: &[T]) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::simd::SIMDCalculable;
+    #[cfg(feature = "simd")]
+    use crate::core::simd::Calculable;
     use rand::distributions::{Alphanumeric, StandardNormal, Uniform};
     use rand::distributions::{Distribution, Normal};
     use rand::seq::SliceRandom;
@@ -91,6 +91,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "simd")]
     fn bench_dot() {
         let dimension = 1024;
         let nodes_every_cluster = 40;
@@ -129,8 +130,12 @@ mod tests {
                 base_since_the_epoch.as_millis()
             );
         }
-        
+
         let b = 25;
-        println!("{:?}, {:?}", f64::dot_prod(&ns[b], &ns[b]), dot(&ns[b], &ns[b]).unwrap());
+        println!(
+            "{:?}, {:?}",
+            f64::dot_prod(&ns[b], &ns[b]),
+            dot(&ns[b], &ns[b]).unwrap()
+        );
     }
 }

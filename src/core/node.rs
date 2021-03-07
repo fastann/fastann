@@ -1,10 +1,10 @@
 use crate::core::metrics;
 use crate::core::metrics::manhattan_distance;
+use crate::core::simd_metrics;
 use core::fmt::Display;
 use core::iter::Sum;
 use num::traits::{FromPrimitive, NumAssign};
 use serde::{Deserialize, Serialize};
-use crate::core::simd;
 
 pub trait FloatElement:
     FromPrimitive
@@ -23,7 +23,7 @@ pub trait FloatElement:
     + Send
     + Sum
     + Serialize
-    + simd::SIMDCalculable
+    + simd_metrics::SIMDOptmized
 {
     // TODO: make it static
     fn float_one() -> Self;
