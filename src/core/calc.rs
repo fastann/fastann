@@ -41,8 +41,7 @@ pub fn split_imbalance<T>(vec1: &[T], vec2: &[T]) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[cfg(feature = "simd")]
-    use crate::core::simd::Calculable;
+    use crate::core::simd_metrics::SIMDOptmized;
     use rand::distributions::{Alphanumeric, StandardNormal, Uniform};
     use rand::distributions::{Distribution, Normal};
     use rand::seq::SliceRandom;
@@ -91,7 +90,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "simd")]
     fn bench_dot() {
         let dimension = 1024;
         let nodes_every_cluster = 40;
@@ -118,7 +116,7 @@ mod tests {
         {
             let base_start = SystemTime::now();
             for x in 0..ns.len() {
-                f64::dot_prod(&ns[x], &ns[x]);
+                f64::dot_product(&ns[x], &ns[x]);
                 // println!("hello {:?}, {:?}", ns[x].len(), ns[x]);
             }
             let base_since_the_epoch = SystemTime::now()
@@ -134,7 +132,7 @@ mod tests {
         let b = 25;
         println!(
             "{:?}, {:?}",
-            f64::dot_prod(&ns[b], &ns[b]),
+            f64::dot_product(&ns[b], &ns[b]),
             dot(&ns[b], &ns[b]).unwrap()
         );
     }

@@ -86,5 +86,5 @@ macro_rules! simd_optimized_impl {
     };
 }
 
-simd_optimized_impl!(f32, f32x4, 4, "simd");
+simd_optimized_impl!(f32, f32x8, 8, "simd");
 simd_optimized_impl!(f64, f64x4, 4, "simd");

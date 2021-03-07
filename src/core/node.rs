@@ -11,6 +11,7 @@ pub trait FloatElement:
     + Sized
     + Default
     + num::Zero
+    + num::traits::FloatConst
     + core::fmt::Debug
     + Clone
     + Copy
