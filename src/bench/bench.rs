@@ -73,8 +73,14 @@ pub fn run_similarity_profile(test_time: usize) {
     let bpforest_idx = Box::new(
         bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(dimension, 6, -1),
     );
-    let hnsw_idx = Box::new(hnsw::hnsw::HnswIndex::<f64, usize>::new(
-        dimension, 100000, 16, 32, 20, 500, false,
+    let mut hnsw_idx = Box::new(hnsw::hnsw::HnswIndex::<f64, usize>::new(
+        dimension,
+        100000,
+        16,
+        32,
+        20,
+        500,
+        false,
     ));
 
     let pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(
@@ -208,7 +214,13 @@ pub fn run_word_emb_demo() {
         Box::new(bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(50, 6, -1));
     // bpforest_idx.show_trees();
     let mut hnsw_idx = Box::new(hnsw::hnsw::HnswIndex::<f64, usize>::new(
-        50, 10000000, 16, 32, 20, 500, false,
+        50,
+        10000000,
+        16,
+        32,
+        20,
+        500,
+        false,
     ));
 
     let mut pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(
@@ -278,8 +290,14 @@ pub fn run_word_emb_demo() {
 }
 
 fn make_idx_baseline<T: ANNIndex<f64, usize> + ?Sized>(embs: Vec<Vec<f64>>, idx: &mut Box<T>) {
+    let start = SystemTime::now();
     for i in 0..embs.len() {
         idx.add_node(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
     }
-    idx.construct(core::metrics::Metric::Euclidean).unwrap();
+    idx.construct(core::metrics::Metric::Manhattan).unwrap();
+    let since_start = SystemTime::now()
+        .duration_since(start)
+        .expect("Time went backwards");
+
+    println!("index {:?} build time {:?} ms",idx.name(), since_start.as_millis() as f64 );
 }
