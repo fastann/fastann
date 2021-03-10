@@ -9,29 +9,48 @@ use hashbrown::HashMap;
 use hashbrown::HashSet;
 use rand::prelude::*;
 use rayon::{iter::IntoParallelIterator, prelude::*};
+use serde::de::DeserializeOwned;
+use serde::de::{self, Deserializer, MapAccess, SeqAccess, Visitor};
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::fs::File;
+use std::io::Read;
+use std::io::Write;
 use std::sync::Arc;
 use std::thread;
 use std::{borrow::Borrow, sync::RwLock};
-#[derive(Default, Debug)]
+
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct HnswIndex<E: node::FloatElement, T: node::IdxType> {
     _demension: usize, // dimension
     _n_items: usize,   // next item count
     _n_contructed_items: usize,
     _max_item: usize,
-    _n_neigh: usize,                         // neighbor num except level 0
-    _n_neigh0: usize,                        // neight num of level 0
-    _max_level: usize,                       //max level
-    _cur_level: usize,                       //current level
+    _n_neigh: usize,   // neighbor num except level 0
+    _n_neigh0: usize,  // neight num of level 0
+    _max_level: usize, //max level
+    _cur_level: usize, //current level
+    #[serde(skip_serializing, skip_deserializing)]
     _id2neigh: Vec<Vec<RwLock<Vec<usize>>>>, //neight_id from level 1 to level _max_level
-    _id2neigh0: Vec<RwLock<Vec<usize>>>,     //neigh_id at level 0
-    _datas: Vec<Box<node::Node<E, T>>>,      // data saver
-    _item2id: HashMap<T, usize>,             //item_id to id in Hnsw
-    _root_id: usize,                         //root of hnsw
+    #[serde(skip_serializing, skip_deserializing)]
+    _id2neigh0: Vec<RwLock<Vec<usize>>>, //neigh_id at level 0
+    #[serde(skip_serializing, skip_deserializing)]
+    _datas: Vec<Box<node::Node<E, T>>>, // data saver
+    #[serde(skip_serializing, skip_deserializing)]
+    _item2id: HashMap<T, usize>, //item_id to id in Hnsw
+    _root_id: usize,   //root of hnsw
     _id2level: Vec<usize>,
     _has_deletons: bool,
-    _ef_default: usize,          // num of max candidates when searching
+    _ef_default: usize, // num of max candidates when searching
+    #[serde(skip_serializing, skip_deserializing)]
     _delete_ids: HashSet<usize>, //save deleted ids
-    _metri: metrics::Metric,     //compute metrics
+    _metri: metrics::Metric, //compute metrics
+
+    _id2neigh_tmp: Vec<Vec<Vec<usize>>>,
+    _id2neigh0_tmp: Vec<Vec<usize>>,
+    _datas_tmp: Vec<node::Node<E, T>>,
+    _item2id_tmp: Vec<(T, usize)>,
+    _delete_ids_tmp: Vec<usize>,
 }
 
 impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
@@ -648,5 +667,83 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Hnsw
 
     fn name(&self) -> &'static str {
         "HnswIndex"
+    }
+}
+
+impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwned>
+    ann_index::SerializableANNIndex<E, T> for HnswIndex<E, T>
+{
+    fn load(path: &str, args: &arguments::Args) -> Result<Self, &'static str> {
+        let mut file = File::open(path).expect(&format!("unable to open file {:?}", path));
+        let mut instance: HnswIndex<E, T> = bincode::deserialize_from(&file).unwrap();
+        instance._datas = instance
+            ._datas_tmp
+            .iter()
+            .map(|x| Box::new(x.clone()))
+            .collect();
+        instance._id2neigh = Vec::with_capacity(instance._id2neigh_tmp.len());
+        for i in 0..instance._id2neigh.len() {
+            let mut tmp = Vec::with_capacity(instance._id2neigh_tmp[i].len());
+            for j in 0..instance._id2neigh_tmp[i].len() {
+                tmp.push(RwLock::new(instance._id2neigh_tmp[i][j].clone()));
+            }
+            instance._id2neigh.push(tmp);
+        }
+        instance._id2neigh0 = Vec::with_capacity(instance._id2neigh0_tmp.len());
+        for i in 0..instance._id2neigh0_tmp.len() {
+            instance
+                ._id2neigh0
+                .push(RwLock::new(instance._id2neigh0_tmp[i].clone()));
+        }
+
+        instance._item2id = HashMap::new();
+        for iter in instance._item2id_tmp.iter() {
+            let (k, v) = &*iter;
+            instance._item2id.insert(k.clone(), v.clone());
+        }
+
+        instance._delete_ids = HashSet::new();
+        for iter in instance._delete_ids_tmp.iter() {
+            instance._delete_ids.insert(iter.clone());
+        }
+        instance._id2neigh_tmp.clear();
+        instance._id2neigh0_tmp.clear();
+        instance._datas_tmp.clear();
+        instance._item2id_tmp.clear();
+        instance._delete_ids_tmp.clear();
+        Ok(instance)
+    }
+
+    fn dump(&mut self, path: &str, args: &arguments::Args) -> Result<(), &'static str> {
+        self._id2neigh_tmp = Vec::with_capacity(self._id2neigh.len());
+        for i in 0..self._id2neigh.len() {
+            let mut tmp = Vec::with_capacity(self._id2neigh[i].len());
+            for j in 0..self._id2neigh[i].len() {
+                tmp.push(self._id2neigh[i][j].read().unwrap().clone());
+            }
+            self._id2neigh_tmp.push(tmp);
+        }
+
+        self._id2neigh0_tmp = Vec::with_capacity(self._id2neigh0.len());
+        for i in 0..self._id2neigh0.len() {
+            self._id2neigh0_tmp
+                .push(self._id2neigh0[i].read().unwrap().clone());
+        }
+
+        self._datas_tmp = self._datas.iter().map(|x| *x.clone()).collect();
+        self._item2id_tmp = Vec::with_capacity(self._item2id.len());
+        for (k, v) in &self._item2id {
+            self._item2id_tmp.push((k.clone(), v.clone()));
+        }
+        self._delete_ids_tmp = Vec::new();
+        for iter in &self._delete_ids {
+            self._delete_ids_tmp.push(iter.clone());
+        }
+
+        let encoded_bytes = bincode::serialize(&self).unwrap();
+        let mut file = File::create(path).unwrap();
+        file.write_all(&encoded_bytes)
+            .expect(&format!("unable to write file {:?}", path));
+        Result::Ok(())
     }
 }
