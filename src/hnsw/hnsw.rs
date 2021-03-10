@@ -671,7 +671,7 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Hnsw
 }
 
 impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwned>
-    ann_index::SerializableANNIndex<E, T> for HnswIndex<E, T>
+    ann_index::SerializableIndex<E, T> for HnswIndex<E, T>
 {
     fn load(path: &str, args: &arguments::Args) -> Result<Self, &'static str> {
         let mut file = File::open(path).expect(&format!("unable to open file {:?}", path));

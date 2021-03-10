@@ -4,7 +4,7 @@ use crate::bf;
 use crate::bpforest;
 use crate::core;
 use crate::core::ann_index::ANNIndex;
-use crate::core::ann_index::SerializableANNIndex;
+use crate::core::ann_index::SerializableIndex;
 use crate::core::arguments;
 use crate::hnsw;
 use crate::mrng;

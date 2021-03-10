@@ -6,6 +6,13 @@ use crate::core::neighbor::Neighbor;
 use crate::core::node;
 use metrics::metric;
 use rand::prelude::*;
+use serde::de::DeserializeOwned;
+use serde::de::{self, Deserializer, MapAccess, SeqAccess, Visitor};
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::fs::File;
+use std::io::Read;
+use std::io::Write;
 
 #[derive(Default, Debug)]
 pub struct KmeansIndexer<E: node::FloatElement, T: node::IdxType> {
@@ -214,7 +221,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct PQIndex<E: node::FloatElement, T: node::IdxType> {
     _demension: usize,     //dimension of data
     _n_sub: usize,         //num of subdata
@@ -233,7 +240,8 @@ pub struct PQIndex<E: node::FloatElement, T: node::IdxType> {
     _datas: Vec<Box<node::Node<E, T>>>,
     _assigned_center: Vec<Vec<usize>>,
     _metri: metrics::Metric, //compute metrics
-                             // _item2id: HashMap<i32, usize>,
+    // _item2id: HashMap<i32, usize>,
+    _datas_tmp: Vec<node::Node<E, T>>,
 }
 
 impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
@@ -403,5 +411,29 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIn
 
     fn name(&self) -> &'static str {
         "PQIndex"
+    }
+}
+
+impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwned>
+    ann_index::SerializableIndex<E, T> for PQIndex<E, T>
+{
+    fn load(path: &str, args: &arguments::Args) -> Result<Self, &'static str> {
+        let mut file = File::open(path).expect(&format!("unable to open file {:?}", path));
+        let mut instance: PQIndex<E, T> = bincode::deserialize_from(&file).unwrap();
+        instance._datas = instance
+            ._datas_tmp
+            .iter()
+            .map(|x| Box::new(x.clone()))
+            .collect();
+        Ok(instance)
+    }
+
+    fn dump(&mut self, path: &str, args: &arguments::Args) -> Result<(), &'static str> {
+        self._datas_tmp = self._datas.iter().map(|x| *x.clone()).collect();
+        let encoded_bytes = bincode::serialize(&self).unwrap();
+        let mut file = File::create(path).unwrap();
+        file.write_all(&encoded_bytes)
+            .expect(&format!("unable to write file {:?}", path));
+        Result::Ok(())
     }
 }
