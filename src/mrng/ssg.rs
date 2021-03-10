@@ -756,7 +756,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
 }
 
 impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwned>
-    ann_index::SerializableANNIndex<E, T> for SatelliteSystemGraphIndex<E, T>
+    ann_index::SerializableIndex<E, T> for SatelliteSystemGraphIndex<E, T>
 {
     fn load(path: &str, args: &arguments::Args) -> Result<Self, &'static str> {
         let mut file = File::open(path).expect(&format!("unable to open file {:?}", path));

@@ -65,7 +65,7 @@ pub trait ANNIndex<E: node::FloatElement, T: node::IdxType>: Send + Sync {
     fn name(&self) -> &'static str;
 }
 
-pub trait SerializableANNIndex<
+pub trait SerializableIndex<
     E: node::FloatElement + DeserializeOwned,
     T: node::IdxType + DeserializeOwned,
 >: Send + Sync + ANNIndex<E, T>
