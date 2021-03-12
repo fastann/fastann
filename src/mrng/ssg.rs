@@ -7,13 +7,10 @@ use crate::core::node;
 use rand::prelude::*;
 extern crate num;
 use bincode;
-use core::cmp::Ordering;
 use rayon::prelude::*;
 use serde::de::DeserializeOwned;
-use serde::de::{self, Deserializer, MapAccess, SeqAccess, Visitor};
 use serde::{Deserialize, Serialize};
 use std::cmp;
-use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::LinkedList;
 use std::collections::VecDeque;
@@ -24,46 +21,6 @@ use std::io::Read;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-
-// TODO: migrate to neighbor
-#[derive(Default, Clone, Copy, PartialEq, Debug)]
-pub struct SubNeighbor<E: node::FloatElement, T: node::IdxType> {
-    pub _idx: T,
-    pub _distance: E,
-    pub flag: bool,
-}
-
-impl<E: node::FloatElement, T: node::IdxType> SubNeighbor<E, T> {
-    pub fn new(idx: T, distance: E, flag: bool) -> SubNeighbor<E, T> {
-        return SubNeighbor {
-            _idx: idx,
-            _distance: distance,
-            flag: flag,
-        };
-    }
-
-    pub fn idx(&self) -> T {
-        self._idx.clone()
-    }
-
-    pub fn distance(&self) -> E {
-        self._distance
-    }
-}
-
-impl<E: node::FloatElement, T: node::IdxType> Ord for SubNeighbor<E, T> {
-    fn cmp(&self, other: &SubNeighbor<E, T>) -> Ordering {
-        self._distance.partial_cmp(&other._distance).unwrap()
-    }
-}
-
-impl<E: node::FloatElement, T: node::IdxType> PartialOrd for SubNeighbor<E, T> {
-    fn partial_cmp(&self, other: &SubNeighbor<E, T>) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl<E: node::FloatElement, T: node::IdxType> Eq for SubNeighbor<E, T> {}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SatelliteSystemGraphIndex<E: node::FloatElement, T: node::IdxType> {
@@ -127,8 +84,8 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
             center[j] /= E::from_usize(self.nodes.len()).unwrap();
         }
 
-        let mut tmp: Vec<SubNeighbor<E, usize>> = Vec::new();
-        let mut pool: Vec<SubNeighbor<E, usize>> = Vec::new();
+        let mut tmp: Vec<neighbor::Neighbor<E, usize>> = Vec::new();
+        let mut pool: Vec<neighbor::Neighbor<E, usize>> = Vec::new();
         let n = node::Node::new(&center);
         self.get_point_neighbors(&n, &mut tmp, &mut pool);
     }
@@ -180,9 +137,9 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
 
     fn insert_into_pools(
         &self,
-        addr: &mut Vec<SubNeighbor<E, usize>>,
+        addr: &mut Vec<neighbor::Neighbor<E, usize>>,
         k: usize,
-        nn: &SubNeighbor<E, usize>,
+        nn: &neighbor::Neighbor<E, usize>,
     ) -> usize {
         addr.push(nn.clone());
         addr.sort();
@@ -197,7 +154,6 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
             addr[left] = nn.clone();
             return left;
         }
-        // println!("{:?} {:?}", right, k);
         if addr[right].distance() > nn.distance() {
             addr[k] = nn.clone();
             return k;
@@ -229,8 +185,8 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
     fn get_point_neighbors(
         &self,
         item: &node::Node<E, T>,
-        return_set: &mut Vec<SubNeighbor<E, usize>>,
-        full_set: &mut Vec<SubNeighbor<E, usize>>,
+        return_set: &mut Vec<neighbor::Neighbor<E, usize>>,
+        full_set: &mut Vec<neighbor::Neighbor<E, usize>>,
     ) {
         let mut init_ids = vec![0; self.L];
         self.get_random_nodes_idx(&mut init_ids);
@@ -242,10 +198,9 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
             if id > self.nodes.len() {
                 continue;
             }
-            return_set.push(SubNeighbor::new(
+            return_set.push(neighbor::Neighbor::new(
                 id.clone(),
                 item.metric(&self.nodes[id], self.mt).unwrap(),
-                true,
             ));
             return_set_flags[id] = true;
             flags[id] = true;
@@ -267,7 +222,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
                     }
                     flags[id] = true;
                     let dist = item.metric(&self.nodes[id], self.mt).unwrap();
-                    full_set.push(SubNeighbor::new(id, dist, true));
+                    full_set.push(neighbor::Neighbor::new(id, dist));
                     if dist > return_set[self.L - 1].distance() {
                         continue;
                     }
@@ -288,20 +243,23 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         }
     }
 
-    fn get_point_L_neighbors(&self, q: usize, pool: &mut Vec<SubNeighbor<E, usize>>) {
+    fn get_point_L_neighbors(&self, q: usize, pool: &mut Vec<neighbor::Neighbor<E, usize>>) {
         let mut flags = HashSet::new();
 
         flags.insert(q);
         for i in 0..self.graph[q].len() {
             let nid = self.graph[q][i];
             for nn in 0..self.graph[nid].len() {
+                if nn == i {
+                    continue;
+                }
                 let nn_id = self.graph[nid][nn];
                 if flags.contains(&nn_id) {
                     continue;
                 }
                 flags.insert(nn_id);
                 let dist = self.nodes[q].metric(&self.nodes[nn_id], self.mt).unwrap();
-                pool.push(SubNeighbor::new(nn_id, dist, true));
+                pool.push(neighbor::Neighbor::new(nn_id, dist));
                 if pool.len() >= self.L {
                     return;
                 }
@@ -370,68 +328,71 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         let angle = E::from_f32(0.5).unwrap();
         let threshold = self.threshold;
         let mut pool = Vec::new();
-        let mut tmp: Vec<SubNeighbor<E, usize>> = Vec::new();
-        for i in 0..self.nodes.len() {
+        (0..self.nodes.len()).for_each(|i| {
             pool.clear();
-            tmp.clear();
             self.get_point_L_neighbors(i, &mut pool); // get related one
             self.prune_graph(i, &mut pool, threshold, cut_graph);
-        }
-        for i in 0..self.nodes.len() {
+        });
+        cut_graph.iter().for_each(|x| {
+            if x.idx() > self.nodes.len() + 1 {
+                println!("here {:?}", x);
+            }
+        });
+        (0..self.nodes.len()).for_each(|i| {
             self.inter_insert(i, range, cut_graph);
-        }
+        });
+
         Result::Ok(())
     }
 
     fn prune_graph(
         &mut self,
         query_id: usize,
-        related_ids_pool: &mut Vec<SubNeighbor<E, usize>>,
+        related_ids_pool: &mut Vec<neighbor::Neighbor<E, usize>>,
         threshold: E,
         cut_graph: &mut Vec<neighbor::Neighbor<E, usize>>,
     ) {
-        let range = 5;
-        self.width = range;
+        self.width = self.index_size;
         let mut start = 0;
-        let mut flags = vec![false; self.nodes.len()]; // TODO: hashset
+        let mut flags = HashSet::new();
         for i in 0..related_ids_pool.len() {
-            flags[related_ids_pool[i].idx()] = true;
+            flags.insert(related_ids_pool[i].idx());
         }
-        for linked_idx in 0..self.graph[query_id].len() {
-            let linked_id = self.graph[query_id][linked_idx];
-            if flags[linked_id] {
-                continue;
+        self.graph[query_id].iter().for_each(|linked_id| {
+            if flags.contains(linked_id) {
+                return;
             }
-            related_ids_pool.push(SubNeighbor::new(
-                linked_id,
+            related_ids_pool.push(neighbor::Neighbor::new(
+                *linked_id,
                 self.nodes[query_id]
-                    .metric(&self.nodes[linked_id], self.mt)
+                    .metric(&self.nodes[*linked_id], self.mt)
                     .unwrap(),
-                true,
             ));
-        }
+        });
+
         related_ids_pool.sort();
         let mut result = Vec::new();
         if related_ids_pool[start].idx() == query_id {
             start += 1;
         }
-        result.push(related_ids_pool[start]);
+        result.push(related_ids_pool[start].clone());
 
         start += 1;
-        while result.len() < range && start < related_ids_pool.len() {
-            let p = related_ids_pool[start];
+        while result.len() < self.index_size && start < related_ids_pool.len() {
+            let p = &related_ids_pool[start];
             let mut occlude = false;
+            // TODO: check every metrics, and decide use euclidean forcibly.
             for t in 0..result.len() {
                 if p.idx() == result[t].idx() {
+                    // stop early
                     occlude = true;
                     break;
                 }
                 let djk = self.nodes[result[t].idx()]
                     .metric(&self.nodes[p.idx()], self.mt)
                     .unwrap();
-                let cos_ij = (p.distance() + result[t].distance() - djk)
-                    / E::from_usize(2).unwrap()
-                    / (p.distance() * result[t].distance()).sqrt();
+                let cos_ij = (p.distance().powi(2) + result[t].distance().powi(2) - djk.powi(2))
+                    / (E::from_usize(2).unwrap() * (p.distance() * result[t].distance()));
 
                 if cos_ij > threshold {
                     occlude = true;
@@ -445,45 +406,48 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         }
 
         for t in 0..result.len() {
-            cut_graph[t + query_id]._idx = result[t].idx();
-            cut_graph[t + query_id]._distance = result[t].distance();
+            cut_graph[t + query_id * self.index_size]._idx = result[t].idx();
+            cut_graph[t + query_id * self.index_size]._distance = result[t].distance();
         }
-        if result.len() < range {
-            for i in 0..range {
-                cut_graph[query_id + i]._distance = E::max_value();
+        if result.len() < self.index_size {
+            for i in result.len()..self.index_size {
+                cut_graph[query_id * self.index_size + i]._distance = E::max_value();
+                cut_graph[query_id * self.index_size + i]._idx = self.nodes.len(); // means not exist
             }
         }
     }
 
+    // to handle neighbor's graph
     fn inter_insert(
         &self,
         n: usize,
         range: usize,
         cut_graph: &mut Vec<neighbor::Neighbor<E, usize>>,
     ) {
-        for i in 0..range {
-            if cut_graph[i + n].distance() == E::from_isize(-1).unwrap() {
-                break;
+        (0..range).for_each(|i| {
+            if cut_graph[i + n].distance() == E::max_value() {
+                return;
             }
 
-            let sn = neighbor::Neighbor::new(n, cut_graph[i + n].distance());
+            let sn = neighbor::Neighbor::new(n, cut_graph[i + n].distance()); // distance of n to i
             let des = cut_graph[i + n].idx();
             let mut temp_pool = Vec::new();
-            let mut dup = 0;
+            let mut dup = false;
 
             for j in 0..range {
-                if cut_graph[j + des].distance() == E::from_isize(-1).unwrap() {
+                if cut_graph[j + des * self.index_size].distance() == E::max_value() {
                     break;
                 }
-                if n == cut_graph[j + des].idx() {
-                    dup = 1;
+                if n == cut_graph[j + des * self.index_size].idx() {
+                    // neighbor and point meet
+                    dup = true;
                     break;
                 }
-                temp_pool.push(cut_graph[j + des].clone());
+                temp_pool.push(cut_graph[j + des * self.index_size].clone()); // neighbor's neighbor
             }
 
-            if dup == 1 {
-                continue;
+            if dup {
+                return;
             }
 
             temp_pool.push(sn.clone());
@@ -504,9 +468,9 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
                         let djk = self.nodes[result[t].idx()]
                             .metric(&self.nodes[p.idx()], self.mt)
                             .unwrap();
-                        let cos_ij = (p.distance() + result[t].distance() - djk)
-                            / E::from_usize(2).unwrap()
-                            / (p.distance() * result[t].distance()).sqrt();
+                        let cos_ij = (p.distance().powi(2) + result[t].distance().powi(2)
+                            - djk.powi(2))
+                            / (E::from_usize(2).unwrap() * (p.distance() * result[t].distance()));
 
                         if cos_ij > self.threshold {
                             occlude = true;
@@ -519,44 +483,40 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
                     start += 1;
                 }
                 for t in 0..result.len() {
-                    cut_graph[t + des] = result[t].clone();
+                    cut_graph[t + des * self.index_size] = result[t].clone();
                 }
 
                 if result.len() < range {
-                    cut_graph[result.len() + des]._distance = E::from_isize(-1).unwrap();
+                    cut_graph[result.len() + des * self.index_size]._distance = E::max_value();
                 }
             } else {
                 for t in 0..range {
-                    if cut_graph[t + des].distance() == E::from_isize(-1).unwrap() {
-                        cut_graph[t + des] = sn.clone();
+                    if cut_graph[t + des * self.index_size].distance() == E::max_value() {
+                        cut_graph[t + des * self.index_size] = sn.clone();
                         if (t + 1) < range {
-                            cut_graph[t + des]._distance = E::from_isize(-1).unwrap();
+                            cut_graph[t + des * self.index_size]._distance = E::max_value();
                             break;
                         }
                     }
                 }
             }
-        }
+        });
     }
 
     fn build(&mut self) {
-        let range = self.index_size;
-
         self.build_knn_graph();
 
         let mut cut_graph: Vec<neighbor::Neighbor<E, usize>> =
-            Vec::with_capacity(self.nodes.len() * range);
-        for i in 0..self.nodes.len() * range {
+            Vec::with_capacity(self.nodes.len() *  self.index_size);
+        for i in 0..self.nodes.len() *  self.index_size {
             cut_graph.push(neighbor::Neighbor::<E, usize>::new(i, E::float_zero()));
-            // placeholder
         }
         self.link_each_nodes(&mut cut_graph);
 
         for i in 0..self.nodes.len() {
-            let pool = &cut_graph[i..];
             let mut pool_size = 0;
-            for j in 0..range {
-                if pool[j].distance() == E::from_isize(-1).unwrap() {
+            for j in 0.. self.index_size {
+                if cut_graph[i*self.index_size + j].distance() == E::max_value() {
                     break;
                 }
                 pool_size = j;
@@ -564,7 +524,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
             pool_size += 1;
             self.graph[i] = Vec::with_capacity(pool_size);
             for j in 0..pool_size {
-                self.graph[i].push(pool[j].idx());
+                self.graph[i].push(cut_graph[i * self.index_size + j].idx());
             }
         }
 
@@ -596,6 +556,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         if L < self.root_nodes.len() {
             L = self.root_nodes.len();
         }
+        println!("{:?}", L);
         let mut init_ids = vec![0; L];
         let mut search_flags = HashSet::with_capacity(self.nodes.len());
         let mut heap: BinaryHeap<neighbor::Neighbor<E, usize>> = BinaryHeap::new(); // max-heap
@@ -613,9 +574,10 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
             for j in 0..self.graph[id].len() {
                 search_queue.push_back(self.graph[id][j]);
             }
-            search_flags.insert(id.clone());
+            search_flags.insert(id);
         }
 
+        let mut search_times = 0;
         while !search_queue.is_empty() {
             let id = search_queue.pop_front().unwrap();
             if search_flags.contains(&id) {
@@ -631,8 +593,8 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
                 }
             }
             search_flags.insert(id);
+            search_times += 1;
         }
-        println!("{:?} {:?}", self.nodes.len(), search_flags.len());
 
         let mut result = Vec::new();
         while !heap.is_empty() {
@@ -753,6 +715,29 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
             }
         }
     }
+
+    pub fn connectivity_profile(&self) {
+        let mut visited = HashSet::with_capacity(self.nodes.len());
+        let mut queue = VecDeque::new();
+
+        queue.push_back(0);
+        while !queue.is_empty() {
+            let id = queue.pop_front().unwrap();
+            if visited.contains(&id) {
+                continue;
+            }
+
+            for x in 0..self.graph[id].len() {
+                queue.push_back(self.graph[id][x].clone());
+                if self.graph[id][x] > self.nodes.len() {
+                    // println!("{:?} {:?} {:?}", self.graph[id][x], self.graph[id], id);
+                }
+            }
+            visited.insert(id.clone());
+        }
+
+        println!("connectivity: {:?} {:?}", self.nodes.len(), visited.len());
+    }
 }
 
 impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwned>
@@ -808,5 +793,9 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
 
     fn name(&self) -> &'static str {
         "SatelliteSystemGraphIndex"
+    }
+
+    fn nodes_size(&self) -> usize {
+        self.nodes.len()
     }
 }

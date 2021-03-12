@@ -63,6 +63,10 @@ pub trait ANNIndex<E: node::FloatElement, T: node::IdxType>: Send + Sync {
     }
 
     fn name(&self) -> &'static str;
+
+    fn nodes_size(&self) -> usize {
+        0
+    }
 }
 
 pub trait SerializableIndex<

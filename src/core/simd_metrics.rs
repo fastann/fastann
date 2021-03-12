@@ -26,10 +26,8 @@ macro_rules! simd_optimized_impl {
                         .sum::<$simd_type>()
                         .sum();
                 }
-                for i in size..a.len() {
-                    c += a[i] * b[i];
-                }
-                Ok(c)
+                let d: $type_id = (size..a.len()).map(|i| a[i] * b[i]).sum();
+                Ok(c + d)
             }
 
             fn manhattan_distance(
@@ -50,10 +48,8 @@ macro_rules! simd_optimized_impl {
                         .sum::<$simd_type>()
                         .sum();
                 }
-                for i in size..a.len() {
-                    c += (a[i] - b[i]).abs();
-                }
-                Ok(c)
+                let d: $type_id = (size..a.len()).map(|i| (a[i] - b[i]).abs()).sum();
+                Ok(c + d)
             }
 
             fn euclidean_distance(
@@ -77,10 +73,8 @@ macro_rules! simd_optimized_impl {
                         .sum::<$simd_type>()
                         .sum();
                 }
-                for i in size..a.len() {
-                    c += (a[i] - b[i]).powi(2);
-                }
-                Ok(c)
+                let d: $type_id = (size..a.len()).map(|i| (a[i] - b[i]).powi(2)).sum();
+                Ok((d + c).sqrt())
             }
         }
     };
