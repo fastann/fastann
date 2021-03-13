@@ -551,6 +551,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         // println!("insert id {} insert_level {}", insert_id, insert_level);
         // println!("self._cur_level {}", self._cur_level);
         let mut cur_id = self._root_id;
+        // println!("insert_id {:?}",insert_id);
         // println!("insert_id {:?}, insert_level {:?} ", insert_id, insert_level);
 
         if insert_id == 0 {
@@ -589,12 +590,13 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         };
         let mut visited_id: HashSet<usize> = HashSet::new();
         let mut sorted_candidates: Vec<Neighbor<E, usize>> = Vec::new();
+        let insert_data = self.get_data(insert_id);
+        visited_id.insert(insert_id);
         sorted_candidates.push(Neighbor::new(
             cur_id,
             self.get_distance_from_id(cur_id, insert_id),
         ));
         loop {
-            let insert_data = self.get_data(insert_id);
             // let mut visited_id: HashSet<usize> = HashSet::new();
             let mut top_candidates = self.search_layer_with_candidate(
                 insert_data,
