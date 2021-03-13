@@ -73,7 +73,7 @@ pub fn run_similarity_profile(test_time: usize) {
     let _bpforest_idx = Box::new(
         bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(dimension, 6, -1),
     );
-    let hnsw_idx = Box::new(hnsw::hnsw::HnswIndex::<f64, usize>::new(
+    let hnsw_idx = Box::new(hnsw::hnsw::HNSWIndex::<f64, usize>::new(
         dimension, 100000, 16, 32, 20, 500, false,
     ));
 
@@ -82,7 +82,6 @@ pub fn run_similarity_profile(test_time: usize) {
         dimension / 2,
         4,
         100,
-        core::metrics::Metric::Manhattan,
     ));
     let mut ssg_idx = Box::new(mrng::ssg::SatelliteSystemGraphIndex::<f64, usize>::new(
         dimension, 5, 10, 5, 20.0, 5,
@@ -207,7 +206,7 @@ pub fn run_word_emb_demo() {
     let bpforest_idx =
         Box::new(bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(50, 6, -1));
     // bpforest_idx.show_trees();
-    let _hnsw_idx = Box::new(hnsw::hnsw::HnswIndex::<f64, usize>::new(
+    let _hnsw_idx = Box::new(hnsw::hnsw::HNSWIndex::<f64, usize>::new(
         50, 10000000, 16, 32, 20, 500, false,
     ));
 
@@ -215,8 +214,7 @@ pub fn run_word_emb_demo() {
         50,
         10,
         4,
-        100,
-        core::metrics::Metric::Manhattan,
+        100
     ));
 
     // let indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bf_idx, bpforest_idx, hnsw_idx, pq_idx];
