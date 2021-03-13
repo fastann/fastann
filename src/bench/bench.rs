@@ -9,7 +9,7 @@ use crate::core::arguments;
 use crate::hnsw;
 use crate::mrng;
 use crate::pq;
-use hashbrown::HashMap;
+use std::collections::HashMap;
 use pq::pq::PQIndex;
 use prgrs::{writeln, Length, Prgrs};
 use rand::distributions::{Alphanumeric, StandardNormal, Uniform};

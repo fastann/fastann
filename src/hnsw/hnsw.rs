@@ -5,7 +5,9 @@ use crate::core::metrics;
 use crate::core::neighbor::Neighbor;
 use crate::core::node;
 use ann_index::ANNIndex;
+#[cfg(feature = "without_std")]
 use hashbrown::HashMap;
+#[cfg(feature = "without_std")]
 use hashbrown::HashSet;
 use rand::prelude::*;
 use rayon::{iter::IntoParallelIterator, prelude::*};
@@ -16,6 +18,10 @@ use std::fs;
 use std::fs::File;
 use std::io::Read;
 use std::io::Write;
+#[cfg(not(feature = "without_std"))]
+use std::collections::HashMap;
+#[cfg(not(feature = "without_std"))]
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::thread;
 use std::{borrow::Borrow, sync::RwLock};

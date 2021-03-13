@@ -1,5 +1,8 @@
 use crate::core::node;
+#[cfg(feature = "without_std")]
 use hashbrown::HashMap;
+#[cfg(not(feature = "without_std"))]
+use std::collections::HashMap;
 
 // TODO:L find a way to make the arguments generic;
 #[derive(Clone, Debug)]
