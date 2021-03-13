@@ -5,7 +5,7 @@ use crate::core::metrics;
 use crate::core::neighbor;
 use crate::core::node;
 use rand::prelude::*;
-extern crate num;
+use fixedbitset::FixedBitSet;
 
 #[cfg(feature = "without_std")]
 use hashbrown::HashSet;
@@ -408,7 +408,8 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
             l = self.root_nodes.len();
         }
         let mut init_ids = vec![0; l];
-        let mut search_flags = HashSet::with_capacity(self.nodes.len());
+        // let mut search_flags = HashSet::with_capacity(self.nodes.len());
+        let mut search_flags = FixedBitSet::with_capacity(self.nodes.len());
         let mut heap: BinaryHeap<neighbor::Neighbor<E, usize>> = BinaryHeap::new(); // max-heap
         let mut search_queue = VecDeque::new();
 
@@ -428,7 +429,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         // greedy BFS search
         while !search_queue.is_empty() {
             let id = search_queue.pop_front().unwrap();
-            if search_flags.contains(&id) {
+            if search_flags.contains(id) {
                 continue;
             }
 

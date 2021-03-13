@@ -195,6 +195,7 @@ name = "fastann"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "fixedbitset",
  "hashbrown",
  "log",
  "num",
@@ -206,6 +207,12 @@ dependencies = [
  "serde",
  "smallvec",
 ]
+
+[[package]]
+name = "fixedbitset"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "45e780567ed7abc415d12fd464571d265eb4a5710ddc97cdb1a31a4c35bb479d"
 
 [[package]]
 name = "generator"
