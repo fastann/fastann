@@ -1,10 +1,8 @@
 use crate::core::arguments;
 use crate::core::metrics;
 use crate::core::node;
-use bincode;
+
 use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
-use std::fs::File;
 
 pub trait ANNIndex<E: node::FloatElement, T: node::IdxType>: Send + Sync {
     fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str>; // construct algorithm structure
@@ -63,6 +61,10 @@ pub trait ANNIndex<E: node::FloatElement, T: node::IdxType>: Send + Sync {
     }
 
     fn name(&self) -> &'static str;
+
+    fn nodes_size(&self) -> usize {
+        0
+    }
 }
 
 pub trait SerializableIndex<
@@ -70,14 +72,14 @@ pub trait SerializableIndex<
     T: node::IdxType + DeserializeOwned,
 >: Send + Sync + ANNIndex<E, T>
 {
-    fn load(path: &str, args: &arguments::Args) -> Result<Self, &'static str>
+    fn load(_path: &str, _args: &arguments::Args) -> Result<Self, &'static str>
     where
         Self: Sized,
     {
         Err("empty implementation")
     }
 
-    fn dump(&mut self, path: &str, args: &arguments::Args) -> Result<(), &'static str> {
+    fn dump(&mut self, _path: &str, _args: &arguments::Args) -> Result<(), &'static str> {
         Err("empty implementation")
     }
 }

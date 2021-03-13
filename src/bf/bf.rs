@@ -6,9 +6,9 @@ use crate::core::neighbor;
 use crate::core::node;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use std::fs;
+
 use std::fs::File;
-use std::io::Read;
+
 use std::io::Write;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -41,12 +41,12 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Brut
     fn once_constructed(&self) -> bool {
         true
     }
-    fn reconstruct(&mut self, mt: metrics::Metric) {}
+    fn reconstruct(&mut self, _mt: metrics::Metric) {}
     fn node_search_k(
         &self,
         item: &node::Node<E, T>,
         k: usize,
-        args: &arguments::Args,
+        _args: &arguments::Args,
     ) -> Vec<(node::Node<E, T>, E)> {
         // let start = SystemTime::now();
         let mut heap = BinaryHeap::new();
@@ -57,7 +57,7 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Brut
                 item.metric(&self.nodes[i], self.mt).unwrap(),
             ));
             if heap.len() > k {
-                let xp = heap.pop().unwrap();
+                let _xp = heap.pop().unwrap();
             }
         }
 
@@ -81,8 +81,8 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Brut
 impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwned>
     ann_index::SerializableIndex<E, T> for BruteForceIndex<E, T>
 {
-    fn load(path: &str, args: &arguments::Args) -> Result<Self, &'static str> {
-        let mut file = File::open(path).expect(&format!("unable to open file {:?}", path));
+    fn load(path: &str, _args: &arguments::Args) -> Result<Self, &'static str> {
+        let file = File::open(path).unwrap_or_else(|_| panic!("unable to open file {:?}", path));
         let mut instance: BruteForceIndex<E, T> = bincode::deserialize_from(file).unwrap();
         instance.nodes = instance
             .tmp_nodes
@@ -92,12 +92,12 @@ impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwn
         Ok(instance)
     }
 
-    fn dump(&mut self, path: &str, args: &arguments::Args) -> Result<(), &'static str> {
+    fn dump(&mut self, path: &str, _args: &arguments::Args) -> Result<(), &'static str> {
         self.tmp_nodes = self.nodes.iter().map(|x| *x.clone()).collect();
         let encoded_bytes = bincode::serialize(&self).unwrap();
         let mut file = File::create(path).unwrap();
         file.write_all(&encoded_bytes)
-            .expect(&format!("unable to write file {:?}", path));
+            .unwrap_or_else(|_| panic!("unable to write file {:?}", path));
         Result::Ok(())
     }
 }

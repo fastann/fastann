@@ -1,5 +1,7 @@
-use crate::core::node;
+#[cfg(feature = "without_std")]
 use hashbrown::HashMap;
+#[cfg(not(feature = "without_std"))]
+use std::collections::HashMap;
 
 // TODO:L find a way to make the arguments generic;
 #[derive(Clone, Debug)]
@@ -25,7 +27,7 @@ impl Args {
     pub fn fget(&self, key: &str) -> Option<f32> {
         let val = self.args.get(key)?;
         match val {
-            ArgsBox::Float(s) => Some(s.clone()),
+            ArgsBox::Float(s) => Some(*s),
             _ => None,
         }
     }
@@ -33,7 +35,7 @@ impl Args {
     pub fn iget(&self, key: &str) -> Option<i32> {
         let val = self.args.get(key)?;
         match val {
-            ArgsBox::Int(s) => Some(s.clone()),
+            ArgsBox::Int(s) => Some(*s),
             _ => None,
         }
     }
@@ -49,7 +51,7 @@ impl Args {
     pub fn uget(&self, key: &str) -> Option<usize> {
         let val = self.args.get(key)?;
         match val {
-            ArgsBox::Usize(s) => Some(s.clone()),
+            ArgsBox::Usize(s) => Some(*s),
             _ => None,
         }
     }
@@ -60,20 +62,17 @@ impl Args {
     }
 
     pub fn fset(&mut self, key: &str, value: f32) -> &mut Args {
-        self.args
-            .insert(key.to_string(), ArgsBox::Float(value.clone()));
+        self.args.insert(key.to_string(), ArgsBox::Float(value));
         self
     }
 
     pub fn iset(&mut self, key: &str, value: i32) -> &mut Args {
-        self.args
-            .insert(key.to_string(), ArgsBox::Int(value.clone()));
+        self.args.insert(key.to_string(), ArgsBox::Int(value));
         self
     }
 
     pub fn uset(&mut self, key: &str, value: usize) -> &mut Args {
-        self.args
-            .insert(key.to_string(), ArgsBox::Usize(value.clone()));
+        self.args.insert(key.to_string(), ArgsBox::Usize(value));
         self
     }
 

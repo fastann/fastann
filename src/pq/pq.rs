@@ -7,11 +7,11 @@ use crate::core::node;
 use metrics::metric;
 use rand::prelude::*;
 use serde::de::DeserializeOwned;
-use serde::de::{self, Deserializer, MapAccess, SeqAccess, Visitor};
+
 use serde::{Deserialize, Serialize};
-use std::fs;
+
 use std::fs::File;
-use std::io::Read;
+
 use std::io::Write;
 
 #[derive(Default, Debug)]
@@ -27,14 +27,14 @@ pub struct KmeansIndexer<E: node::FloatElement, T: node::IdxType> {
 
 impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
     pub fn new(demension: usize, n_center: usize, metri: metrics::Metric) -> KmeansIndexer<E, T> {
-        return KmeansIndexer {
+        KmeansIndexer {
             _demension: demension,
             _n_center: n_center,
             _data_range_begin: 0,
             _data_range_end: demension,
             _metri: metri,
             ..Default::default()
-        };
+        }
     }
 
     pub fn get_distance_from_vec(&self, x: &node::Node<E, T>, y: &Vec<E>) -> E {
@@ -51,7 +51,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
         let n_center = self._n_center;
         let begin = self._data_range_begin;
         let mut mean_center: Vec<E> = Vec::new();
-        for i in 0..demension {
+        for _i in 0..demension {
             mean_center.push(E::from_f32(0.0).unwrap());
         }
 
@@ -93,15 +93,15 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
         let n_center = self._n_center;
         let begin = self._data_range_begin;
         let mut new_centers: Vec<Vec<E>> = Vec::new();
-        for i in 0..n_center {
+        for _i in 0..n_center {
             let mut cur_center: Vec<E> = Vec::new();
-            for j in 0..demension {
+            for _j in 0..demension {
                 cur_center.push(E::from_f32(0.0).unwrap());
             }
             new_centers.push(cur_center);
         }
         let mut n_assigned_per_center: Vec<usize> = Vec::new();
-        for i in 0..n_center {
+        for _i in 0..n_center {
             n_assigned_per_center.push(0);
         }
         for i in 0..batch_size {
@@ -122,7 +122,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
             }
         }
         self._centers = new_centers;
-        return Ok(n_assigned_per_center);
+        Ok(n_assigned_per_center)
     }
 
     fn search_data(
@@ -132,7 +132,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
         assigned_center: &mut Vec<usize>,
     ) {
         let n_center = self._n_center;
-        let demension = self._demension;
+        let _demension = self._demension;
         for i in 0..batch_size {
             let mut nearist_center_id: usize = 0;
             for j in 1..n_center {
@@ -178,20 +178,18 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
                     if j % 2 == 0 {
                         self._centers[i][j] =
                             self._centers[split_center_id][j] * E::from_f32(1.0 - EPS).unwrap();
-                        self._centers[split_center_id][j] =
-                            self._centers[split_center_id][j] * E::from_f32(1.0 + EPS).unwrap();
+                        self._centers[split_center_id][j] *= E::from_f32(1.0 + EPS).unwrap();
                     } else {
                         self._centers[i][j] =
                             self._centers[split_center_id][j] * E::from_f32(1.0 + EPS).unwrap();
-                        self._centers[split_center_id][j] =
-                            self._centers[split_center_id][j] * E::from_f32(1.0 - EPS).unwrap();
+                        self._centers[split_center_id][j] *= E::from_f32(1.0 - EPS).unwrap();
                     }
                 }
                 n_assigned_per_center[i] = n_assigned_per_center[split_center_id] / 2;
                 n_assigned_per_center[split_center_id] -= n_assigned_per_center[i];
             }
         }
-        return Ok(());
+        Ok(())
     }
 
     pub fn train(
@@ -258,7 +256,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         assert_eq!(sub_bits <= 32, true);
         let n_center_per_sub = (1 << sub_bits) as usize;
         let codebytes = sub_bytes * n_sub;
-        return PQIndex {
+        PQIndex {
             _demension: demension,
             _n_sub: n_sub,
             _sub_demension: sub_demension,
@@ -272,7 +270,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
             _max_item: 100000,
             _metri: metri,
             ..Default::default()
-        };
+        }
     }
 
     pub fn init_item(&mut self, data: &node::Node<E, T>) -> usize {
@@ -280,7 +278,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         // self._item2id.insert(item, cur_id);
         self._datas.push(Box::new(data.clone()));
         self._n_items += 1;
-        return cur_id;
+        cur_id
     }
 
     pub fn add_item(&mut self, data: &node::Node<E, T>) -> Result<usize, &'static str> {
@@ -297,7 +295,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         }
 
         let insert_id = self.init_item(data);
-        return Ok(insert_id);
+        Ok(insert_id)
     }
 
     pub fn train_center(&mut self) {
@@ -362,12 +360,12 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
             top_candidate.pop();
         }
 
-        return Ok(top_candidate);
+        Ok(top_candidate)
     }
 }
 
 impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIndex<E, T> {
-    fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
+    fn construct(&mut self, _mt: metrics::Metric) -> Result<(), &'static str> {
         self.train_center();
         Result::Ok(())
     }
@@ -385,12 +383,12 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIn
         &self,
         item: &node::Node<E, T>,
         k: usize,
-        args: &arguments::Args,
+        _args: &arguments::Args,
     ) -> Vec<(node::Node<E, T>, E)> {
         let mut ret: BinaryHeap<Neighbor<E, usize>> = self.search_knn_adc(item, k).unwrap();
         let mut result: Vec<(node::Node<E, T>, E)> = Vec::new();
         let mut result_idx: Vec<(usize, E)> = Vec::new();
-        while (!ret.is_empty()) {
+        while !ret.is_empty() {
             let top = ret.peek().unwrap();
             let top_idx = top.idx();
             let top_distance = top.distance();
@@ -404,10 +402,10 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIn
                 result_idx[cur_id].1,
             ));
         }
-        return result;
+        result
     }
 
-    fn reconstruct(&mut self, mt: metrics::Metric) {}
+    fn reconstruct(&mut self, _mt: metrics::Metric) {}
 
     fn name(&self) -> &'static str {
         "PQIndex"
@@ -417,8 +415,8 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIn
 impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwned>
     ann_index::SerializableIndex<E, T> for PQIndex<E, T>
 {
-    fn load(path: &str, args: &arguments::Args) -> Result<Self, &'static str> {
-        let mut file = File::open(path).expect(&format!("unable to open file {:?}", path));
+    fn load(path: &str, _args: &arguments::Args) -> Result<Self, &'static str> {
+        let file = File::open(path).unwrap_or_else(|_| panic!("unable to open file {:?}", path));
         let mut instance: PQIndex<E, T> = bincode::deserialize_from(&file).unwrap();
         instance._datas = instance
             ._datas_tmp
@@ -428,12 +426,12 @@ impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwn
         Ok(instance)
     }
 
-    fn dump(&mut self, path: &str, args: &arguments::Args) -> Result<(), &'static str> {
+    fn dump(&mut self, path: &str, _args: &arguments::Args) -> Result<(), &'static str> {
         self._datas_tmp = self._datas.iter().map(|x| *x.clone()).collect();
         let encoded_bytes = bincode::serialize(&self).unwrap();
         let mut file = File::create(path).unwrap();
         file.write_all(&encoded_bytes)
-            .expect(&format!("unable to write file {:?}", path));
+            .unwrap_or_else(|_| panic!("unable to write file {:?}", path));
         Result::Ok(())
     }
 }
