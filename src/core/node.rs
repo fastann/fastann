@@ -1,7 +1,7 @@
 use crate::core::metrics;
 
 use crate::core::simd_metrics;
-use core::fmt::Display;
+
 use core::hash::Hash;
 use core::iter::Sum;
 use num::traits::{FromPrimitive, NumAssign};

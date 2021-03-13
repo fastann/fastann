@@ -7,11 +7,11 @@ use crate::core::node;
 use metrics::metric;
 use rand::prelude::*;
 use serde::de::DeserializeOwned;
-use serde::de::{self, Deserializer, MapAccess, SeqAccess, Visitor};
+
 use serde::{Deserialize, Serialize};
-use std::fs;
+
 use std::fs::File;
-use std::io::Read;
+
 use std::io::Write;
 
 #[derive(Default, Debug)]
@@ -415,8 +415,8 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIn
 impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwned>
     ann_index::SerializableIndex<E, T> for PQIndex<E, T>
 {
-    fn load(path: &str, args: &arguments::Args) -> Result<Self, &'static str> {
-        let mut file = File::open(path).expect(&format!("unable to open file {:?}", path));
+    fn load(path: &str, _args: &arguments::Args) -> Result<Self, &'static str> {
+        let file = File::open(path).unwrap_or_else(|_| panic!("unable to open file {:?}", path));
         let mut instance: PQIndex<E, T> = bincode::deserialize_from(&file).unwrap();
         instance._datas = instance
             ._datas_tmp
@@ -426,12 +426,12 @@ impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwn
         Ok(instance)
     }
 
-    fn dump(&mut self, path: &str, args: &arguments::Args) -> Result<(), &'static str> {
+    fn dump(&mut self, path: &str, _args: &arguments::Args) -> Result<(), &'static str> {
         self._datas_tmp = self._datas.iter().map(|x| *x.clone()).collect();
         let encoded_bytes = bincode::serialize(&self).unwrap();
         let mut file = File::create(path).unwrap();
         file.write_all(&encoded_bytes)
-            .expect(&format!("unable to write file {:?}", path));
+            .unwrap_or_else(|_| panic!("unable to write file {:?}", path));
         Result::Ok(())
     }
 }

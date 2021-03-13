@@ -12,9 +12,9 @@ use hashbrown::HashSet;
 use rand::prelude::*;
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use serde::de::DeserializeOwned;
-use serde::de::{self, Deserializer, MapAccess, SeqAccess, Visitor};
+
 use serde::{Deserialize, Serialize};
-use std::fs;
+
 use std::fs::File;
 use std::io::Read;
 use std::io::Write;
@@ -22,9 +22,9 @@ use std::io::Write;
 use std::collections::HashMap;
 #[cfg(not(feature = "without_std"))]
 use std::collections::HashSet;
-use std::sync::Arc;
-use std::thread;
-use std::{borrow::Borrow, sync::RwLock};
+
+
+use std::{sync::RwLock};
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct HnswIndex<E: node::FloatElement, T: node::IdxType> {
@@ -679,8 +679,8 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Hnsw
 impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwned>
     ann_index::SerializableIndex<E, T> for HnswIndex<E, T>
 {
-    fn load(path: &str, args: &arguments::Args) -> Result<Self, &'static str> {
-        let mut file = File::open(path).expect(&format!("unable to open file {:?}", path));
+    fn load(path: &str, _args: &arguments::Args) -> Result<Self, &'static str> {
+        let file = File::open(path).unwrap_or_else(|_| panic!("unable to open file {:?}", path));
         let mut instance: HnswIndex<E, T> = bincode::deserialize_from(&file).unwrap();
         instance._datas = instance
             ._datas_tmp
@@ -705,12 +705,12 @@ impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwn
         instance._item2id = HashMap::new();
         for iter in instance._item2id_tmp.iter() {
             let (k, v) = &*iter;
-            instance._item2id.insert(k.clone(), v.clone());
+            instance._item2id.insert(k.clone(), *v);
         }
 
         instance._delete_ids = HashSet::new();
         for iter in instance._delete_ids_tmp.iter() {
-            instance._delete_ids.insert(iter.clone());
+            instance._delete_ids.insert(*iter);
         }
         instance._id2neigh_tmp.clear();
         instance._id2neigh0_tmp.clear();
@@ -720,7 +720,7 @@ impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwn
         Ok(instance)
     }
 
-    fn dump(&mut self, path: &str, args: &arguments::Args) -> Result<(), &'static str> {
+    fn dump(&mut self, path: &str, _args: &arguments::Args) -> Result<(), &'static str> {
         self._id2neigh_tmp = Vec::with_capacity(self._id2neigh.len());
         for i in 0..self._id2neigh.len() {
             let mut tmp = Vec::with_capacity(self._id2neigh[i].len());
@@ -739,17 +739,17 @@ impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwn
         self._datas_tmp = self._datas.iter().map(|x| *x.clone()).collect();
         self._item2id_tmp = Vec::with_capacity(self._item2id.len());
         for (k, v) in &self._item2id {
-            self._item2id_tmp.push((k.clone(), v.clone()));
+            self._item2id_tmp.push((k.clone(), *v));
         }
         self._delete_ids_tmp = Vec::new();
         for iter in &self._delete_ids {
-            self._delete_ids_tmp.push(iter.clone());
+            self._delete_ids_tmp.push(*iter);
         }
 
         let encoded_bytes = bincode::serialize(&self).unwrap();
         let mut file = File::create(path).unwrap();
         file.write_all(&encoded_bytes)
-            .expect(&format!("unable to write file {:?}", path));
+            .unwrap_or_else(|_| panic!("unable to write file {:?}", path));
         Result::Ok(())
     }
 }
