@@ -196,11 +196,6 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
             self.get_point_neighbor_size_neighbors(i, &mut pool); // get related one
             self.prune_graph(i, &mut pool, threshold, cut_graph);
         });
-        cut_graph.iter().for_each(|x| {
-            if x.idx() > self.nodes.len() + 1 {
-                println!("here {:?}", x);
-            }
-        });
         (0..self.nodes.len()).for_each(|i| {
             self.inter_insert(i, range, cut_graph);
         });

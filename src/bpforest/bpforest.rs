@@ -458,12 +458,12 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         }
 
         let mut heap: BinaryHeap<neighbor::Neighbor<E, i32>> = BinaryHeap::new(); // max-heap
-        for i in 0..self._roots.len() {
+        (0..self._roots.len()).for_each(|i| {
             heap.push(neighbor::Neighbor {
                 _distance: self.pq_initial_value(), // float MAX
                 _idx: self._roots[i],
             });
-        }
+        });
 
         // it use a heap to ensure the minest distance node will pop up
         let mut nns: Vec<i32> = Vec::new();
