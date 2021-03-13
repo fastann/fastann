@@ -22,10 +22,11 @@ use std::io::Write;
 use std::collections::HashMap;
 #[cfg(not(feature = "without_std"))]
 use std::collections::HashSet;
+use std::sync::Arc;
+use std::thread;
+use std::{borrow::Borrow, sync::RwLock};
 
-
-use std::{sync::RwLock};
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct HnswIndex<E: node::FloatElement, T: node::IdxType> {
     _demension: usize, // dimension
     _n_items: usize,   // next item count
