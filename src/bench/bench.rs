@@ -82,7 +82,6 @@ pub fn run_similarity_profile(test_time: usize) {
         dimension / 2,
         4,
         100,
-        core::metrics::Metric::Manhattan,
     ));
     let mut ssg_idx = Box::new(mrng::ssg::SatelliteSystemGraphIndex::<f64, usize>::new(
         dimension, 5, 10, 5, 20.0, 5,
@@ -215,8 +214,7 @@ pub fn run_word_emb_demo() {
         50,
         10,
         4,
-        100,
-        core::metrics::Metric::Manhattan,
+        100
     ));
 
     // let indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bf_idx, bpforest_idx, hnsw_idx, pq_idx];
