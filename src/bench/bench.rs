@@ -4,8 +4,12 @@ use crate::bf;
 use crate::bpforest;
 use crate::core;
 use crate::core::ann_index::ANNIndex;
+use crate::core::ann_index::SerializableIndex;
+use crate::core::arguments;
 use crate::hnsw;
+use crate::mrng;
 use crate::pq;
+#[cfg(feature = "without_std")]
 use hashbrown::HashMap;
 use pq::pq::PQIndex;
 use prgrs::{writeln, Length, Prgrs};
@@ -14,6 +18,8 @@ use rand::distributions::{Distribution, Normal};
 use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
 use rayon::prelude::*;
+#[cfg(not(feature = "without_std"))]
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
@@ -60,36 +66,32 @@ fn make_normal_distribution_clustering(
 
 // run for normal distribution test data
 pub fn run_similarity_profile(test_time: usize) {
-    let dimension = 50;
-    let nodes_every_cluster = 20;
-    let node_n = 4000;
+    let dimension = 2;
+    let nodes_every_cluster = 3;
+    let node_n = 10000;
 
     let (_, ns) =
-        make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 10000000.0);
+        make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 100.0);
     let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new());
-    let mut bpforest_idx = Box::new(
+    let bpforest_idx = Box::new(
         bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(dimension, 6, -1),
     );
-    let mut hnsw_idx = Box::new(hnsw::hnsw::HnswIndex::<f64, usize>::new(
-        dimension,
-        100000,
-        16,
-        32,
-        20,
-        500,
-        false,
+    let mut hnsw_idx = Box::new(hnsw::hnsw::HNSWIndex::<f64, usize>::new(
+        dimension, 100000, 16, 32, 20, 500, false,
     ));
 
-    let mut pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(
+    let pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(
         dimension,
         dimension / 2,
         4,
         100,
-        core::metrics::Metric::Manhattan,
+    ));
+    let mut ssg_idx = Box::new(mrng::ssg::SatelliteSystemGraphIndex::<f64, usize>::new(
+        dimension, 100, 30, 50, 20.0, 5,
     ));
 
     // let mut indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bpforest_idx];
-    let mut indices: Vec<Box<ANNIndex<f64, usize>>> = vec![hnsw_idx];
+    let mut indices: Vec<Box<ANNIndex<f64, usize>>> = vec![ssg_idx, bpforest_idx, pq_idx, hnsw_idx];
     let mut accuracy = Arc::new(Mutex::new(Vec::new()));
     let mut cost = Arc::new(Mutex::new(Vec::new()));
     let mut base_cost = Arc::new(Mutex::new(Duration::default()));
@@ -99,7 +101,9 @@ pub fn run_similarity_profile(test_time: usize) {
         cost.lock().unwrap().push(Duration::default());
     }
     make_idx_baseline(ns.clone(), &mut bf_idx);
-
+    // make_idx_baseline(ns.clone(), &mut ssg_idx);
+    // ssg_idx.connectivity_profile();
+    let guard = pprof::ProfilerGuard::new(100).unwrap();
     for i in Prgrs::new(0..test_time, 1000).set_length_move(Length::Proportional(0.5)) {
         // (0..test_time).into_par_iter().for_each(|_| {
         let mut rng = rand::thread_rng();
@@ -110,8 +114,9 @@ pub fn run_similarity_profile(test_time: usize) {
         let base_start = SystemTime::now();
         let base_result = bf_idx.search_k(&w, 100);
         let mut base_set = HashSet::new();
-        for (n, _) in base_result.iter() {
+        for (n, dist) in base_result.iter() {
             base_set.insert(n.idx().unwrap().clone());
+            // println!("{:?}", dist);
         }
         let base_since_the_epoch = SystemTime::now()
             .duration_since(base_start)
@@ -121,7 +126,7 @@ pub fn run_similarity_profile(test_time: usize) {
         for j in 0..indices.len() {
             let start = SystemTime::now();
             let result = indices[j].search_k(&w, 100);
-            for (n, _) in result.iter() {
+            for (n, dist) in result.iter() {
                 if base_set.contains(&n.idx().unwrap()) {
                     accuracy.lock().unwrap()[j] += 1.0;
                 }
@@ -132,6 +137,13 @@ pub fn run_similarity_profile(test_time: usize) {
             cost.lock().unwrap()[j] += since_the_epoch;
         }
     }
+
+    if let Ok(report) = guard.report().build() {
+        let file = File::create("flamegraph.svg").unwrap();
+        let mut options = pprof::flamegraph::Options::default();
+        options.image_width = Some(2500);
+        report.flamegraph_with_options(file, &mut options).unwrap();
+    };
     // });
 
     println!(
@@ -143,13 +155,23 @@ pub fn run_similarity_profile(test_time: usize) {
     for i in 0..indices.len() {
         let a = accuracy.lock().unwrap()[i];
         println!(
-            "index: {:?}, avg accuracy: {:?}, hit {:?}, avg cost {:?} millisecond",
+            "index: {:?}, avg accuracy: {:?}%, hit {:?}, avg cost {:?} millisecond, nodes size {:?}",
             indices[i].name(),
             a / (test_time as f64),
             a,
-            cost.lock().unwrap()[i].as_millis() as f64 / (test_time as f64),
+            cost.lock().unwrap()[i].as_millis() as f64 / (test_time as f64), indices[i].nodes_size()
         );
     }
+
+    bf_idx.dump("bf_idx.idx", &arguments::Args::new());
+    let bf_idx_v2 =
+        bf::bf::BruteForceIndex::<f64, usize>::load("bf_idx.idx", &arguments::Args::new());
+    // make_idx_baseline(ns.clone(), &mut ssg_idx);
+    // ssg_idx.dump("ssg_idx.idx", &arguments::Args::new());
+    // let ssg_idx_v2 = mrng::ssg::SatelliteSystemGraphIndex::<f64, usize>::load(
+    //     "ssg_idx.idx",
+    //     &arguments::Args::new(),
+    // );
 }
 
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
@@ -198,22 +220,15 @@ pub fn run_word_emb_demo() {
     let mut bpforest_idx =
         Box::new(bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(50, 6, -1));
     // bpforest_idx.show_trees();
-    let mut hnsw_idx = Box::new(hnsw::hnsw::HnswIndex::<f64, usize>::new(
-        50,
-        10000000,
-        16,
-        32,
-        20,
-        500,
-        false,
+    let mut hnsw_idx = Box::new(hnsw::hnsw::HNSWIndex::<f64, usize>::new(
+        50, 10000000, 16, 32, 20, 500, false,
     ));
 
     let mut pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(
         50,
         10,
         4,
-        100,
-        core::metrics::Metric::Manhattan,
+        100
     ));
 
     // let indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bf_idx, bpforest_idx, hnsw_idx, pq_idx];
@@ -279,10 +294,14 @@ fn make_idx_baseline<T: ANNIndex<f64, usize> + ?Sized>(embs: Vec<Vec<f64>>, idx:
     for i in 0..embs.len() {
         idx.add_node(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
     }
-    idx.construct(core::metrics::Metric::Manhattan).unwrap();
+    idx.construct(core::metrics::Metric::Euclidean).unwrap();
     let since_start = SystemTime::now()
         .duration_since(start)
         .expect("Time went backwards");
 
-    println!("index {:?} build time {:?} ms",idx.name(), since_start.as_millis() as f64 );
+    println!(
+        "index {:?} build time {:?} ms",
+        idx.name(),
+        since_start.as_millis() as f64
+    );
 }
