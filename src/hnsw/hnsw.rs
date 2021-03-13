@@ -15,16 +15,15 @@ use serde::de::DeserializeOwned;
 
 use serde::{Deserialize, Serialize};
 
-use std::fs::File;
-use std::io::Read;
-use std::io::Write;
 #[cfg(not(feature = "without_std"))]
 use std::collections::HashMap;
 #[cfg(not(feature = "without_std"))]
 use std::collections::HashSet;
+use std::fs::File;
+use std::io::Read;
+use std::io::Write;
 
-
-use std::{sync::RwLock};
+use std::sync::RwLock;
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct HnswIndex<E: node::FloatElement, T: node::IdxType> {
@@ -489,7 +488,6 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
             .for_each(|insert_id: usize| {
                 self.construct_single_item(insert_id);
                 // println!("insert_id {}", insert_id);
-                
             });
 
         // for insert_id in self._n_contructed_items..self._n_items{

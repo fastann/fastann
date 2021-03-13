@@ -1,4 +1,3 @@
-
 #[cfg(feature = "without_std")]
 use hashbrown::HashMap;
 #[cfg(not(feature = "without_std"))]
@@ -63,20 +62,17 @@ impl Args {
     }
 
     pub fn fset(&mut self, key: &str, value: f32) -> &mut Args {
-        self.args
-            .insert(key.to_string(), ArgsBox::Float(value));
+        self.args.insert(key.to_string(), ArgsBox::Float(value));
         self
     }
 
     pub fn iset(&mut self, key: &str, value: i32) -> &mut Args {
-        self.args
-            .insert(key.to_string(), ArgsBox::Int(value));
+        self.args.insert(key.to_string(), ArgsBox::Int(value));
         self
     }
 
     pub fn uset(&mut self, key: &str, value: usize) -> &mut Args {
-        self.args
-            .insert(key.to_string(), ArgsBox::Usize(value));
+        self.args.insert(key.to_string(), ArgsBox::Usize(value));
         self
     }
 

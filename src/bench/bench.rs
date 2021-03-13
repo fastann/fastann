@@ -15,7 +15,7 @@ use prgrs::{Length, Prgrs};
 
 use rand::distributions::{Distribution, Normal};
 
-use rand::{Rng};
+use rand::Rng;
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::fs::File;
@@ -74,13 +74,7 @@ pub fn run_similarity_profile(test_time: usize) {
         bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(dimension, 6, -1),
     );
     let hnsw_idx = Box::new(hnsw::hnsw::HnswIndex::<f64, usize>::new(
-        dimension,
-        100000,
-        16,
-        32,
-        20,
-        500,
-        false,
+        dimension, 100000, 16, 32, 20, 500, false,
     ));
 
     let _pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(
@@ -214,13 +208,7 @@ pub fn run_word_emb_demo() {
         Box::new(bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(50, 6, -1));
     // bpforest_idx.show_trees();
     let _hnsw_idx = Box::new(hnsw::hnsw::HnswIndex::<f64, usize>::new(
-        50,
-        10000000,
-        16,
-        32,
-        20,
-        500,
-        false,
+        50, 10000000, 16, 32, 20, 500, false,
     ));
 
     let _pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(

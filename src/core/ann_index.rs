@@ -4,8 +4,6 @@ use crate::core::node;
 
 use serde::de::DeserializeOwned;
 
-
-
 pub trait ANNIndex<E: node::FloatElement, T: node::IdxType>: Send + Sync {
     fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str>; // construct algorithm structure
     fn add_node(&mut self, item: &node::Node<E, T>) -> Result<(), &'static str>;

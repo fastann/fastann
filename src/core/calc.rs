@@ -42,10 +42,10 @@ pub fn split_imbalance<T>(vec1: &[T], vec2: &[T]) -> f64 {
 mod tests {
     use super::*;
     use crate::core::simd_metrics::SIMDOptmized;
-    
+
     use rand::distributions::{Distribution, Normal};
-    
-    use rand::{Rng};
+
+    use rand::Rng;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
     fn make_normal_distribution_clustering(
         clustering_n: usize,

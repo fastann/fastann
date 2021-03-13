@@ -7,7 +7,6 @@ use crate::core::neighbor;
 use crate::core::node;
 use crate::core::random;
 
-
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 

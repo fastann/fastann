@@ -23,7 +23,6 @@ use std::io::Read;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SatelliteSystemGraphIndex<E: node::FloatElement, T: node::IdxType> {
     #[serde(skip_serializing, skip_deserializing)]
@@ -32,13 +31,12 @@ pub struct SatelliteSystemGraphIndex<E: node::FloatElement, T: node::IdxType> {
     mt: metrics::Metric,
     dimension: usize,
     neighbor_size: usize,
-    index_size: usize,      // as R
-    graph: Vec<Vec<usize>>, // as final_graph_
+    index_size: usize,
+    graph: Vec<Vec<usize>>,
     knn_graph: Vec<Vec<usize>>,
-    init_k: usize,          // as knn's k
-    root_nodes: Vec<usize>, // eps
+    init_k: usize, // as knn's k
+    root_nodes: Vec<usize>,
     width: usize,
-    opt_graph: Vec<Vec<usize>>,
     angle: E,
     threshold: E,
     root_size: usize,
@@ -64,7 +62,6 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
             knn_graph: Vec::new(),
             root_nodes: Vec::new(),
             width: 0,
-            opt_graph: Vec::new(),
             index_size,
             angle,
             threshold: (angle / E::from_f32(180.0).unwrap() * E::PI()).cos(),
@@ -187,17 +184,14 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
     }
 
     fn link_each_nodes(&mut self, cut_graph: &mut Vec<neighbor::Neighbor<E, usize>>) {
-        let range = self.index_size;
-        let _angle = E::from_f32(0.5).unwrap();
-        let threshold = self.threshold;
         let mut pool = Vec::new();
         (0..self.nodes.len()).for_each(|i| {
             pool.clear();
             self.get_point_neighbor_size_neighbors(i, &mut pool); // get related one
-            self.prune_graph(i, &mut pool, threshold, cut_graph);
+            self.prune_graph(i, &mut pool, self.threshold, cut_graph);
         });
         (0..self.nodes.len()).for_each(|i| {
-            self.inter_insert(i, range, cut_graph);
+            self.inter_insert(i, self.index_size, cut_graph);
         });
     }
 
@@ -363,7 +357,6 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
     fn build(&mut self) {
         self.build_knn_graph();
 
-        let _guard = pprof::ProfilerGuard::new(100).unwrap();
         let mut cut_graph: Vec<neighbor::Neighbor<E, usize>> =
             Vec::with_capacity(self.nodes.len() * self.index_size);
         for i in 0..self.nodes.len() * self.index_size {
@@ -495,8 +488,7 @@ impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwn
     ann_index::SerializableIndex<E, T> for SatelliteSystemGraphIndex<E, T>
 {
     fn load(path: &str, _args: &arguments::Args) -> Result<Self, &'static str> {
-        let file =
-            File::open(path).unwrap_or_else(|_| panic!("unable to open file {:?}", path));
+        let file = File::open(path).unwrap_or_else(|_| panic!("unable to open file {:?}", path));
         let mut instance: SatelliteSystemGraphIndex<E, T> =
             bincode::deserialize_from(&file).unwrap();
         instance.nodes = instance
