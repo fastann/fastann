@@ -6,13 +6,13 @@ use crate::core::metrics;
 use crate::core::neighbor;
 use crate::core::node;
 use crate::core::random;
-use core::cmp::Ordering;
-use log::debug;
+
+
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use std::fs;
+
 use std::fs::File;
-use std::io::Read;
+
 use std::io::Write;
 
 // TODO: leaf as a trait with getter setter function
@@ -54,7 +54,7 @@ impl<E: node::FloatElement, T: node::IdxType> Leaf<E, T> {
     }
 
     fn is_empty(&self) -> bool {
-        return self.has_init;
+        self.has_init
     }
 
     fn init(&mut self) {
@@ -75,10 +75,10 @@ impl<E: node::FloatElement, T: node::IdxType> Leaf<E, T> {
     }
 
     fn copy(dst: &mut Leaf<E, T>, src: &Leaf<E, T>) {
-        dst.n_descendants = src.n_descendants.clone();
+        dst.n_descendants = src.n_descendants;
         dst.children = src.children.clone();
         dst.node = src.node.clone();
-        dst.norm = src.norm.clone();
+        dst.norm = src.norm;
     }
 
     pub fn get_literal(&self) -> String {
@@ -90,12 +90,12 @@ impl<E: node::FloatElement, T: node::IdxType> Leaf<E, T> {
 
     // replace distance copy_leaf
     fn copy_leaf(src: &Leaf<E, T>) -> Leaf<E, T> {
-        return Leaf {
-            n_descendants: src.n_descendants.clone(),
+        Leaf {
+            n_descendants: src.n_descendants,
             node: src.node.clone(),
             children: src.children.clone(),
             ..Default::default()
-        };
+        }
     }
 }
 
@@ -129,8 +129,8 @@ fn two_means<E: node::FloatElement, T: node::IdxType>(
     let one = E::float_one();
     let zero = E::float_zero();
 
-    let mut ic: E = one.clone();
-    let mut jc: E = one.clone();
+    let mut ic: E = one;
+    let mut jc: E = one;
 
     // produce two mean point.
     for _z in 0..ITERATION_STEPS {
@@ -139,7 +139,7 @@ fn two_means<E: node::FloatElement, T: node::IdxType>(
         let dj = jc * metrics::metric(&q.node.vectors(), &leaves[k].node.vectors(), mt).unwrap();
 
         //
-        let mut norm = one.clone();
+        let mut norm = one;
         if mt == metrics::Metric::CosineSimilarity {
             norm = calc::get_norm(&leaves[k].node.vectors()).unwrap();
             if !(norm > zero) {
@@ -162,7 +162,7 @@ fn two_means<E: node::FloatElement, T: node::IdxType>(
             jc += one;
         }
     }
-    return Ok((p, q));
+    Ok((p, q))
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -186,7 +186,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         tree_num: i32,
         candidate_size: i32,
     ) -> BinaryProjectionForestIndex<E, T> {
-        return BinaryProjectionForestIndex {
+        BinaryProjectionForestIndex {
             _built: false,
             _dimension: dimension,
             _leaf_max_items: ((dimension / 2) as i32) + 2,
@@ -194,7 +194,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
             _candidate_size: candidate_size,
             leaves: vec![Leaf::new()], // the id count should start from 1, use a node as placeholder
             ..Default::default()
-        };
+        }
     }
 
     fn _add_item(&mut self, w: &node::Node<E, T>) -> Result<(), &'static str> {
@@ -214,7 +214,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
 
         self.leaves.push(nn);
 
-        return Ok(());
+        Ok(())
     }
 
     fn build(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
@@ -233,14 +233,14 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
             self._tot_items_cnt,
             self.get_k()
         );
-        return Ok(());
+        Ok(())
     }
 
     fn clear(&mut self) -> Result<(), &'static str> {
         self._roots.clear();
         self._tot_leaves_cnt = self._tot_items_cnt;
         self._built = false;
-        return Ok(());
+        Ok(())
     }
     fn get_distance(&self, i: i32, j: i32) -> Result<E, &'static str> {
         let ni = self.get_leaf(i).unwrap();
@@ -249,10 +249,10 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
     }
 
     fn get_tot_items_cnt(&self) -> i32 {
-        return self._tot_items_cnt;
+        self._tot_items_cnt
     }
     fn get_n_tree(&self) -> i32 {
-        return self._roots.len() as i32;
+        self._roots.len() as i32
     }
 
     pub fn get_dimension(&self) -> usize {
@@ -267,7 +267,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         if self.leaves.len() <= i as usize {
             self.extent_leaves(i as usize);
         }
-        return &mut self.leaves[i as usize];
+        &mut self.leaves[i as usize]
     }
 
     fn extent_leaf(&mut self) -> &mut Leaf<E, T> {
@@ -276,7 +276,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         if self.leaves[i].is_empty() {
             self.leaves[i].init();
         }
-        return &mut self.leaves[i];
+        &mut self.leaves[i]
     }
 
     fn get_leaf(&self, i: i32) -> Option<&Leaf<E, T>> {
@@ -286,13 +286,13 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         if self.leaves[i as usize].is_empty() {
             return None;
         }
-        return Some(&self.leaves[i as usize]);
+        Some(&self.leaves[i as usize])
     }
 
     fn extent_leaves(&mut self, i: usize) {
         let diff = i - self.leaves.len() + 1;
         if diff > 0 {
-            for i in 0..diff {
+            for _i in 0..diff {
                 self.leaves.push(Leaf::new());
             }
         }
@@ -308,10 +308,8 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
                 if self._tot_leaves_cnt >= 2 * self._tot_items_cnt {
                     break;
                 }
-            } else {
-                if this_root.len() >= (tree_num as usize) {
-                    break;
-                }
+            } else if this_root.len() >= (tree_num as usize) {
+                break;
             }
 
             let mut indices: Vec<i32> = Vec::new();
@@ -336,7 +334,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         is_root: bool,
         mt: metrics::Metric,
     ) -> Result<i32, &'static str> {
-        if indices.len() == 0 {
+        if indices.is_empty() {
             return Err("empty indices");
         }
         if indices.len() == 1 && !is_root {
@@ -352,11 +350,11 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
             let mut n = self.extent_leaf();
 
             n.n_descendants = if is_root {
-                item_cnt.clone()
+                item_cnt
             } else {
                 indices.len() as i32
             };
-            n.children = indices.to_vec().clone();
+            n.children = indices.to_vec();
 
             return Ok(self._tot_leaves_cnt);
         }
@@ -377,7 +375,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
 
         const ATTEMPT: usize = 5;
         // find split hyperplane
-        for i in 0..ATTEMPT {
+        for _i in 0..ATTEMPT {
             children_indices[0].clear();
             children_indices[1].clear();
             self.create_split(children.as_slice(), &mut new_parent_leaf, mt)
@@ -429,7 +427,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
                 Ok(tree) => {
                     new_parent_leaf.children[side ^ (flip as usize)] = tree;
                 }
-                Err(e) => {
+                Err(_e) => {
                     // TODO: log
                     continue;
                 }
@@ -438,7 +436,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         self._tot_leaves_cnt += 1;
         self.leaves.push(new_parent_leaf);
 
-        return Ok((self._tot_leaves_cnt) as i32);
+        Ok((self._tot_leaves_cnt) as i32)
     }
 
     pub fn _search_k(
@@ -478,7 +476,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
             heap.pop();
 
             if nd.n_descendants == 1 && (top_idx) < self._tot_items_cnt {
-                nns.push(top_idx.clone());
+                nns.push(top_idx);
             } else if nd.n_descendants <= self._leaf_max_items {
                 nns.extend_from_slice(&nd.children); // push all of its children
             } else {
@@ -495,7 +493,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
             }
         }
 
-        nns.sort(); // sort id and filter dup to avoid same id;
+        nns.sort_unstable(); // sort id and filter dup to avoid same id;
         let mut nns_vec: Vec<neighbor::Neighbor<E, usize>> = Vec::new();
         let mut last = -1;
         for i in 0..nns.len() {
@@ -524,7 +522,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
             ));
         }
 
-        return Ok(result);
+        Ok(result)
     }
 
     pub fn show_trees(&self) {
@@ -555,7 +553,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
     fn side(&self, src: &Leaf<E, T>, dst: &[E]) -> bool {
         match self.margin(&src, &dst) {
             Ok(x) => x > E::float_zero(),
-            Err(e) => random::flip(),
+            Err(_e) => random::flip(),
         }
     }
 
@@ -615,12 +613,12 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
         &self,
         item: &node::Node<E, T>,
         k: usize,
-        args: &arguments::Args,
+        _args: &arguments::Args,
     ) -> Vec<(node::Node<E, T>, E)> {
         self._search_k(item.vectors(), k).unwrap()
     }
 
-    fn reconstruct(&mut self, mt: metrics::Metric) {}
+    fn reconstruct(&mut self, _mt: metrics::Metric) {}
 
     fn name(&self) -> &'static str {
         "BPForestIndex"
@@ -630,8 +628,8 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
 impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwned>
     ann_index::SerializableIndex<E, T> for BinaryProjectionForestIndex<E, T>
 {
-    fn load(path: &str, args: &arguments::Args) -> Result<Self, &'static str> {
-        let mut file = File::open(path).expect(&format!("unable to open file {:?}", path));
+    fn load(path: &str, _args: &arguments::Args) -> Result<Self, &'static str> {
+        let file = File::open(path).unwrap_or_else(|_| panic!("unable to open file {:?}", path));
         let mut instance: BinaryProjectionForestIndex<E, T> =
             bincode::deserialize_from(&file).unwrap();
 
@@ -644,14 +642,14 @@ impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwn
         Ok(instance)
     }
 
-    fn dump(&mut self, path: &str, args: &arguments::Args) -> Result<(), &'static str> {
+    fn dump(&mut self, path: &str, _args: &arguments::Args) -> Result<(), &'static str> {
         self.leaves
             .iter_mut()
             .for_each(|x| x.tmp_node = Some(*x.node.clone()));
         let encoded_bytes = bincode::serialize(&self).unwrap();
         let mut file = File::create(path).unwrap();
         file.write_all(&encoded_bytes)
-            .expect(&format!("unable to write file {:?}", path));
+            .unwrap_or_else(|_| panic!("unable to write file {:?}", path));
         Result::Ok(())
     }
 }

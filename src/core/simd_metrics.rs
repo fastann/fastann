@@ -13,8 +13,8 @@ macro_rules! simd_optimized_impl {
         impl SIMDOptmized for $type_id {
             fn dot_product(a: &[$type_id], b: &[$type_id]) -> Result<$type_id, &'static str> {
                 same_dimension(a, b)?;
-                let mut size = 0;
-                let mut c: $type_id = 0.;
+                let size = 0;
+                let c: $type_id = 0.;
                 #[cfg(feature = $simd_size)]
                 {
                     size = a.len() / $size;
@@ -35,8 +35,8 @@ macro_rules! simd_optimized_impl {
                 b: &[$type_id],
             ) -> Result<$type_id, &'static str> {
                 same_dimension(a, b)?;
-                let mut size = 0;
-                let mut c: $type_id = 0.;
+                let size = 0;
+                let c: $type_id = 0.;
                 #[cfg(feature = $simd_size)]
                 {
                     size = a.len() / $size;
@@ -57,8 +57,8 @@ macro_rules! simd_optimized_impl {
                 b: &[$type_id],
             ) -> Result<$type_id, &'static str> {
                 same_dimension(a, b)?;
-                let mut size = 0;
-                let mut c: $type_id = 0.;
+                let size = 0;
+                let c: $type_id = 0.;
                 #[cfg(feature = $simd_size)]
                 {
                     size = a.len() / $size;

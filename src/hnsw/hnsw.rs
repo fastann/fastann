@@ -4,7 +4,7 @@ use crate::core::heap::BinaryHeap;
 use crate::core::metrics;
 use crate::core::neighbor::Neighbor;
 use crate::core::node;
-use ann_index::ANNIndex;
+
 #[cfg(feature = "without_std")]
 use hashbrown::HashMap;
 #[cfg(feature = "without_std")]
@@ -22,11 +22,10 @@ use std::io::Write;
 use std::collections::HashMap;
 #[cfg(not(feature = "without_std"))]
 use std::collections::HashSet;
-use std::sync::Arc;
-use std::thread;
-use std::{borrow::Borrow, sync::RwLock};
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+
+use std::{sync::RwLock};
+#[derive(Default, Debug)]
 pub struct HnswIndex<E: node::FloatElement, T: node::IdxType> {
     _demension: usize, // dimension
     _n_items: usize,   // next item count
@@ -69,7 +68,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
         ef: usize,
         has_deletion: bool,
     ) -> HnswIndex<E, T> {
-        return HnswIndex {
+        HnswIndex {
             _demension: demension,
             _n_items: 0,
             _n_contructed_items: 0,
@@ -83,7 +82,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
             _ef_default: ef,
             _metri: metrics::Metric::Manhattan,
             ..Default::default()
-        };
+        }
     }
 
     fn get_random_level(&self) -> usize {
@@ -96,7 +95,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
                 break;
             }
         }
-        return ret;
+        ret
     }
     //input top_candidate as max top heap
     //return min top heap in top_candidates, delete part candidate
@@ -135,19 +134,19 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
             }
         }
 
-        return Ok(return_list); // from small to large
+        Ok(return_list) // from small to large
     }
 
     fn get_neighbor(&self, id: usize, level: usize) -> &RwLock<Vec<usize>> {
         if level == 0 {
             return &self._id2neigh0[id];
         }
-        return &self._id2neigh[id][level - 1];
+        &self._id2neigh[id][level - 1]
     }
 
     #[allow(dead_code)]
     fn get_level(&self, id: usize) -> usize {
-        return self._id2level[id];
+        self._id2level[id]
     }
 
     fn connect_neighbor(
@@ -169,7 +168,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
             return Err("Should be not be more than M_ candidates returned by the heuristic");
         }
         // println!("{:?}",top_candidates);
-        if selected_neighbors.len() == 0 {
+        if selected_neighbors.is_empty() {
             return Err("top candidate is empty, impossible!");
         }
 
@@ -232,7 +231,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
             }
         }
 
-        return Ok(next_closest_entry_point);
+        Ok(next_closest_entry_point)
     }
 
     #[allow(dead_code)]
@@ -244,15 +243,15 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
             return Err("id has deleted");
         }
         self._delete_ids.insert(id);
-        return Ok(());
+        Ok(())
     }
 
     pub fn is_deleted(&self, id: usize) -> bool {
-        return self._has_deletons && self._delete_ids.contains(&id);
+        self._has_deletons && self._delete_ids.contains(&id)
     }
 
     pub fn get_data(&self, id: usize) -> &node::Node<E, T> {
-        return &self._datas[id];
+        &self._datas[id]
     }
 
     pub fn get_distance_from_vec(&self, x: &node::Node<E, T>, y: &node::Node<E, T>) -> E {
@@ -330,7 +329,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
             }
         }
 
-        return top_candidates;
+        top_candidates
     }
     //find ef nearist nodes to search data from root at level
     pub fn search_layer(
@@ -391,7 +390,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
             }
         }
 
-        return top_candidates;
+        top_candidates
     }
 
     // pub fn search_layer_default(
@@ -453,7 +452,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
             top_candidate.pop();
         }
 
-        return Ok(top_candidate);
+        Ok(top_candidate)
     }
 
     pub fn init_item(&mut self, data: &node::Node<E, T>) -> usize {
@@ -466,7 +465,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
         }
         let neigh0: RwLock<Vec<usize>> = RwLock::new(Vec::with_capacity(self._n_neigh0));
         let mut neigh: Vec<RwLock<Vec<usize>>> = Vec::with_capacity(cur_level);
-        for i in 0..cur_level {
+        for _i in 0..cur_level {
             let level_neigh: RwLock<Vec<usize>> = RwLock::new(Vec::with_capacity(self._n_neigh));
             neigh.push(level_neigh);
         }
@@ -476,10 +475,10 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
         self._id2level.push(cur_level);
         // self._item2id.insert(data.idx().unwrap(), cur_id);
         self._n_items += 1;
-        return cur_id;
+        cur_id
     }
 
-    fn batch_construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
+    fn batch_construct(&mut self, _mt: metrics::Metric) -> Result<(), &'static str> {
         if self._n_items < self._n_contructed_items {
             return Err("contruct error");
         }
@@ -489,7 +488,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
             .for_each(|insert_id: usize| {
                 self.construct_single_item(insert_id);
                 // println!("insert_id {}", insert_id);
-                return;
+                
             });
 
         // for insert_id in self._n_contructed_items..self._n_items{
@@ -497,7 +496,7 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
         //     self.construct_single_item(insert_id);
         // }
         self._n_contructed_items = self._n_items;
-        return Ok(());
+        Ok(())
     }
 
     pub fn add_item_not_constructed(
@@ -519,8 +518,8 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
         }
 
         let insert_id = self.init_item(data);
-        let insert_level = self.get_level(insert_id);
-        return Ok(());
+        let _insert_level = self.get_level(insert_id);
+        Ok(())
     }
 
     pub fn add_single_item(&mut self, data: &node::Node<E, T>) -> Result<(), &'static str> {
@@ -540,12 +539,12 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
         }
 
         let insert_id = self.init_item(data);
-        let insert_level = self.get_level(insert_id);
+        let _insert_level = self.get_level(insert_id);
         self.construct_single_item(insert_id);
 
         self._n_contructed_items += 1;
 
-        return Ok(());
+        Ok(())
     }
 
     pub fn construct_single_item(&self, insert_id: usize) -> Result<(), &'static str> {
@@ -628,13 +627,13 @@ impl<E: node::FloatElement, T: node::IdxType> HnswIndex<E, T> {
             }
             level -= 1;
         }
-        return Ok(());
+        Ok(())
     }
 }
 
 impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for HnswIndex<E, T> {
     fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
-        return self.batch_construct(mt);
+        self.batch_construct(mt)
     }
     fn add_node(&mut self, item: &node::Node<E, T>) -> Result<(), &'static str> {
         self.add_item_not_constructed(item)
@@ -647,7 +646,7 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Hnsw
         &self,
         item: &node::Node<E, T>,
         k: usize,
-        args: &arguments::Args,
+        _args: &arguments::Args,
     ) -> Vec<(node::Node<E, T>, E)> {
         let mut ret: BinaryHeap<Neighbor<E, usize>> = self.search_knn(item, k).unwrap();
         let mut result: Vec<(node::Node<E, T>, E)> = Vec::with_capacity(k);
@@ -666,10 +665,10 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Hnsw
                 result_idx[cur_id].1,
             ));
         }
-        return result;
+        result
     }
 
-    fn reconstruct(&mut self, mt: metrics::Metric) {}
+    fn reconstruct(&mut self, _mt: metrics::Metric) {}
 
     fn name(&self) -> &'static str {
         "HnswIndex"

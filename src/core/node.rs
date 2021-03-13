@@ -1,5 +1,5 @@
 use crate::core::metrics;
-use crate::core::metrics::manhattan_distance;
+
 use crate::core::simd_metrics;
 use core::fmt::Display;
 use core::hash::Hash;
@@ -163,7 +163,7 @@ impl<E: FloatElement, T: IdxType> Node<E, T> {
     }
 
     pub fn push(&mut self, e: &E) {
-        self.vectors.push(e.clone());
+        self.vectors.push(*e);
     }
 
     pub fn len(&self) -> usize {

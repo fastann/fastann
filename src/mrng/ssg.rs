@@ -6,23 +6,23 @@ use crate::core::neighbor;
 use crate::core::node;
 use rand::prelude::*;
 extern crate num;
-use bincode;
+
 #[cfg(feature = "without_std")]
 use hashbrown::HashSet;
-use pprof;
+
 use rayon::prelude::*;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use std::cmp;
+
 #[cfg(not(feature = "without_std"))]
 use std::collections::HashSet;
 use std::collections::VecDeque;
-use std::fs;
+
 use std::fs::File;
 use std::io::Read;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SatelliteSystemGraphIndex<E: node::FloatElement, T: node::IdxType> {
@@ -57,18 +57,18 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
             nodes: Vec::new(),
             tmp_nodes: Vec::new(),
             mt: metrics::Metric::Unknown,
-            dimension: dimension,
-            neighbor_size: neighbor_size,
-            init_k: init_k,
+            dimension,
+            neighbor_size,
+            init_k,
             graph: Vec::new(),
             knn_graph: Vec::new(),
             root_nodes: Vec::new(),
             width: 0,
             opt_graph: Vec::new(),
-            index_size: index_size,
-            angle: angle,
+            index_size,
+            angle,
             threshold: (angle / E::from_f32(180.0).unwrap() * E::PI()).cos(),
-            root_size: root_size,
+            root_size,
         }
     }
 
@@ -188,7 +188,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
 
     fn link_each_nodes(&mut self, cut_graph: &mut Vec<neighbor::Neighbor<E, usize>>) {
         let range = self.index_size;
-        let angle = E::from_f32(0.5).unwrap();
+        let _angle = E::from_f32(0.5).unwrap();
         let threshold = self.threshold;
         let mut pool = Vec::new();
         (0..self.nodes.len()).for_each(|i| {
@@ -368,7 +368,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
     fn build(&mut self) {
         self.build_knn_graph();
 
-        let guard = pprof::ProfilerGuard::new(100).unwrap();
+        let _guard = pprof::ProfilerGuard::new(100).unwrap();
         let mut cut_graph: Vec<neighbor::Neighbor<E, usize>> =
             Vec::with_capacity(self.nodes.len() * self.index_size);
         for i in 0..self.nodes.len() * self.index_size {
@@ -413,7 +413,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         &self,
         query: &node::Node<E, T>,
         k: usize,
-        args: &arguments::Args,
+        _args: &arguments::Args,
     ) -> Vec<(node::Node<E, T>, E)> {
         let mut l = k;
         if l < self.root_nodes.len() {
@@ -499,8 +499,8 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
 impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwned>
     ann_index::SerializableIndex<E, T> for SatelliteSystemGraphIndex<E, T>
 {
-    fn load(path: &str, args: &arguments::Args) -> Result<Self, &'static str> {
-        let mut file =
+    fn load(path: &str, _args: &arguments::Args) -> Result<Self, &'static str> {
+        let file =
             File::open(path).unwrap_or_else(|_| panic!("unable to open file {:?}", path));
         let mut instance: SatelliteSystemGraphIndex<E, T> =
             bincode::deserialize_from(&file).unwrap();
@@ -512,7 +512,7 @@ impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwn
         Ok(instance)
     }
 
-    fn dump(&mut self, path: &str, args: &arguments::Args) -> Result<(), &'static str> {
+    fn dump(&mut self, path: &str, _args: &arguments::Args) -> Result<(), &'static str> {
         self.tmp_nodes = self.nodes.iter().map(|x| *x.clone()).collect();
         let encoded_bytes = bincode::serialize(&self).unwrap();
         let mut file = File::create(path).unwrap();
@@ -538,7 +538,7 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
     fn once_constructed(&self) -> bool {
         true
     }
-    fn reconstruct(&mut self, mt: metrics::Metric) {}
+    fn reconstruct(&mut self, _mt: metrics::Metric) {}
     fn node_search_k(
         &self,
         item: &node::Node<E, T>,
