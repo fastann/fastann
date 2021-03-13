@@ -32,7 +32,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
             _n_center: n_center,
             _data_range_begin: 0,
             _data_range_end: dimension,
-            mt: mt,
+            mt,
             ..Default::default()
         }
     }
