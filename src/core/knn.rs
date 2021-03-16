@@ -61,27 +61,27 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         max_epoch: usize,
     ) -> Self {
         NNDescentHandler {
-            nodes: nodes,
-            graph: graph,
-            mt: mt,
-            k: k,
+            nodes,
+            graph,
+            mt,
+            k,
             visited_id: FixedBitSet::with_capacity(nodes.len() * nodes.len()),
             old_neighbors: Vec::new(),
             new_neighbors: Vec::new(),
             old_reversed_neighbors: HashMap::new(),
             new_reversed_neighbors: HashMap::new(),
-            perturb_rate: perturb_rate,
-            max_epoch: max_epoch,
+            perturb_rate,
+            max_epoch,
         }
     }
 
     fn sample_neighbors(&mut self) {
         let nodes = &self.nodes;
-        let mut visited_id = &mut self.visited_id;
-        let mut graph = &mut self.graph;
+        let _visited_id = &mut self.visited_id;
+        let graph = &mut self.graph;
         for n in 0..self.nodes.len() {
             graph[n].clear();
-            for j in 0..self.k {
+            for _j in 0..self.k {
                 let mut p = rand::thread_rng().gen_range(0, nodes.len());
                 // while visited_id.contains(p + n * self.nodes.len()) && p != n {
                 while p != n {
@@ -110,7 +110,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                 if n < k {
                     sampled.push(i);
                 } else {
-                    let mut m = rand::thread_rng().gen_range(0, k);
+                    let m = rand::thread_rng().gen_range(0, k);
                     if m < k {
                         sampled.push(i);
                     }
@@ -128,7 +128,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
     }
 
     fn train(&mut self) {
-        for epoch in 0..self.max_epoch {
+        for _epoch in 0..self.max_epoch {
             let update_count = self.update_graph();
             let kn = self.k * self.nodes.len();
             if (update_count as f32) <= 0.001 * (kn as f32) {
@@ -144,16 +144,12 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
 
         for i in 0..self.nodes.len() {
             for nb in self.old_neighbors[i].iter() {
-                if !self.old_reversed_neighbors.contains_key(&nb.idx()) {
-                    self.old_reversed_neighbors.insert(nb.idx(), Vec::new());
-                }
+                self.old_reversed_neighbors.entry(nb.idx()).or_insert(Vec::new());
                 self.old_reversed_neighbors.get_mut(&nb.idx()).unwrap().push(nb.clone());
             }
 
             for nb in self.new_neighbors[i].iter() {
-                if !self.new_reversed_neighbors.contains_key(&nb.idx()) {
-                    self.new_reversed_neighbors.insert(nb.idx(), Vec::new());
-                }
+                self.new_reversed_neighbors.entry(nb.idx()).or_insert(Vec::new());
                 self.new_reversed_neighbors.get_mut(&nb.idx()).unwrap().push(nb.clone());
             }
         }
@@ -162,7 +158,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         for i in 0..self.nodes.len() {
             update_nn += self.local_join(i);
         }
-        return update_nn;
+        update_nn
     }
 
     fn local_join(&mut self, i: usize) -> usize {
@@ -170,14 +166,14 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         let mut update_count = 0;
 
         for iter in self.old_reversed_neighbors.get(&i).unwrap().iter() {
-            let mut m = rand::thread_rng().gen_range(0, k);
+            let _m = rand::thread_rng().gen_range(0, k);
             if rand::thread_rng().gen_range(0, k) < k {
                 self.old_neighbors[i].push(iter.clone());
             }
         }
 
         for iter in self.new_reversed_neighbors.get(&i).unwrap().iter() {
-            let mut m = rand::thread_rng().gen_range(0, k);
+            let _m = rand::thread_rng().gen_range(0, k);
             if rand::thread_rng().gen_range(0, k) < k {
                 self.new_neighbors[i].push(iter.clone());
             }
@@ -220,7 +216,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         }
 
         let random_join = 10;
-        for j in 0..random_join {
+        for _j in 0..random_join {
             let mut nid = rand::thread_rng().gen_range(0, self.nodes.len());
             if nid >= i {
                 nid += 1;
@@ -228,7 +224,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
             self.join(i, nid);
         }
 
-        return update_count;
+        update_count
     }
 
     fn join(&mut self, me: usize, candidate: usize) -> usize {
@@ -247,7 +243,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
             }
         }
 
-        let SHIFT = 20;
+        let _SHIFT = 20;
         let B = f32::MAX;
         let prB = self.perturb_rate * B;
         let rand_val = rand::thread_rng().gen_range(0, 100) as f32;
@@ -265,7 +261,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
             }
         }
 
-        if self.graph[me].len() > 0 && self.graph[me][lb].distance() == s {
+        if !self.graph[me].is_empty() && self.graph[me][lb].distance() == s {
             for i in lb..ub {
                 if self.graph[me][i].idx() == candidate {
                     return 0;
@@ -289,6 +285,6 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
             }
         }
 
-        return 1;
+        1
     }
 }
