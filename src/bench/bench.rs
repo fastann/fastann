@@ -68,7 +68,7 @@ fn make_normal_distribution_clustering(
 pub fn run_similarity_profile(test_time: usize) {
     let dimension = 2;
     let nodes_every_cluster = 3;
-    let node_n = 10000;
+    let node_n = 5000;
 
     let (_, ns) =
         make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 100.0);
@@ -224,12 +224,7 @@ pub fn run_word_emb_demo() {
         50, 10000000, 16, 32, 20, 500, false,
     ));
 
-    let mut pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(
-        50,
-        10,
-        4,
-        100
-    ));
+    let mut pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(50, 10, 4, 100));
 
     // let indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bf_idx, bpforest_idx, hnsw_idx, pq_idx];
     let mut indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bf_idx, bpforest_idx];
