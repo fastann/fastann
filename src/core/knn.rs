@@ -75,7 +75,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
             new_reversed_neighbors: HashMap::new(),
             perturb_rate,
             max_epoch,
-            rho: rho,
+            rho,
         }
     }
 
@@ -375,17 +375,17 @@ mod tests {
             data.push(Box::new(node::Node::new_with_idx(&ns[i], i)));
         }
 
-        // let mut graph: Vec<Vec<Neighbor<f64, usize>>> = vec![Vec::new();data.len()];
-        // let base_start = SystemTime::now();
-        // naive_build_knn_graph::<f64, usize>(&data, metrics::Metric::DotProduct, 10, &mut graph);
-        // let base_since_the_epoch = SystemTime::now()
-        //     .duration_since(base_start)
-        //     .expect("Time went backwards");
-        // println!(
-        //     "test for {:?} times, base use {:?} millisecond",
-        //     ns.len(),
-        //     base_since_the_epoch.as_millis()
-        // );
+        let mut graph: Vec<Vec<Neighbor<f64, usize>>> = vec![Vec::new(); data.len()];
+        let base_start = SystemTime::now();
+        naive_build_knn_graph::<f64, usize>(&data, metrics::Metric::DotProduct, 10, &mut graph);
+        let base_since_the_epoch = SystemTime::now()
+            .duration_since(base_start)
+            .expect("Time went backwards");
+        println!(
+            "test for {:?} times, base use {:?} millisecond",
+            ns.len(),
+            base_since_the_epoch.as_millis()
+        );
 
         let mut graph2: Vec<Vec<Neighbor<f64, usize>>> = vec![Vec::new(); data.len()];
         let base_start = SystemTime::now();
@@ -407,5 +407,16 @@ mod tests {
             ns.len(),
             base_since_the_epoch.as_millis()
         );
+
+        let mut error = 0;
+        for i in 0..graph.len() {
+            for j in graph[i].len() {
+                if graph[i][j] != graph2[i][j] {
+                    error += 1;
+                }
+            }
+        }
+
+        println!("error {}", error);
     }
 }
