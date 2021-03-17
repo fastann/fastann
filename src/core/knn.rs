@@ -410,7 +410,7 @@ mod tests {
 
         let mut error = 0;
         for i in 0..graph.len() {
-            for j in graph[i].len() {
+            for j in 0..graph[i].len() {
                 if graph[i][j] != graph2[i][j] {
                     error += 1;
                 }
