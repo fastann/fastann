@@ -16,7 +16,7 @@ use prgrs::{Length, Prgrs};
 
 use rand::distributions::{Distribution, Normal};
 
-use rand::{Rng};
+use rand::Rng;
 use rayon::prelude::*;
 #[cfg(not(feature = "without_std"))]
 use std::collections::HashMap;
@@ -91,7 +91,8 @@ pub fn run_similarity_profile(test_time: usize) {
     ));
 
     // let mut indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bpforest_idx];
-    let mut indices: Vec<Box<dyn ANNIndex<f64, usize>>> = vec![ssg_idx, bpforest_idx, pq_idx, hnsw_idx];
+    let mut indices: Vec<Box<dyn ANNIndex<f64, usize>>> =
+        vec![ssg_idx, bpforest_idx, pq_idx, hnsw_idx];
     let accuracy = Arc::new(Mutex::new(Vec::new()));
     let cost = Arc::new(Mutex::new(Vec::new()));
     let base_cost = Arc::new(Mutex::new(Duration::default()));
