@@ -156,12 +156,8 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         });
 
         for i in 0..self.nodes.len() {
-            if !self.old_reversed_neighbors.contains_key(&i) {
-                self.old_reversed_neighbors.insert(i, Vec::new());
-            }
-            if !self.new_reversed_neighbors.contains_key(&i) {
-                self.new_reversed_neighbors.insert(i, Vec::new());
-            }
+            self.old_reversed_neighbors.entry(i).or_insert(Vec::new());
+            self.new_reversed_neighbors.entry(i).or_insert(Vec::new());
         }
 
         for i in 0..self.nodes.len() {
@@ -256,7 +252,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
     }
 
     fn join(&mut self, me: usize, candidate: usize) -> usize {
-        if (me == candidate) {
+        if me == candidate {
             return 0;
         }
         let distance = self.nodes[me]
