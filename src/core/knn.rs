@@ -92,7 +92,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
             for _j in 0..k {
                 let mut p = rand::thread_rng().gen_range(0, nodes.len());
                 // while visited_id.contains(p + n * self.nodes.len()) && p != n {
-                while p != n {
+                while p == n {
                     p = rand::thread_rng().gen_range(0, nodes.len());
                 }
                 graph[n].push(Neighbor::new(
@@ -137,6 +137,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
 
     fn train(&mut self) {
         self.random_neighbors();
+
         for _epoch in 0..self.max_epoch {
             let update_count = self.update_graph();
             let kn = self.k * self.nodes.len();
@@ -144,6 +145,9 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                 break;
             }
         }
+        // for j in 0..self.graph.len() {
+        //     println!("{:?} {:?}", self.nodes[j], self.graph[j]);
+        // }
     }
 
     fn update_graph(&mut self) -> usize {
@@ -151,11 +155,13 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
             self.sample_neighbors_set(i);
         });
 
-        self.old_reversed_neighbors.clear();
-        self.new_reversed_neighbors.clear();
         for i in 0..self.nodes.len() {
-            self.old_reversed_neighbors.insert(i, Vec::new());
-            self.new_reversed_neighbors.insert(i, Vec::new());
+            if !self.old_reversed_neighbors.contains_key(&i) {
+                self.old_reversed_neighbors.insert(i, Vec::new());
+            }
+            if !self.new_reversed_neighbors.contains_key(&i) {
+                self.new_reversed_neighbors.insert(i, Vec::new());
+            }
         }
 
         for i in 0..self.nodes.len() {
@@ -250,18 +256,22 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
     }
 
     fn join(&mut self, me: usize, candidate: usize) -> usize {
-        let s = self.nodes[me]
+        if (me == candidate) {
+            return 0;
+        }
+        let distance = self.nodes[me]
             .metric(&self.nodes[candidate], self.mt)
             .unwrap();
-        if s < self.graph[me][self.graph[me].len() - 1].distance() && self.graph[me].len() == self.k
+        if distance > self.graph[me][self.graph[me].len() - 1].distance()
+            && self.graph[me].len() == self.k
         {
             return 0;
         }
 
-        let candidate_neighbor = Neighbor::new(candidate, s);
+        let candidate_neighbor = Neighbor::new(candidate, distance);
         let mut ub = self.graph[me].len() - 1;
         for i in 0..self.graph[me].len() {
-            if self.graph[me][i].distance() > s {
+            if self.graph[me][i].distance() >= distance {
                 ub = i;
             }
         }
@@ -271,20 +281,20 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         let prB = self.perturb_rate * (B as f32);
         let rand_val = rand::thread_rng().gen_range(0, B) as f32;
         if ub == self.graph[me].len()
-            && self.graph[me][self.graph[me].len() - 1].distance() == s
+            && self.graph[me][self.graph[me].len() - 1].idx() == candidate
             && rand_val > prB
         {
             return 0;
         }
 
         let mut lb = 0;
-        for i in 0..self.graph[me].len() {
-            if self.graph[me][i].distance() < s {
+        for i in (0..self.graph[me].len()).rev() {
+            if self.graph[me][i].distance() <= distance {
                 lb = i;
             }
         }
 
-        if !self.graph[me].is_empty() && self.graph[me][lb].distance() == s {
+        if !self.graph[me].is_empty() && self.graph[me][lb].distance() == distance {
             for i in lb..ub {
                 if self.graph[me][i].idx() == candidate {
                     return 0;
@@ -297,19 +307,23 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         } else {
             lb
         };
+        // println!("{:?} {:?} {:?} {:?}", pos, ub,lb,me);
 
         if self.graph[me].len() < self.k {
-            self.new_neighbors[me][pos] = candidate_neighbor;
+            self.graph[me][pos] = candidate_neighbor;
             self.visited_id.set(me * self.nodes.len() + pos, false);
         } else {
-            for i in pos..self.graph[me].len() {
-                if i < self.new_neighbors[me].len() {
-                    self.new_neighbors[me][i] = candidate_neighbor.clone();
+            for j in (pos..self.graph[me].len()).rev() {
+                if j != pos {
+                    self.visited_id.set(
+                        me * self.nodes.len() + j,
+                        self.visited_id.contains(me * self.nodes.len() + j - 1),
+                    );
+                    self.graph[me][j] = self.graph[me][j - 1].clone();
                 } else {
-                    self.new_neighbors[me].push(candidate_neighbor.clone());
+                    self.graph[me][j] = candidate_neighbor.clone();
+                    self.visited_id.set(me * self.nodes.len() + j, false);
                 }
-
-                self.visited_id.set(me * self.nodes.len() + i, false);
             }
         }
 
@@ -324,6 +338,8 @@ mod tests {
     use crate::core::node;
     use rand::distributions::{Distribution, Normal};
     use rand::Rng;
+    use std::collections::HashSet;
+    use std::iter::FromIterator;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
     fn make_normal_distribution_clustering(
         clustering_n: usize,
@@ -363,7 +379,7 @@ mod tests {
 
     #[test]
     fn knn() {
-        let dimension = 50;
+        let dimension = 2;
         let nodes_every_cluster = 40;
         let node_n = 50;
         let (_, ns) =
@@ -391,12 +407,12 @@ mod tests {
         let base_start = SystemTime::now();
         let mut nn_descent_handler = NNDescentHandler::new(
             &data,
-            metrics::Metric::DotProduct,
+            metrics::Metric::Euclidean,
             10,
             &mut graph2,
-            0.5,
-            1,
-            0.1,
+            1.,
+            10,
+            0.8,
         );
         nn_descent_handler.train();
         let base_since_the_epoch = SystemTime::now()
@@ -410,8 +426,9 @@ mod tests {
 
         let mut error = 0;
         for i in 0..graph.len() {
+            let set: HashSet<usize> = HashSet::from_iter(graph[i].iter().map(|x| x.idx()));
             for j in 0..graph[i].len() {
-                if graph[i][j] != graph2[i][j] {
+                if !set.contains(&graph2[i][j].idx()) {
                     error += 1;
                 }
             }
