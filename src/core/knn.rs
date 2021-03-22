@@ -381,11 +381,10 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         idx as i64
     }
 
-    fn update(&mut self, p1: usize, p2: usize) -> usize {
-        if p1 == p2 {
+    fn update(&mut self, u1: usize, u2: usize) -> usize {
+        if u1 == u2 {
             return 0;
         }
-        let (u1, u2) = if p1 > p2 { (p2, p1) } else { (p1, p2) };
 
         if self.update_nn_node(u1, u2) != -1 {
             self.update_cnt += 1;
@@ -402,7 +401,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         self.visited_id = FixedBitSet::with_capacity(self.nodes.len() * self.nodes.len());
         self.graph.clear();
         for _i in 0..self.nodes.len() {
-            let mut v = Vec::new();
+            let mut v = Vec::with_capacity(self.k);
             for _j in 0..self.k {
                 v.push(Neighbor::new(self.nodes.len(), E::max_value()));
             }
@@ -431,12 +430,10 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
     fn iterate(&mut self) -> usize {
         let mut cc = 0;
         self.update_cnt = 0;
-        for i in 0..self.nodes.len() {
+        self.cost = 0;
+        (0..self.nodes.len()).for_each(|i| {
             for j in 0..self.nn_new_neighbors[i].len() {
-                for k in 0..self.nn_new_neighbors[i].len() {
-                    if self.nn_new_neighbors[i][j] >= self.nn_new_neighbors[i][k] {
-                        continue;
-                    }
+                for k in j..self.nn_new_neighbors[i].len() {
                     cc += self.update(self.nn_new_neighbors[i][j], self.nn_new_neighbors[i][k]);
                 }
                 for k in 0..self.nn_old_neighbors[i].len() {
@@ -445,7 +442,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
             }
 
             for j in 0..self.reversed_new_neighbors[i].len() {
-                for k in 0..self.reversed_new_neighbors[i].len() {
+                for k in j..self.reversed_new_neighbors[i].len() {
                     if self.reversed_new_neighbors[i][j] >= self.reversed_new_neighbors[i][k] {
                         continue;
                     }
@@ -479,16 +476,13 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
 
             for j in 0..self.nn_old_neighbors[i].len() {
                 for k in 0..self.reversed_new_neighbors[i].len() {
-                    if j >= k {
-                        continue;
-                    }
                     cc += self.update(
                         self.nn_old_neighbors[i][j],
                         self.reversed_new_neighbors[i][k],
                     );
                 }
             }
-        }
+        });
 
         self.cost += cc;
         let mut t = 0;
@@ -500,10 +494,10 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
             self.reversed_old_neighbors[i].clear();
 
             for j in 0..self.k {
-                if self.graph[i][j].idx() == self.nodes.len() {
+                if self.graph[i][j].idx() == self.nodes.len() { // init value, pass
                     continue;
                 }
-                if self.visited_id.contains(i * self.nodes.len() + j) {
+                if self.visited_id.contains(self.nodes.len()* i + self.graph[i][j].idx()) {
                     self.nn_new_neighbors[i].push(j);
                 } else {
                     self.nn_old_neighbors[i].push(self.graph[i][j].idx());
@@ -513,7 +507,6 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
             t += self.nn_new_neighbors[i].len();
 
             if self.nn_new_neighbors[i].len() > self.s {
-                // println!("helllo {:?}", self.nn_new_neighbors[i].len());
                 let mut rng = rand::thread_rng();
                 self.nn_new_neighbors[i].shuffle(&mut rng);
                 self.nn_new_neighbors[i] = self.nn_new_neighbors[i][self.s..].to_vec();
@@ -527,18 +520,15 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                 self.nn_new_neighbors[i][j] = self.graph[i][self.nn_new_neighbors[i][j]].idx();
             }
         }
-        // for i in 0..self.nodes.len() {
-        //     println!("{:?}", self.nn_old_neighbors[i]);
-        // }
 
-        for i in 0..self.nodes.len() {
+        (0..self.nodes.len()).for_each(|i| {
             for e in 0..self.nn_old_neighbors[i].len() {
                 self.reversed_old_neighbors[self.nn_old_neighbors[i][e]].push(i);
             }
             for e in 0..self.nn_new_neighbors[i].len() {
                 self.reversed_new_neighbors[self.nn_new_neighbors[i][e]].push(i);
             }
-        }
+        });
 
         for i in 0..self.nodes.len() {
             if self.reversed_old_neighbors[i].len() > self.s {
@@ -552,16 +542,6 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                 self.reversed_new_neighbors[i] = self.reversed_new_neighbors[i][self.s..].to_vec();
             }
         }
-
-        // for i in 0..self.nodes.len() {
-        //     let mut v = Vec::new();
-        //     for j in 0..self.nodes.len() {
-        //         if self.visited_id.contains(i * self.nodes.len() + j) {
-        //             v.push(j.clone());
-        //         }
-        //     }
-        //     println!("{:?} {:?}", i, (v.len() as f32) / (self.nodes.len() as f32));
-        // }
 
         t
     }
@@ -740,7 +720,7 @@ mod tests {
                 }
             }
             println!(
-                "error {} /{:?} {:?} {:?} {:?}",
+                "error {} /{:?} cc {:?} cost {:?} update_cnt {:?}",
                 error,
                 data.len() * 10,
                 cc,
