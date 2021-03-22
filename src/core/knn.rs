@@ -45,16 +45,10 @@ pub struct NNDescentHandler<'a, E: FloatElement, T: IdxType> {
     mt: metrics::Metric,
     k: usize,
     visited_id: FixedBitSet,
-    old_neighbors: Vec<Vec<Neighbor<E, usize>>>,
-    new_neighbors: Vec<Vec<Neighbor<E, usize>>>,
     reversed_old_neighbors: Vec<Vec<usize>>,
     reversed_new_neighbors: Vec<Vec<usize>>,
     nn_old_neighbors: Vec<Vec<usize>>,
     nn_new_neighbors: Vec<Vec<usize>>,
-    old_reversed_neighbors: HashMap<usize, Vec<Neighbor<E, usize>>>,
-    new_reversed_neighbors: HashMap<usize, Vec<Neighbor<E, usize>>>,
-    perturb_rate: f32,
-    max_epoch: usize,
     rho: f32,
     cost: usize,
     s: usize,
@@ -67,8 +61,6 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         mt: metrics::Metric,
         k: usize,
         graph: &'a mut Vec<Vec<Neighbor<E, usize>>>,
-        perturb_rate: f32,
-        max_epoch: usize,
         rho: f32,
     ) -> Self {
         NNDescentHandler {
@@ -77,274 +69,15 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
             mt,
             k,
             visited_id: FixedBitSet::with_capacity(nodes.len() * nodes.len()),
-            old_neighbors: Vec::new(),
-            new_neighbors: Vec::new(),
             reversed_old_neighbors: Vec::new(),
             reversed_new_neighbors: Vec::new(),
-            old_reversed_neighbors: HashMap::new(),
-            new_reversed_neighbors: HashMap::new(),
             nn_new_neighbors: Vec::new(),
             nn_old_neighbors: Vec::new(),
-            perturb_rate,
-            max_epoch,
             rho,
             cost: 0,
             s: (rho * k as f32) as usize,
             update_cnt: 0,
         }
-    }
-
-    fn random_neighbors(&mut self) {
-        let nodes = &self.nodes;
-        let _visited_id = &mut self.visited_id;
-        let graph = &mut self.graph;
-        let mut k = self.k;
-        if k > self.nodes.len() - 1 {
-            k = self.nodes.len() - 1;
-        }
-        for n in 0..self.nodes.len() {
-            graph[n].clear();
-            for _j in 0..k {
-                let mut p = rand::thread_rng().gen_range(0, nodes.len());
-                // while visited_id.contains(p + n * self.nodes.len()) && p != n {
-                while p == n {
-                    p = rand::thread_rng().gen_range(0, nodes.len());
-                }
-                graph[n].push(Neighbor::new(
-                    p,
-                    self.nodes[n].metric(&self.nodes[p], self.mt).unwrap(),
-                ));
-            }
-            graph[n].sort();
-        }
-    }
-
-    fn sample_neighbors_set(&mut self, q: usize) {
-        let mut sampled = Vec::new();
-        let mut old_neighbors = Vec::new();
-        let mut new_neighbors = Vec::new();
-        let rhk = cmp::min(
-            (self.rho * self.nodes.len() as f32).ceil() as usize,
-            self.nodes.len(),
-        );
-
-        let mut n = 0;
-        for i in 0..self.graph[q].len() {
-            if self.visited_id.contains(q * self.nodes.len() + i) {
-                old_neighbors.push(self.graph[q][i].clone());
-            } else {
-                if n < rhk {
-                    sampled.push(i);
-                } else {
-                    let m = rand::thread_rng().gen_range(0, n + 1);
-                    if m < rhk {
-                        sampled[m] = i;
-                    }
-                }
-                n += 1;
-            }
-        }
-
-        for i in 0..sampled.len() {
-            self.visited_id.insert(q * self.nodes.len() + sampled[i]);
-            new_neighbors.push(self.graph[q][i].clone());
-        }
-        self.new_neighbors.push(new_neighbors);
-        self.old_neighbors.push(old_neighbors);
-    }
-
-    fn train(&mut self) {
-        self.random_neighbors();
-
-        for _epoch in 0..self.max_epoch {
-            let update_count = self.update_graph();
-            let kn = self.k * self.nodes.len();
-            if (update_count as f32) <= 0.001 * (kn as f32) {
-                break;
-            }
-        }
-        // for j in 0..self.graph.len() {
-        //     println!("{:?} {:?}", self.nodes[j], self.graph[j]);
-        // }
-    }
-
-    fn update_graph(&mut self) -> usize {
-        (0..self.nodes.len()).for_each(|i| {
-            self.sample_neighbors_set(i);
-        });
-
-        for i in 0..self.nodes.len() {
-            self.old_reversed_neighbors.entry(i).or_insert(Vec::new());
-            self.new_reversed_neighbors.entry(i).or_insert(Vec::new());
-        }
-
-        for i in 0..self.nodes.len() {
-            for nb in self.old_neighbors[i].iter() {
-                self.old_reversed_neighbors
-                    .get_mut(&nb.idx())
-                    .unwrap()
-                    .push(Neighbor::new(i, nb.distance()));
-            }
-
-            for nb in self.new_neighbors[i].iter() {
-                self.new_reversed_neighbors
-                    .get_mut(&nb.idx())
-                    .unwrap()
-                    .push(Neighbor::new(i, nb.distance()));
-            }
-        }
-
-        let mut update_nn = 0;
-        for i in 0..self.nodes.len() {
-            update_nn += self.local_join(i);
-        }
-        update_nn
-    }
-
-    fn local_join(&mut self, i: usize) -> usize {
-        let rhk = cmp::min(
-            (self.rho * self.nodes.len() as f32).ceil() as usize,
-            self.nodes.len(),
-        );
-        let mut update_count = 0;
-
-        for iter in self.old_reversed_neighbors.get(&i).unwrap().iter() {
-            let _m =
-                rand::thread_rng().gen_range(0, self.old_reversed_neighbors.get(&i).unwrap().len());
-            if _m < rhk {
-                self.old_neighbors[i].push(iter.clone());
-            }
-        }
-
-        for iter in self.new_reversed_neighbors.get(&i).unwrap().iter() {
-            let _m =
-                rand::thread_rng().gen_range(0, self.new_reversed_neighbors.get(&i).unwrap().len());
-            if _m < rhk {
-                self.new_neighbors[i].push(iter.clone());
-            }
-        }
-
-        for p in 0..self.new_neighbors[i].len() {
-            update_count += self.join(self.new_neighbors[i][p].idx(), i);
-        }
-
-        for p in 0..self.new_neighbors[i].len() {
-            for q in (p + 1)..self.new_neighbors[i].len() {
-                if self.new_neighbors[i][p].idx() == self.new_neighbors[i][q].idx() {
-                    continue;
-                }
-                update_count += self.join(
-                    self.new_neighbors[i][p].idx(),
-                    self.new_neighbors[i][q].idx(),
-                );
-                update_count += self.join(
-                    self.new_neighbors[i][q].idx(),
-                    self.new_neighbors[i][p].idx(),
-                );
-            }
-        }
-
-        for p in 0..self.new_neighbors[i].len() {
-            for q in 0..self.old_neighbors[i].len() {
-                if self.new_neighbors[i][p].idx() == self.old_neighbors[i][q].idx() {
-                    continue;
-                }
-                update_count += self.join(
-                    self.new_neighbors[i][p].idx(),
-                    self.old_neighbors[i][q].idx(),
-                );
-                update_count += self.join(
-                    self.old_neighbors[i][q].idx(),
-                    self.new_neighbors[i][p].idx(),
-                );
-            }
-        }
-
-        let random_join = 10;
-        for _j in 0..random_join {
-            let mut nid = rand::thread_rng().gen_range(0, self.nodes.len() - 1);
-            if nid >= i {
-                nid += 1;
-            }
-            self.join(i, nid);
-        }
-
-        update_count
-    }
-
-    fn join(&mut self, me: usize, candidate: usize) -> usize {
-        if me == candidate {
-            return 0;
-        }
-        let distance = self.nodes[me]
-            .metric(&self.nodes[candidate], self.mt)
-            .unwrap();
-        if distance > self.graph[me][self.graph[me].len() - 1].distance()
-            && self.graph[me].len() == self.k
-        {
-            return 0;
-        }
-
-        let candidate_neighbor = Neighbor::new(candidate, distance);
-        let mut ub = self.graph[me].len() - 1;
-        for i in 0..self.graph[me].len() {
-            if self.graph[me][i].distance() >= distance {
-                ub = i;
-            }
-        }
-
-        let _SHIFT = 20;
-        let B = 1 << _SHIFT;
-        let prB = self.perturb_rate * (B as f32);
-        let rand_val = rand::thread_rng().gen_range(0, B) as f32;
-        if ub == self.graph[me].len()
-            && self.graph[me][self.graph[me].len() - 1].idx() == candidate
-            && rand_val > prB
-        {
-            return 0;
-        }
-
-        let mut lb = 0;
-        for i in (0..self.graph[me].len()).rev() {
-            if self.graph[me][i].distance() <= distance {
-                lb = i;
-            }
-        }
-
-        if !self.graph[me].is_empty() && self.graph[me][lb].distance() == distance {
-            for i in lb..ub {
-                if self.graph[me][i].idx() == candidate {
-                    return 0;
-                }
-            }
-        }
-
-        let pos = if lb < ub {
-            lb + rand::thread_rng().gen_range(0, ub - lb)
-        } else {
-            lb
-        };
-        // println!("{:?} {:?} {:?} {:?}", pos, ub,lb,me);
-
-        if self.graph[me].len() < self.k {
-            self.graph[me][pos] = candidate_neighbor;
-            self.visited_id.set(me * self.nodes.len() + pos, false);
-        } else {
-            for j in (pos..self.graph[me].len()).rev() {
-                if j != pos {
-                    self.visited_id.set(
-                        me * self.nodes.len() + j,
-                        self.visited_id.contains(me * self.nodes.len() + j - 1),
-                    );
-                    self.graph[me][j] = self.graph[me][j - 1].clone();
-                } else {
-                    self.graph[me][j] = candidate_neighbor.clone();
-                    self.visited_id.set(me * self.nodes.len() + j, false);
-                }
-            }
-        }
-
-        1
     }
 
     fn update_nn_node(&mut self, me: usize, candidate: usize) -> i64 {
@@ -494,10 +227,14 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
             self.reversed_old_neighbors[i].clear();
 
             for j in 0..self.k {
-                if self.graph[i][j].idx() == self.nodes.len() { // init value, pass
+                if self.graph[i][j].idx() == self.nodes.len() {
+                    // init value, pass
                     continue;
                 }
-                if self.visited_id.contains(self.nodes.len()* i + self.graph[i][j].idx()) {
+                if self
+                    .visited_id
+                    .contains(self.nodes.len() * i + self.graph[i][j].idx())
+                {
                     self.nn_new_neighbors[i].push(j);
                 } else {
                     self.nn_old_neighbors[i].push(self.graph[i][j].idx());
@@ -606,66 +343,6 @@ mod tests {
     }
 
     #[test]
-    fn knn() {
-        let dimension = 2;
-        let nodes_every_cluster = 40;
-        let node_n = 50;
-        let (_, ns) =
-            make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 10000000.0);
-        println!("hello world {:?}", ns.len());
-
-        let mut data = Vec::new();
-        for i in 0..ns.len() {
-            data.push(Box::new(node::Node::new_with_idx(&ns[i], i)));
-        }
-
-        let mut graph: Vec<Vec<Neighbor<f64, usize>>> = vec![Vec::new(); data.len()];
-        let base_start = SystemTime::now();
-        naive_build_knn_graph::<f64, usize>(&data, metrics::Metric::DotProduct, 10, &mut graph);
-        let base_since_the_epoch = SystemTime::now()
-            .duration_since(base_start)
-            .expect("Time went backwards");
-        println!(
-            "test for {:?} times, base use {:?} millisecond",
-            ns.len(),
-            base_since_the_epoch.as_millis()
-        );
-
-        let mut graph2: Vec<Vec<Neighbor<f64, usize>>> = vec![Vec::new(); data.len()];
-        let base_start = SystemTime::now();
-        let mut nn_descent_handler = NNDescentHandler::new(
-            &data,
-            metrics::Metric::Euclidean,
-            10,
-            &mut graph2,
-            1.,
-            10,
-            0.8,
-        );
-        nn_descent_handler.train();
-        let base_since_the_epoch = SystemTime::now()
-            .duration_since(base_start)
-            .expect("Time went backwards");
-        println!(
-            "test for {:?} times, base use {:?} millisecond",
-            ns.len(),
-            base_since_the_epoch.as_millis()
-        );
-
-        let mut error = 0;
-        for i in 0..graph.len() {
-            let set: HashSet<usize> = HashSet::from_iter(graph[i].iter().map(|x| x.idx()));
-            for j in 0..graph[i].len() {
-                if !set.contains(&graph2[i][j].idx()) {
-                    error += 1;
-                }
-            }
-        }
-
-        println!("error {}", error);
-    }
-
-    #[test]
     fn knn_nn_descent() {
         let dimension = 2;
         let nodes_every_cluster = 200;
@@ -693,15 +370,8 @@ mod tests {
 
         let mut graph2: Vec<Vec<Neighbor<f64, usize>>> = vec![Vec::new(); data.len()];
         let base_start = SystemTime::now();
-        let mut nn_descent_handler = NNDescentHandler::new(
-            &data,
-            metrics::Metric::DotProduct,
-            10,
-            &mut graph2,
-            1.,
-            10,
-            1.0,
-        );
+        let mut nn_descent_handler =
+            NNDescentHandler::new(&data, metrics::Metric::DotProduct, 10, &mut graph2, 1.0);
         nn_descent_handler.init();
 
         let try_times = 50;
