@@ -6,8 +6,7 @@ use fixedbitset::FixedBitSet;
 use rand::seq::SliceRandom;
 use rand::Rng;
 use rayon::prelude::*;
-use std::cmp;
-use std::collections::HashMap;
+
 use std::sync::{Arc, Mutex};
 
 pub fn naive_build_knn_graph<E: FloatElement, T: IdxType>(
@@ -303,6 +302,7 @@ mod tests {
     use crate::core::node;
     use rand::distributions::{Distribution, Normal};
     use rand::Rng;
+    use std::collections::HashMap;
     use std::collections::HashSet;
     use std::iter::FromIterator;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
