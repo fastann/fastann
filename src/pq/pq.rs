@@ -228,7 +228,7 @@ pub struct PQIndex<E: node::FloatElement, T: node::IdxType> {
     _sub_bytes: usize,     //code save as byte: (_sub_bit + 7)//8
     _n_sub_center: usize,  //num of centers per subdata code
     //n_center_per_sub = 1 << sub_bits
-    _code_bytes: usize,          // byte of code
+    _code_bytes: usize,         // byte of code
     _train_epoch: usize,        // training epoch
     _centers: Vec<Vec<Vec<E>>>, // size to be _n_sub * _n_sub_center * _sub_dimension
     _is_trained: bool,
