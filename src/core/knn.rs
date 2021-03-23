@@ -81,7 +81,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
 
     fn update_nn_node(&mut self, me: usize, candidate: usize) -> i64 {
         let mut idx = self.graph[me].len() - 1;
-        let mut j = 0;
+        let mut j = idx;
         let dist = self.nodes[me]
             .metric(&self.nodes[candidate], self.mt)
             .unwrap();
@@ -92,10 +92,10 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
             if idx == 0 {
                 break;
             }
-            j = idx - 1;
             if self.graph[me][j].idx() == candidate {
                 return -1;
             }
+            j = idx - 1;
             if self.graph[me][j].distance() < dist {
                 break;
             }
@@ -163,15 +163,39 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         let mut cc = 0;
         self.update_cnt = 0;
         self.cost = 0;
-        (0..self.nodes.len()).for_each(|i| {
+        
+        (0..self.nodes.len()).for_each(|i| {{
+            let nn_new_neighbors_ref = &self.nn_new_neighbors[i];
             for j in 0..self.nn_new_neighbors[i].len() {
-                for k in j..self.nn_new_neighbors[i].len() {
-                    cc += self.update(self.nn_new_neighbors[i][j], self.nn_new_neighbors[i][k]);
-                }
-                for k in 0..self.nn_old_neighbors[i].len() {
-                    cc += self.update(self.nn_new_neighbors[i][j], self.nn_old_neighbors[i][k]);
-                }
+                // for k in j..nn_new_neighbors_ref.len() {
+                //     cc += self.update(self.nn_new_neighbors[i][j], self.nn_new_neighbors[i][k]);
+                // }
+                nn_new_neighbors_ref.iter().map(|x| {
+                    self.update(nn_new_neighbors_ref[j], *x)
+                }).sum::<usize>();
+                // for iter in self.nn_new_neighbors[i].iter() {
+                //     cc += ;
+                // }
+                // for k in 0..self.nn_old_neighbors[i].len() {
+                //     cc += self.update(self.nn_new_neighbors[i][j], self.nn_old_neighbors[i][k]);
+                // }
             }
+        }
+            // let nn_new_neighbors_ref = &self.nn_new_neighbors[i];
+            // for j in 0..self.nn_new_neighbors[i].len() {
+            //     for k in j..self.nn_new_neighbors[i].len() {
+            //         cc += self.update(self.nn_new_neighbors[i][j], self.nn_new_neighbors[i][k]);
+            //     }
+            //     nn_new_neighbors_ref.iter().map(|x| {
+            //         self.update(self.nn_new_neighbors[i][j], *x)
+            //     }).sum::<usize>();
+            //     // for iter in self.nn_new_neighbors[i].iter() {
+            //     //     cc += ;
+            //     // }
+            //     for k in 0..self.nn_old_neighbors[i].len() {
+            //         cc += self.update(self.nn_new_neighbors[i][j], self.nn_old_neighbors[i][k]);
+            //     }
+            // }
 
             for j in 0..self.reversed_new_neighbors[i].len() {
                 for k in j..self.reversed_new_neighbors[i].len() {
