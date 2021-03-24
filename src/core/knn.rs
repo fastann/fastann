@@ -163,39 +163,16 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         let mut cc = 0;
         self.update_cnt = 0;
         self.cost = 0;
-        
-        (0..self.nodes.len()).for_each(|i| {{
-            let nn_new_neighbors_ref = &self.nn_new_neighbors[i];
+
+        (0..self.nodes.len()).for_each(|i| {
             for j in 0..self.nn_new_neighbors[i].len() {
-                // for k in j..nn_new_neighbors_ref.len() {
-                //     cc += self.update(self.nn_new_neighbors[i][j], self.nn_new_neighbors[i][k]);
-                // }
-                nn_new_neighbors_ref.iter().map(|x| {
-                    self.update(nn_new_neighbors_ref[j], *x)
-                }).sum::<usize>();
-                // for iter in self.nn_new_neighbors[i].iter() {
-                //     cc += ;
-                // }
-                // for k in 0..self.nn_old_neighbors[i].len() {
-                //     cc += self.update(self.nn_new_neighbors[i][j], self.nn_old_neighbors[i][k]);
-                // }
+                for k in j..self.nn_new_neighbors[i].len() {
+                    cc += self.update(self.nn_new_neighbors[i][j], self.nn_new_neighbors[i][k]);
+                }
+                for k in 0..self.nn_old_neighbors[i].len() {
+                    cc += self.update(self.nn_new_neighbors[i][j], self.nn_old_neighbors[i][k]);
+                }
             }
-        }
-            // let nn_new_neighbors_ref = &self.nn_new_neighbors[i];
-            // for j in 0..self.nn_new_neighbors[i].len() {
-            //     for k in j..self.nn_new_neighbors[i].len() {
-            //         cc += self.update(self.nn_new_neighbors[i][j], self.nn_new_neighbors[i][k]);
-            //     }
-            //     nn_new_neighbors_ref.iter().map(|x| {
-            //         self.update(self.nn_new_neighbors[i][j], *x)
-            //     }).sum::<usize>();
-            //     // for iter in self.nn_new_neighbors[i].iter() {
-            //     //     cc += ;
-            //     // }
-            //     for k in 0..self.nn_old_neighbors[i].len() {
-            //         cc += self.update(self.nn_new_neighbors[i][j], self.nn_old_neighbors[i][k]);
-            //     }
-            // }
 
             for j in 0..self.reversed_new_neighbors[i].len() {
                 for k in j..self.reversed_new_neighbors[i].len() {
