@@ -103,7 +103,7 @@ pub fn run_similarity_profile(test_time: usize) {
     make_idx_baseline(ns.clone(), &mut bf_idx);
     // make_idx_baseline(ns.clone(), &mut ssg_idx);
     // ssg_idx.connectivity_profile();
-    // let guard = pprof::ProfilerGuard::new(100).unwrap();
+    let guard = pprof::ProfilerGuard::new(100).unwrap();
     for i in Prgrs::new(0..test_time, 1000).set_length_move(Length::Proportional(0.5)) {
         // (0..test_time).into_par_iter().for_each(|_| {
         let mut rng = rand::thread_rng();
@@ -138,13 +138,12 @@ pub fn run_similarity_profile(test_time: usize) {
         }
     }
 
-    // if let Ok(report) = guard.report().build() {
-    //     let file = File::create("flamegraph.svg").unwrap();
-    //     // let mut options = pprof::flamegraph::Options::default();
-    //     options.image_width = Some(2500);
-    //     report.flamegraph_with_options(file, &mut options).unwrap();
-    // };
-    // });
+    if let Ok(report) = guard.report().build() {
+        let file = File::create("flamegraph.svg").unwrap();
+        let mut options = pprof::flamegraph::Options::default();
+        options.image_width = Some(2500);
+        report.flamegraph_with_options(file, &mut options).unwrap();
+    };
 
     println!(
         "test for {:?} times, nodes {:?}, base use {:?} millisecond",
