@@ -60,7 +60,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
     fn new(nodes: &'a Vec<Box<Node<E, T>>>, mt: metrics::Metric, k: usize, rho: f32) -> Self {
         NNDescentHandler {
             nodes,
-            graph: Vec::new(),
+            graph: Vec::new(), // TODO: as params
             mt,
             k,
             visited_id: FixedBitSet::with_capacity(nodes.len() * nodes.len()),
@@ -122,8 +122,8 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         }
 
         for i in 0..self.nodes.len() {
-            self.nn_new_neighbors.push(Vec::new());
-            self.nn_old_neighbors.push(Vec::new());
+            self.nn_new_neighbors.push(Vec::with_capacity(self.s));
+            self.nn_old_neighbors.push(Vec::with_capacity(self.s));
             for _j in 0..self.s {
                 let rand_val = rand::thread_rng().gen_range(0, self.nodes.len());
                 self.nn_new_neighbors[i].push(rand_val);
@@ -131,8 +131,8 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         }
 
         for i in 0..self.nodes.len() {
-            self.reversed_new_neighbors.push(Vec::new());
-            self.reversed_old_neighbors.push(Vec::new());
+            self.reversed_new_neighbors.push(Vec::with_capacity(self.s));
+            self.reversed_old_neighbors.push(Vec::with_capacity(self.s));
             for _j in 0..self.s {
                 let rand_val = rand::thread_rng().gen_range(0, self.nodes.len());
                 self.reversed_new_neighbors[i].push(rand_val);
@@ -150,7 +150,13 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         let pending_status: Vec<(usize, usize, Vec<usize>)> = (0..self.nodes.len())
             .into_par_iter()
             .map(|i| {
-                let mut flags = Vec::new();
+                let mut flags = Vec::with_capacity(
+                    (self.nn_new_neighbors[i].len()
+                        + self.nn_old_neighbors[i].len()
+                        + self.reversed_new_neighbors[i].len()
+                        + self.reversed_old_neighbors[i].len())
+                        * 2,
+                );
                 let mut ccc: usize = 0;
                 for j in 0..self.nn_new_neighbors[i].len() {
                     for k in j..self.nn_new_neighbors[i].len() {
@@ -302,61 +308,64 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
             })
             .sum::<usize>();
 
-        (0..self.nodes.len()).into_par_iter().for_each(|i| {
-            while self.graph[i].lock().unwrap().len() > self.k {
-                self.graph[i].lock().unwrap().pop();
-            }
-        });
+        (0..self.nodes.len())
+            .into_par_iter()
+            .for_each(|i| {
+                while self.graph[i].lock().unwrap().len() > self.k {
+                    self.graph[i].lock().unwrap().pop();
+                }
+            });
 
         self.cost += cc;
         let mut t = 0;
 
-        let pending_status2: Vec<(usize, usize, Vec<usize>, Vec<usize>, Vec<usize>)> =
-            (0..self.nodes.len())
-                .into_par_iter()
-                .map(|i| {
-                    let mut nn_new_neighbors = Vec::new();
-                    let mut nn_old_neighbors = Vec::new();
-                    let mut flags = Vec::new();
-                    let graph_item: Vec<Neighbor<E, usize>> = self.graph[i]
-                        .lock()
-                        .unwrap()
-                        .iter()
-                        .map(|x| x.clone())
-                        .collect();
+        let pending_status2: Vec<(usize, usize, Vec<usize>, Vec<usize>, Vec<usize>)> = (0..self
+            .nodes
+            .len())
+            .into_par_iter()
+            .map(|i| {
+                let mut nn_new_neighbors = Vec::with_capacity(self.graph[i].lock().unwrap().len());
+                let mut nn_old_neighbors = Vec::with_capacity(self.graph[i].lock().unwrap().len());
+                let mut flags = Vec::with_capacity(self.graph[i].lock().unwrap().len());
+                let graph_item: Vec<Neighbor<E, usize>> = self.graph[i]
+                    .lock()
+                    .unwrap()
+                    .iter()
+                    .map(|x| x.clone())
+                    .collect();
 
-                    let mut tt: usize = 0;
+                let mut tt: usize = 0;
 
-                    for j in 0..self.k {
-                        if graph_item[j].idx() == self.nodes.len() {
-                            // init value, pass
-                            continue;
-                        }
-                        if self
-                            .visited_id
-                            .contains(self.nodes.len() * i + graph_item[j].idx())
-                        {
-                            nn_new_neighbors.push(j);
-                        } else {
-                            nn_old_neighbors.push(graph_item[j].idx());
-                        }
+                for j in 0..self.k {
+                    if graph_item[j].idx() == self.nodes.len() {
+                        // init value, pass
+                        continue;
                     }
-
-                    tt += nn_new_neighbors.len();
-
-                    if nn_new_neighbors.len() > self.s {
-                        let mut rng = rand::thread_rng();
-                        nn_new_neighbors.shuffle(&mut rng);
-                        nn_new_neighbors = nn_new_neighbors[self.s..].to_vec();
+                    if self
+                        .visited_id
+                        .contains(self.nodes.len() * i + graph_item[j].idx())
+                    {
+                        nn_new_neighbors.push(j);
+                    } else {
+                        nn_old_neighbors.push(graph_item[j].idx());
                     }
+                }
 
-                    for j in 0..nn_new_neighbors.len() {
-                        flags.push(i * self.nodes.len() + graph_item[nn_new_neighbors[j]].idx());
-                        nn_new_neighbors[j] = graph_item[nn_new_neighbors[j]].idx();
-                    }
-                    (i, tt, nn_new_neighbors, nn_old_neighbors, flags)
-                })
-                .collect();
+                tt += nn_new_neighbors.len();
+
+                if nn_new_neighbors.len() > self.s {
+                    let mut rng = rand::thread_rng();
+                    nn_new_neighbors.shuffle(&mut rng);
+                    nn_new_neighbors = nn_new_neighbors[self.s..].to_vec();
+                }
+
+                for j in 0..nn_new_neighbors.len() {
+                    flags.push(i * self.nodes.len() + graph_item[nn_new_neighbors[j]].idx());
+                    nn_new_neighbors[j] = graph_item[nn_new_neighbors[j]].idx();
+                }
+                (i, tt, nn_new_neighbors, nn_old_neighbors, flags)
+            })
+            .collect();
 
         t += pending_status2
             .iter()
@@ -422,6 +431,7 @@ mod tests {
     use rand::Rng;
     use std::collections::HashMap;
     use std::collections::HashSet;
+    use std::fs::File;
     use std::iter::FromIterator;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
     fn make_normal_distribution_clustering(
@@ -463,8 +473,8 @@ mod tests {
     #[test]
     fn knn_nn_descent() {
         let dimension = 2;
-        let nodes_every_cluster = 2000;
-        let node_n = 2;
+        let nodes_every_cluster = 20;
+        let node_n = 600;
         let (_, ns) =
             make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 10000000.0);
         println!("hello world {:?}", ns.len());
@@ -491,11 +501,12 @@ mod tests {
             NNDescentHandler::new(&data, metrics::Metric::Euclidean, 10, 1.0);
         nn_descent_handler.init();
 
-        let try_times = 50;
+        let try_times = 5;
         let mut ground_truth: HashMap<usize, HashSet<usize>> = HashMap::new();
         for i in 0..graph.len() {
             ground_truth.insert(i, HashSet::from_iter(graph[i].iter().map(|x| x.idx())));
         }
+        let guard = pprof::ProfilerGuard::new(100).unwrap();
         for _p in 0..try_times {
             let cc = nn_descent_handler.iterate();
             let mut error = 0;
@@ -521,6 +532,10 @@ mod tests {
                 nn_descent_handler.ths_update_cnt(),
             );
         }
+        if let Ok(report) = guard.report().build() {
+            let file = File::create("flamegraph.svg").unwrap();
+            report.flamegraph(file).unwrap();
+        };
 
         let base_since_the_epoch = SystemTime::now()
             .duration_since(base_start)
