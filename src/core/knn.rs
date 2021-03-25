@@ -7,7 +7,7 @@ use rand::seq::SliceRandom;
 use rand::Rng;
 use rayon::prelude::*;
 use std::collections::BinaryHeap;
-use std::sync::mpsc::channel;
+
 
 use std::sync::{Arc, Mutex};
 
@@ -299,7 +299,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
 
         cc += pending_status
             .iter()
-            .map(|(ccc, i, flags)| {
+            .map(|(ccc, _i, flags)| {
                 flags.iter().for_each(|j| {
                     self.visited_id.set(*j, true);
                 });
@@ -330,8 +330,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                 let graph_item: Vec<Neighbor<E, usize>> = self.graph[i]
                     .lock()
                     .unwrap()
-                    .iter()
-                    .map(|x| x.clone())
+                    .iter().cloned()
                     .collect();
 
                 let mut tt: usize = 0;
@@ -408,7 +407,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         // self.graph
         let mut graph: Vec<Vec<Neighbor<E, usize>>> = Vec::new();
         for iter in self.graph.iter() {
-            graph.push(iter.lock().unwrap().iter().map(|x| x.clone()).collect());
+            graph.push(iter.lock().unwrap().iter().cloned().collect());
         }
         graph
     }
@@ -514,8 +513,7 @@ mod tests {
                 let nn_descent_handler_val: Vec<Neighbor<f64, usize>> = nn_descent_handler.graph[i]
                     .lock()
                     .unwrap()
-                    .iter()
-                    .map(|x| x.clone())
+                    .iter().cloned()
                     .collect();
                 for j in 0..nn_descent_handler_val.len() {
                     if !ground_truth[&i].contains(&nn_descent_handler_val[j].idx()) {
