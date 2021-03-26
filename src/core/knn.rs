@@ -6,9 +6,9 @@ use fixedbitset::FixedBitSet;
 use rand::seq::SliceRandom;
 use rand::Rng;
 use rayon::prelude::*;
-use std::collections::BTreeSet;
+
 use std::collections::BinaryHeap;
-use std::sync::mpsc;
+
 use std::sync::{Arc, Mutex};
 
 pub fn naive_build_knn_graph<E: FloatElement, T: IdxType>(
@@ -114,7 +114,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         self.visited_id = FixedBitSet::with_capacity(self.nodes.len() * self.nodes.len());
         self.graph.clear();
 
-        (0..self.nodes.len()).for_each(|i| {
+        (0..self.nodes.len()).for_each(|_i| {
             let mut v = BinaryHeap::with_capacity(self.k);
             for _j in 0..self.k {
                 v.push(Neighbor::new(self.nodes.len(), E::max_value()));
@@ -428,14 +428,12 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
             self.reversed_new_neighbors[i] = reversed_new_neighbors[i]
                 .lock()
                 .unwrap()
-                .iter()
-                .map(|x| x.clone())
+                .iter().copied()
                 .collect();
             self.reversed_old_neighbors[i] = reversed_old_neighbors[i]
                 .lock()
                 .unwrap()
-                .iter()
-                .map(|x| x.clone())
+                .iter().copied()
                 .collect();
         });
 
@@ -468,7 +466,7 @@ mod tests {
     use rand::Rng;
     use std::collections::HashMap;
     use std::collections::HashSet;
-    use std::fs::File;
+    
     use std::iter::FromIterator;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
     fn make_normal_distribution_clustering(
