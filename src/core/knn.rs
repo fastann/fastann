@@ -6,9 +6,9 @@ use fixedbitset::FixedBitSet;
 use rand::seq::SliceRandom;
 use rand::Rng;
 use rayon::prelude::*;
+use std::collections::BTreeSet;
 use std::collections::BinaryHeap;
-
-
+use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 
 pub fn naive_build_knn_graph<E: FloatElement, T: IdxType>(
@@ -113,31 +113,30 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
     fn init(&mut self) {
         self.visited_id = FixedBitSet::with_capacity(self.nodes.len() * self.nodes.len());
         self.graph.clear();
-        for _i in 0..self.nodes.len() {
+
+        (0..self.nodes.len()).for_each(|i| {
             let mut v = BinaryHeap::with_capacity(self.k);
             for _j in 0..self.k {
                 v.push(Neighbor::new(self.nodes.len(), E::max_value()));
             }
             self.graph.push(Arc::new(Mutex::new(v)));
-        }
+        });
 
-        for i in 0..self.nodes.len() {
+        (0..self.nodes.len()).for_each(|i| {
             self.nn_new_neighbors.push(Vec::with_capacity(self.s));
             self.nn_old_neighbors.push(Vec::with_capacity(self.s));
             for _j in 0..self.s {
                 let rand_val = rand::thread_rng().gen_range(0, self.nodes.len());
                 self.nn_new_neighbors[i].push(rand_val);
             }
-        }
 
-        for i in 0..self.nodes.len() {
             self.reversed_new_neighbors.push(Vec::with_capacity(self.s));
             self.reversed_old_neighbors.push(Vec::with_capacity(self.s));
             for _j in 0..self.s {
                 let rand_val = rand::thread_rng().gen_range(0, self.nodes.len());
                 self.reversed_new_neighbors[i].push(rand_val);
             }
-        }
+        });
     }
 
     fn iterate(&mut self) -> usize {
@@ -146,17 +145,13 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         self.cost = 0;
 
         let my_graph = &self.graph;
+        // let (sender, receiver) = mpsc::channel();
 
-        let pending_status: Vec<(usize, usize, Vec<usize>)> = (0..self.nodes.len())
+        // cc += (0..self.nodes.len())
+        let pending_status: Vec<(usize, FixedBitSet)> = (0..self.nodes.len())
             .into_par_iter()
             .map(|i| {
-                let mut flags = Vec::with_capacity(
-                    (self.nn_new_neighbors[i].len()
-                        + self.nn_old_neighbors[i].len()
-                        + self.reversed_new_neighbors[i].len()
-                        + self.reversed_old_neighbors[i].len())
-                        * 2,
-                );
+                let mut flags = FixedBitSet::with_capacity(self.nodes.len() * self.nodes.len());
                 let mut ccc: usize = 0;
                 for j in 0..self.nn_new_neighbors[i].len() {
                     for k in j..self.nn_new_neighbors[i].len() {
@@ -167,11 +162,11 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                         ) {
                             ccc += 1;
                         }
-                        flags.push(
+                        flags.insert(
                             self.nn_new_neighbors[i][j] * self.nodes.len()
                                 + self.nn_new_neighbors[i][k],
                         );
-                        flags.push(
+                        flags.insert(
                             self.nn_new_neighbors[i][k] * self.nodes.len()
                                 + self.nn_new_neighbors[i][j],
                         );
@@ -184,11 +179,11 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                         ) {
                             ccc += 1;
                         }
-                        flags.push(
+                        flags.insert(
                             self.nn_new_neighbors[i][j] * self.nodes.len()
                                 + self.nn_old_neighbors[i][k],
                         );
-                        flags.push(
+                        flags.insert(
                             self.nn_old_neighbors[i][k] * self.nodes.len()
                                 + self.nn_new_neighbors[i][j],
                         );
@@ -207,11 +202,11 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                         ) {
                             ccc += 1;
                         }
-                        flags.push(
+                        flags.insert(
                             self.reversed_new_neighbors[i][j] * self.nodes.len()
                                 + self.reversed_new_neighbors[i][k],
                         );
-                        flags.push(
+                        flags.insert(
                             self.reversed_new_neighbors[i][k] * self.nodes.len()
                                 + self.reversed_new_neighbors[i][j],
                         );
@@ -224,11 +219,11 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                         ) {
                             ccc += 1;
                         }
-                        flags.push(
+                        flags.insert(
                             self.reversed_new_neighbors[i][j] * self.nodes.len()
                                 + self.reversed_old_neighbors[i][k],
                         );
-                        flags.push(
+                        flags.insert(
                             self.reversed_old_neighbors[i][k] * self.nodes.len()
                                 + self.reversed_new_neighbors[i][j],
                         );
@@ -244,11 +239,11 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                         ) {
                             ccc += 1;
                         }
-                        flags.push(
+                        flags.insert(
                             self.nn_new_neighbors[i][j] * self.nodes.len()
                                 + self.reversed_old_neighbors[i][k],
                         );
-                        flags.push(
+                        flags.insert(
                             self.reversed_old_neighbors[i][k] * self.nodes.len()
                                 + self.nn_new_neighbors[i][j],
                         );
@@ -261,11 +256,11 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                         ) {
                             ccc += 1;
                         }
-                        flags.push(
+                        flags.insert(
                             self.nn_new_neighbors[i][j] * self.nodes.len()
                                 + self.reversed_new_neighbors[i][k],
                         );
-                        flags.push(
+                        flags.insert(
                             self.reversed_new_neighbors[i][k] * self.nodes.len()
                                 + self.nn_new_neighbors[i][j],
                         );
@@ -281,44 +276,57 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                         ) {
                             ccc += 1;
                         }
-                        flags.push(
+                        flags.insert(
                             self.nn_old_neighbors[i][j] * self.nodes.len()
                                 + self.reversed_new_neighbors[i][k],
                         );
-                        flags.push(
+                        flags.insert(
                             self.reversed_new_neighbors[i][k] * self.nodes.len()
                                 + self.nn_old_neighbors[i][j],
                         );
                     }
                 }
-                // }
-
-                (ccc, i, flags)
+                (ccc, flags)
             })
             .collect();
 
-        cc += pending_status
-            .iter()
-            .map(|(ccc, _i, flags)| {
-                flags.iter().for_each(|j| {
-                    self.visited_id.set(*j, true);
-                });
+        let (c0, flags) = pending_status.into_par_iter().reduce(
+            || {
+                (
+                    0,
+                    FixedBitSet::with_capacity(self.nodes.len() * self.nodes.len()),
+                )
+            },
+            |(ccc1, mut flags1), (ccc2, flags2)| {
+                flags1.union_with(&flags2);
+                (ccc1 + ccc2, flags1)
+            },
+        );
+        self.visited_id.union_with(&flags);
+        cc += c0;
 
-                ccc
-            })
-            .sum::<usize>();
+        //         s.send(flags).unwrap();
+        //         ccc
+        //     })
+        //     .sum::<usize>();
 
-        (0..self.nodes.len())
-            .into_par_iter()
-            .for_each(|i| {
-                while self.graph[i].lock().unwrap().len() > self.k {
-                    self.graph[i].lock().unwrap().pop();
-                }
-            });
+        // receiver.iter().for_each(|flags| {
+        //     flags.iter().for_each(|j| {
+        //         self.visited_id.set(*j, true);
+        //     });
+        // });
+
+        (0..self.nodes.len()).into_par_iter().for_each(|i| {
+            while self.graph[i].lock().unwrap().len() > self.k {
+                self.graph[i].lock().unwrap().pop();
+            }
+        });
 
         self.cost += cc;
         let mut t = 0;
 
+        // let (sender2, receiver2) = mpsc::channel();
+        // t += (0..self.nodes.len())
         let pending_status2: Vec<(usize, usize, Vec<usize>, Vec<usize>, Vec<usize>)> = (0..self
             .nodes
             .len())
@@ -327,11 +335,8 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                 let mut nn_new_neighbors = Vec::with_capacity(self.graph[i].lock().unwrap().len());
                 let mut nn_old_neighbors = Vec::with_capacity(self.graph[i].lock().unwrap().len());
                 let mut flags = Vec::with_capacity(self.graph[i].lock().unwrap().len());
-                let graph_item: Vec<Neighbor<E, usize>> = self.graph[i]
-                    .lock()
-                    .unwrap()
-                    .iter().cloned()
-                    .collect();
+                let graph_item: Vec<Neighbor<E, usize>> =
+                    self.graph[i].lock().unwrap().iter().cloned().collect();
 
                 let mut tt: usize = 0;
 
@@ -377,35 +382,68 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                 tt
             })
             .sum::<usize>();
+        //     .sum::<usize>();
 
-        (0..self.nodes.len()).for_each(|i| {
+        // receiver2
+        //     .iter()
+        //     .for_each(|(i, nn_new_neighbors, nn_old_neighbors, flags)| {
+        //         self.nn_new_neighbors[i] = nn_new_neighbors.to_vec();
+        //         self.nn_old_neighbors[i] = nn_old_neighbors.to_vec();
+        //         flags.iter().for_each(|j| {
+        //             self.visited_id.set(*j, false);
+        //         });
+        //     });
+
+        let reversed_new_neighbors = vec![Arc::new(Mutex::new(Vec::new())); self.nodes.len()];
+        let reversed_old_neighbors = vec![Arc::new(Mutex::new(Vec::new())); self.nodes.len()];
+
+        (0..self.nodes.len()).into_par_iter().for_each(|i| {
             for e in 0..self.nn_old_neighbors[i].len() {
-                self.reversed_old_neighbors[self.nn_old_neighbors[i][e]].push(i);
+                reversed_old_neighbors[self.nn_old_neighbors[i][e]]
+                    .lock()
+                    .unwrap()
+                    .push(i);
             }
             for e in 0..self.nn_new_neighbors[i].len() {
-                self.reversed_new_neighbors[self.nn_new_neighbors[i][e]].push(i);
+                reversed_new_neighbors[self.nn_new_neighbors[i][e]]
+                    .lock()
+                    .unwrap()
+                    .push(i);
             }
         });
 
-        for i in 0..self.nodes.len() {
-            if self.reversed_old_neighbors[i].len() > self.s {
-                let mut rng = rand::thread_rng();
-                self.reversed_old_neighbors[i].shuffle(&mut rng);
-                self.reversed_old_neighbors[i] = self.reversed_old_neighbors[i][self.s..].to_vec();
+        (0..self.nodes.len()).into_par_iter().for_each(|i| {
+            let mut rng = rand::thread_rng();
+            if reversed_old_neighbors[i].lock().unwrap().len() > self.s {
+                reversed_old_neighbors[i].lock().unwrap().shuffle(&mut rng);
+                reversed_old_neighbors[i].lock().unwrap().resize(self.s, 0);
             }
-            if self.reversed_new_neighbors[i].len() > self.s {
-                let mut rng = rand::thread_rng();
-                self.reversed_new_neighbors[i].shuffle(&mut rng);
-                self.reversed_new_neighbors[i] = self.reversed_new_neighbors[i][self.s..].to_vec();
+            if reversed_new_neighbors[i].lock().unwrap().len() > self.s {
+                reversed_new_neighbors[i].lock().unwrap().shuffle(&mut rng);
+                reversed_new_neighbors[i].lock().unwrap().resize(self.s, 0);
             }
-        }
+        });
+
+        (0..self.nodes.len()).for_each(|i| {
+            self.reversed_new_neighbors[i] = reversed_new_neighbors[i]
+                .lock()
+                .unwrap()
+                .iter()
+                .map(|x| x.clone())
+                .collect();
+            self.reversed_old_neighbors[i] = reversed_old_neighbors[i]
+                .lock()
+                .unwrap()
+                .iter()
+                .map(|x| x.clone())
+                .collect();
+        });
 
         t
     }
 
     fn graph(&self) -> Vec<Vec<Neighbor<E, usize>>> {
-        // self.graph
-        let mut graph: Vec<Vec<Neighbor<E, usize>>> = Vec::new();
+        let mut graph: Vec<Vec<Neighbor<E, usize>>> = Vec::with_capacity(self.graph.len());
         for iter in self.graph.iter() {
             graph.push(iter.lock().unwrap().iter().cloned().collect());
         }
@@ -471,9 +509,9 @@ mod tests {
 
     #[test]
     fn knn_nn_descent() {
-        let dimension = 2;
+        let dimension = 20;
         let nodes_every_cluster = 20;
-        let node_n = 600;
+        let node_n = 200;
         let (_, ns) =
             make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 10000000.0);
         println!("hello world {:?}", ns.len());
@@ -485,7 +523,7 @@ mod tests {
 
         let mut graph: Vec<Vec<Neighbor<f64, usize>>> = vec![Vec::new(); data.len()];
         let base_start = SystemTime::now();
-        naive_build_knn_graph::<f64, usize>(&data, metrics::Metric::Euclidean, 10, &mut graph);
+        naive_build_knn_graph::<f64, usize>(&data, metrics::Metric::Euclidean, 100, &mut graph);
         let base_since_the_epoch = SystemTime::now()
             .duration_since(base_start)
             .expect("Time went backwards");
@@ -497,15 +535,15 @@ mod tests {
 
         let base_start = SystemTime::now();
         let mut nn_descent_handler =
-            NNDescentHandler::new(&data, metrics::Metric::Euclidean, 10, 1.0);
+            NNDescentHandler::new(&data, metrics::Metric::Euclidean, 100, 1.0);
         nn_descent_handler.init();
 
-        let try_times = 5;
+        let try_times = 10;
         let mut ground_truth: HashMap<usize, HashSet<usize>> = HashMap::new();
         for i in 0..graph.len() {
             ground_truth.insert(i, HashSet::from_iter(graph[i].iter().map(|x| x.idx())));
         }
-        let guard = pprof::ProfilerGuard::new(100).unwrap();
+        // let guard = pprof::ProfilerGuard::new(100).unwrap();
         for _p in 0..try_times {
             let cc = nn_descent_handler.iterate();
             let mut error = 0;
@@ -513,7 +551,8 @@ mod tests {
                 let nn_descent_handler_val: Vec<Neighbor<f64, usize>> = nn_descent_handler.graph[i]
                     .lock()
                     .unwrap()
-                    .iter().cloned()
+                    .iter()
+                    .cloned()
                     .collect();
                 for j in 0..nn_descent_handler_val.len() {
                     if !ground_truth[&i].contains(&nn_descent_handler_val[j].idx()) {
@@ -530,10 +569,10 @@ mod tests {
                 nn_descent_handler.ths_update_cnt(),
             );
         }
-        if let Ok(report) = guard.report().build() {
-            let file = File::create("flamegraph.svg").unwrap();
-            report.flamegraph(file).unwrap();
-        };
+        // if let Ok(report) = guard.report().build() {
+        //     let file = File::create("flamegraph.svg").unwrap();
+        //     report.flamegraph(file).unwrap();
+        // };
 
         let base_since_the_epoch = SystemTime::now()
             .duration_since(base_start)
