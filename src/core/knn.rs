@@ -6,8 +6,8 @@ use fixedbitset::FixedBitSet;
 use rand::seq::SliceRandom;
 use rand::Rng;
 use rayon::prelude::*;
-
 use std::collections::BinaryHeap;
+use std::sync::mpsc;
 
 use std::sync::{Arc, Mutex};
 
@@ -127,16 +127,16 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
 
         let tmp: Vec<(Vec<usize>, Vec<usize>, Vec<usize>, Vec<usize>)> = (0..self.nodes.len())
             .into_par_iter()
-            .map(|i| {
+            .map(|_i| {
                 let mut nn_new_neighbors: Vec<usize> = Vec::with_capacity(self.s);
-                let mut nn_old_neighbors: Vec<usize> = Vec::with_capacity(self.s);
+                let nn_old_neighbors: Vec<usize> = Vec::with_capacity(self.s);
                 for _j in 0..self.s {
                     let rand_val = rand::thread_rng().gen_range(0, self.nodes.len());
                     nn_new_neighbors.push(rand_val);
                 }
 
                 let mut reversed_new_neighbors: Vec<usize> = Vec::with_capacity(self.s);
-                let mut reversed_old_neighbors: Vec<usize> = Vec::with_capacity(self.s);
+                let reversed_old_neighbors: Vec<usize> = Vec::with_capacity(self.s);
                 for _j in 0..self.s {
                     let rand_val = rand::thread_rng().gen_range(0, self.nodes.len());
                     reversed_new_neighbors.push(rand_val);
@@ -156,9 +156,9 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         self.reversed_old_neighbors = Vec::with_capacity(self.nodes.len());
         for iter in tmp.iter() {
             self.nn_new_neighbors.push(iter.0.clone());
-            self.nn_old_neighbors.push(iter.0.clone());
-            self.reversed_new_neighbors.push(iter.0.clone());
-            self.reversed_old_neighbors.push(iter.0.clone());
+            self.nn_old_neighbors.push(iter.1.clone());
+            self.reversed_new_neighbors.push(iter.2.clone());
+            self.reversed_old_neighbors.push(iter.3.clone());
         }
     }
 
@@ -171,7 +171,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         // let (sender, receiver) = mpsc::channel();
 
         // cc += (0..self.nodes.len())
-        let pending_status: Vec<(usize, FixedBitSet)> = (0..self.nodes.len())
+        let (c0, flags) = (0..self.nodes.len())
             .into_par_iter()
             .map(|i| {
                 let mut flags = FixedBitSet::with_capacity(self.nodes.len() * self.nodes.len());
@@ -311,20 +311,18 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                 }
                 (ccc, flags)
             })
-            .collect();
-
-        let (c0, flags) = pending_status.into_par_iter().reduce(
-            || {
-                (
-                    0,
-                    FixedBitSet::with_capacity(self.nodes.len() * self.nodes.len()),
-                )
-            },
-            |(ccc1, mut flags1), (ccc2, flags2)| {
-                flags1.union_with(&flags2);
-                (ccc1 + ccc2, flags1)
-            },
-        );
+            .reduce(
+                || {
+                    (
+                        0,
+                        FixedBitSet::with_capacity(self.nodes.len() * self.nodes.len()),
+                    )
+                },
+                |(ccc1, mut flags1), (ccc2, flags2)| {
+                    flags1.union_with(&flags2);
+                    (ccc1 + ccc2, flags1)
+                },
+            );
         self.visited_id.union_with(&flags);
         cc += c0;
 
@@ -348,13 +346,12 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         self.cost += cc;
         let mut t = 0;
 
-        // let (sender2, receiver2) = mpsc::channel();
-        // t += (0..self.nodes.len())
-        let pending_status2: Vec<(usize, usize, Vec<usize>, Vec<usize>, Vec<usize>)> = (0..self
-            .nodes
-            .len())
+        let (sender2, receiver2) = mpsc::channel();
+        // let pending_status2: Vec<(usize, usize, Vec<usize>, Vec<usize>, Vec<usize>)> = (0..self
+        t += (0..self.nodes.len())
             .into_par_iter()
-            .map(|i| {
+            .map_with(sender2, |s, i| {
+                // .map(|i| {
                 let mut nn_new_neighbors = Vec::with_capacity(self.graph[i].lock().unwrap().len());
                 let mut nn_old_neighbors = Vec::with_capacity(self.graph[i].lock().unwrap().len());
                 let mut flags = Vec::with_capacity(self.graph[i].lock().unwrap().len());
@@ -390,32 +387,34 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                     flags.push(i * self.nodes.len() + graph_item[nn_new_neighbors[j]].idx());
                     nn_new_neighbors[j] = graph_item[nn_new_neighbors[j]].idx();
                 }
-                (i, tt, nn_new_neighbors, nn_old_neighbors, flags)
-            })
-            .collect();
-
-        t += pending_status2
-            .iter()
-            .map(|(i, tt, nn_new_neighbors, nn_old_neighbors, flags)| {
-                self.nn_new_neighbors[*i] = nn_new_neighbors.to_vec();
-                self.nn_old_neighbors[*i] = nn_old_neighbors.to_vec();
-                flags.iter().for_each(|j| {
-                    self.visited_id.set(*j, false);
-                });
+                s.send((i, nn_new_neighbors, nn_old_neighbors, flags))
+                    .unwrap();
                 tt
             })
             .sum::<usize>();
-        //     .sum::<usize>();
 
-        // receiver2
+        // t += pending_status2
         //     .iter()
-        //     .for_each(|(i, nn_new_neighbors, nn_old_neighbors, flags)| {
-        //         self.nn_new_neighbors[i] = nn_new_neighbors.to_vec();
-        //         self.nn_old_neighbors[i] = nn_old_neighbors.to_vec();
+        //     .map(|(i, tt, nn_new_neighbors, nn_old_neighbors, flags)| {
+        //         self.nn_new_neighbors[*i] = nn_new_neighbors.to_vec();
+        //         self.nn_old_neighbors[*i] = nn_old_neighbors.to_vec();
         //         flags.iter().for_each(|j| {
         //             self.visited_id.set(*j, false);
         //         });
-        //     });
+        //         tt
+        //     })
+        //     .sum::<usize>();
+        //     .sum::<usize>();
+
+        receiver2
+            .iter()
+            .for_each(|(i, nn_new_neighbors, nn_old_neighbors, flags)| {
+                self.nn_new_neighbors[i] = nn_new_neighbors;
+                self.nn_old_neighbors[i] = nn_old_neighbors;
+                flags.iter().for_each(|j| {
+                    self.visited_id.set(*j, false);
+                });
+            });
 
         let reversed_new_neighbors = vec![Arc::new(Mutex::new(Vec::new())); self.nodes.len()];
         let reversed_old_neighbors = vec![Arc::new(Mutex::new(Vec::new())); self.nodes.len()];
@@ -534,7 +533,7 @@ mod tests {
     fn knn_nn_descent() {
         let dimension = 2;
         let nodes_every_cluster = 40;
-        let node_n = 1;
+        let node_n = 10;
         let (_, ns) =
             make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 10000000.0);
         println!("hello world {:?}", ns.len());
