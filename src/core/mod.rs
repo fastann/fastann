@@ -3,6 +3,7 @@ pub mod arguments;
 pub mod calc;
 pub mod dtype;
 pub mod heap;
+pub mod knn;
 pub mod metrics;
 pub mod neighbor;
 pub mod node;

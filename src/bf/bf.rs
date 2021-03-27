@@ -50,7 +50,7 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Brut
     ) -> Vec<(node::Node<E, T>, E)> {
         // let start = SystemTime::now();
         let mut heap = BinaryHeap::new();
-        for i in 0..self.nodes.len() {
+        (0..self.nodes.len()).for_each(|i| {
             heap.push(neighbor::Neighbor::new(
                 // use max heap, and every time pop out the greatest one in the heap
                 i,
@@ -59,7 +59,7 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Brut
             if heap.len() > k {
                 let _xp = heap.pop().unwrap();
             }
-        }
+        });
 
         let mut result = Vec::new();
         while !heap.is_empty() {
