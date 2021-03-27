@@ -106,6 +106,9 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                 .lock()
                 .unwrap()
                 .push(Neighbor::new(candidate, dist));
+            if my_graph[me].lock().unwrap().len() > self.k {
+                my_graph[me].lock().unwrap().pop();
+            }
             true
         }
     }
@@ -348,6 +351,8 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
 
         let (sender2, receiver2) = mpsc::channel();
         // let pending_status2: Vec<(usize, usize, Vec<usize>, Vec<usize>, Vec<usize>)> = (0..self
+        //     .nodes
+        //     .len())
         t += (0..self.nodes.len())
             .into_par_iter()
             .map_with(sender2, |s, i| {
@@ -390,7 +395,9 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                 s.send((i, nn_new_neighbors, nn_old_neighbors, flags))
                     .unwrap();
                 tt
+                // (i, tt, nn_new_neighbors, nn_old_neighbors, flags)
             })
+            // .collect();
             .sum::<usize>();
 
         // t += pending_status2
@@ -403,7 +410,6 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         //         });
         //         tt
         //     })
-        //     .sum::<usize>();
         //     .sum::<usize>();
 
         receiver2
@@ -491,6 +497,7 @@ mod tests {
     use std::collections::HashMap;
     use std::collections::HashSet;
 
+    use std::fs::File;
     use std::iter::FromIterator;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
     fn make_normal_distribution_clustering(
@@ -532,8 +539,8 @@ mod tests {
     #[test]
     fn knn_nn_descent() {
         let dimension = 2;
-        let nodes_every_cluster = 40;
-        let node_n = 10;
+        let nodes_every_cluster = 10;
+        let node_n = 100;
         let (_, ns) =
             make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 10000000.0);
         println!("hello world {:?}", ns.len());
@@ -557,7 +564,7 @@ mod tests {
 
         let base_start = SystemTime::now();
         let mut nn_descent_handler =
-            NNDescentHandler::new(&data, metrics::Metric::Euclidean, 100, 1.0);
+            NNDescentHandler::new(&data, metrics::Metric::Euclidean, 100, 0.2);
         nn_descent_handler.init();
 
         let try_times = 8;
