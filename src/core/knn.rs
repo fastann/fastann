@@ -114,29 +114,52 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         self.visited_id = FixedBitSet::with_capacity(self.nodes.len() * self.nodes.len());
         self.graph.clear();
 
-        (0..self.nodes.len()).for_each(|_i| {
-            let mut v = BinaryHeap::with_capacity(self.k);
-            for _j in 0..self.k {
-                v.push(Neighbor::new(self.nodes.len(), E::max_value()));
-            }
-            self.graph.push(Arc::new(Mutex::new(v)));
-        });
+        self.graph = (0..self.nodes.len())
+            .into_par_iter()
+            .map(|_i| {
+                let mut v = BinaryHeap::with_capacity(self.k);
+                for _j in 0..self.k {
+                    v.push(Neighbor::new(self.nodes.len(), E::max_value()));
+                }
+                Arc::new(Mutex::new(v))
+            })
+            .collect();
 
-        (0..self.nodes.len()).for_each(|i| {
-            self.nn_new_neighbors.push(Vec::with_capacity(self.s));
-            self.nn_old_neighbors.push(Vec::with_capacity(self.s));
-            for _j in 0..self.s {
-                let rand_val = rand::thread_rng().gen_range(0, self.nodes.len());
-                self.nn_new_neighbors[i].push(rand_val);
-            }
+        let tmp: Vec<(Vec<usize>, Vec<usize>, Vec<usize>, Vec<usize>)> = (0..self.nodes.len())
+            .into_par_iter()
+            .map(|i| {
+                let mut nn_new_neighbors: Vec<usize> = Vec::with_capacity(self.s);
+                let mut nn_old_neighbors: Vec<usize> = Vec::with_capacity(self.s);
+                for _j in 0..self.s {
+                    let rand_val = rand::thread_rng().gen_range(0, self.nodes.len());
+                    nn_new_neighbors.push(rand_val);
+                }
 
-            self.reversed_new_neighbors.push(Vec::with_capacity(self.s));
-            self.reversed_old_neighbors.push(Vec::with_capacity(self.s));
-            for _j in 0..self.s {
-                let rand_val = rand::thread_rng().gen_range(0, self.nodes.len());
-                self.reversed_new_neighbors[i].push(rand_val);
-            }
-        });
+                let mut reversed_new_neighbors: Vec<usize> = Vec::with_capacity(self.s);
+                let mut reversed_old_neighbors: Vec<usize> = Vec::with_capacity(self.s);
+                for _j in 0..self.s {
+                    let rand_val = rand::thread_rng().gen_range(0, self.nodes.len());
+                    reversed_new_neighbors.push(rand_val);
+                }
+                (
+                    nn_new_neighbors,
+                    nn_old_neighbors,
+                    reversed_new_neighbors,
+                    reversed_old_neighbors,
+                )
+            })
+            .collect();
+
+        self.nn_new_neighbors = Vec::with_capacity(self.nodes.len());
+        self.nn_old_neighbors = Vec::with_capacity(self.nodes.len());
+        self.reversed_new_neighbors = Vec::with_capacity(self.nodes.len());
+        self.reversed_old_neighbors = Vec::with_capacity(self.nodes.len());
+        for iter in tmp.iter() {
+            self.nn_new_neighbors.push(iter.0.clone());
+            self.nn_old_neighbors.push(iter.0.clone());
+            self.reversed_new_neighbors.push(iter.0.clone());
+            self.reversed_old_neighbors.push(iter.0.clone());
+        }
     }
 
     fn iterate(&mut self) -> usize {
@@ -428,12 +451,14 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
             self.reversed_new_neighbors[i] = reversed_new_neighbors[i]
                 .lock()
                 .unwrap()
-                .iter().copied()
+                .iter()
+                .copied()
                 .collect();
             self.reversed_old_neighbors[i] = reversed_old_neighbors[i]
                 .lock()
                 .unwrap()
-                .iter().copied()
+                .iter()
+                .copied()
                 .collect();
         });
 
@@ -466,7 +491,7 @@ mod tests {
     use rand::Rng;
     use std::collections::HashMap;
     use std::collections::HashSet;
-    
+
     use std::iter::FromIterator;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
     fn make_normal_distribution_clustering(
@@ -507,9 +532,9 @@ mod tests {
 
     #[test]
     fn knn_nn_descent() {
-        let dimension = 20;
-        let nodes_every_cluster = 20;
-        let node_n = 200;
+        let dimension = 2;
+        let nodes_every_cluster = 40;
+        let node_n = 1;
         let (_, ns) =
             make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 10000000.0);
         println!("hello world {:?}", ns.len());
@@ -536,7 +561,7 @@ mod tests {
             NNDescentHandler::new(&data, metrics::Metric::Euclidean, 100, 1.0);
         nn_descent_handler.init();
 
-        let try_times = 10;
+        let try_times = 8;
         let mut ground_truth: HashMap<usize, HashSet<usize>> = HashMap::new();
         for i in 0..graph.len() {
             ground_truth.insert(i, HashSet::from_iter(graph[i].iter().map(|x| x.idx())));
