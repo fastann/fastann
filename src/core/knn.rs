@@ -120,7 +120,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         self.graph = (0..self.nodes.len())
             .into_par_iter()
             .map(|_i| {
-                let mut v = BinaryHeap::with_capacity(self.k);
+                let mut v = BinaryHeap::with_capacity(self.k * 2);
                 for _j in 0..self.k {
                     v.push(Neighbor::new(self.nodes.len(), E::max_value()));
                 }
@@ -497,7 +497,6 @@ mod tests {
     use std::collections::HashMap;
     use std::collections::HashSet;
 
-    
     use std::iter::FromIterator;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
     fn make_normal_distribution_clustering(
