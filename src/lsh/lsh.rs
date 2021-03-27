@@ -177,6 +177,11 @@ impl<E: node::FloatElement, T: node::IdxType> LSHIndex<E, T> {
                 top_candidates.pop();
             }
         }
+        // while top_candidates.len() > 0 {
+        //     println!("{:?}",top_candidates.peek().unwrap().distance());
+        //     top_candidates.pop();
+        // }
+        // exit(1);
         return Ok(top_candidates);
     }
 }

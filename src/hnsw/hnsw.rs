@@ -551,7 +551,6 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         // println!("insert id {} insert_level {}", insert_id, insert_level);
         // println!("self._cur_level {}", self._cur_level);
         let mut cur_id = self._root_id;
-        // println!("insert_id {:?}",insert_id);
         // println!("insert_id {:?}, insert_level {:?} ", insert_id, insert_level);
 
         if insert_id == 0 {

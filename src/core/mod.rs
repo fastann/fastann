@@ -8,4 +8,3 @@ pub mod neighbor;
 pub mod node;
 pub mod random;
 pub mod simd_metrics;
-pub mod transformer;

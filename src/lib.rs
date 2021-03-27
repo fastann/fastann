@@ -4,5 +4,5 @@ pub mod bpforest;
 pub mod core;
 pub mod hnsw;
 pub mod mrng;
-pub mod lsh;
 pub mod pq;
+pub mod lsh;

@@ -8,7 +8,6 @@ use crate::core::ann_index::SerializableIndex;
 use crate::core::arguments;
 use crate::hnsw;
 use crate::mrng;
-use crate::lsh;
 use crate::pq;
 #[cfg(feature = "without_std")]
 use hashbrown::HashMap;
@@ -67,9 +66,9 @@ fn make_normal_distribution_clustering(
 
 // run for normal distribution test data
 pub fn run_similarity_profile(test_time: usize) {
-    let dimension = 8;
-    let nodes_every_cluster = 100;
-    let node_n = 100;
+    let dimension = 2;
+    let nodes_every_cluster = 3;
+    let node_n = 10000;
 
     let (_, ns) =
         make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 100.0);
@@ -79,11 +78,6 @@ pub fn run_similarity_profile(test_time: usize) {
     );
     let mut hnsw_idx = Box::new(hnsw::hnsw::HNSWIndex::<f64, usize>::new(
         dimension, 100000, 16, 32, 20, 500, false,
-    ));
-    let mut lsh_idx = Box::new(lsh::lsh::LSHIndex::<f64, usize>::new(
-        dimension,
-        dimension/8,
-        100000
     ));
 
     let pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(
@@ -96,8 +90,8 @@ pub fn run_similarity_profile(test_time: usize) {
         dimension, 100, 30, 50, 20.0, 5,
     ));
 
-    let mut indices: Vec<Box<ANNIndex<f64, usize>>> = vec![lsh_idx];
-    // let mut indices: Vec<Box<ANNIndex<f64, usize>>> = vec![ssg_idx, bpforest_idx, pq_idx, hnsw_idx];
+    // let mut indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bpforest_idx];
+    let mut indices: Vec<Box<ANNIndex<f64, usize>>> = vec![ssg_idx, bpforest_idx, pq_idx, hnsw_idx];
     let mut accuracy = Arc::new(Mutex::new(Vec::new()));
     let mut cost = Arc::new(Mutex::new(Vec::new()));
     let mut base_cost = Arc::new(Mutex::new(Duration::default()));
@@ -150,6 +144,7 @@ pub fn run_similarity_profile(test_time: usize) {
         options.image_width = Some(2500);
         report.flamegraph_with_options(file, &mut options).unwrap();
     };
+    // });
 
     println!(
         "test for {:?} times, nodes {:?}, base use {:?} millisecond",
