@@ -361,7 +361,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                 let mut nn_old_neighbors = Vec::with_capacity(self.graph[i].lock().unwrap().len());
                 let mut flags = Vec::with_capacity(self.graph[i].lock().unwrap().len());
                 let graph_item: Vec<Neighbor<E, usize>> =
-                    self.graph[i].lock().unwrap().iter().cloned().collect();
+                    self.graph[i].lock().unwrap().clone().into_vec();
 
                 let mut tt: usize = 0;
 
@@ -497,7 +497,7 @@ mod tests {
     use std::collections::HashMap;
     use std::collections::HashSet;
 
-    use std::fs::File;
+    
     use std::iter::FromIterator;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
     fn make_normal_distribution_clustering(
