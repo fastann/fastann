@@ -46,10 +46,7 @@ pub struct NNDescentHandler<'a, E: FloatElement, T: IdxType> {
     mt: metrics::Metric,
     k: usize,
     visited_id: FixedBitSet,
-    reversed_old_neighbors: Vec<Vec<usize>>,
-    reversed_new_neighbors: Vec<Vec<usize>>,
-    nn_old_neighbors: Vec<Vec<usize>>,
-    nn_new_neighbors: Vec<Vec<usize>>,
+    calculation_context: Vec<(Vec<usize>, Vec<usize>, Vec<usize>, Vec<usize>)>, // nn_new_neighbors, nn_old_neighbors, reversed_new_neighbors, reversed_old_neighbors
     rho: f32,
     cost: usize,
     s: usize,
@@ -64,10 +61,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
             mt,
             k,
             visited_id: FixedBitSet::with_capacity(nodes.len() * nodes.len()),
-            reversed_old_neighbors: Vec::new(),
-            reversed_new_neighbors: Vec::new(),
-            nn_new_neighbors: Vec::new(),
-            nn_old_neighbors: Vec::new(),
+            calculation_context: Vec::new(),
             rho,
             cost: 0,
             s: (rho * k as f32) as usize,
@@ -79,7 +73,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         &self,
         u1: usize,
         u2: usize,
-        my_graph: &Vec<Arc<Mutex<BinaryHeap<Neighbor<E, usize>>>>>,
+        my_graph: &[Arc<Mutex<BinaryHeap<Neighbor<E, usize>>>>],
     ) -> bool {
         if u1 == u2 {
             return false;
@@ -94,7 +88,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         &self,
         me: usize,
         candidate: usize,
-        my_graph: &Vec<Arc<Mutex<BinaryHeap<Neighbor<E, usize>>>>>,
+        my_graph: &[Arc<Mutex<BinaryHeap<Neighbor<E, usize>>>>],
     ) -> bool {
         let dist = self.nodes[me]
             .metric(&self.nodes[candidate], self.mt)
@@ -128,7 +122,7 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
             })
             .collect();
 
-        let tmp: Vec<(Vec<usize>, Vec<usize>, Vec<usize>, Vec<usize>)> = (0..self.nodes.len())
+        self.calculation_context = (0..self.nodes.len())
             .into_par_iter()
             .map(|_i| {
                 let mut nn_new_neighbors: Vec<usize> = Vec::with_capacity(self.s);
@@ -152,182 +146,122 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                 )
             })
             .collect();
-
-        self.nn_new_neighbors = Vec::with_capacity(self.nodes.len());
-        self.nn_old_neighbors = Vec::with_capacity(self.nodes.len());
-        self.reversed_new_neighbors = Vec::with_capacity(self.nodes.len());
-        self.reversed_old_neighbors = Vec::with_capacity(self.nodes.len());
-        for iter in tmp.iter() {
-            self.nn_new_neighbors.push(iter.0.clone());
-            self.nn_old_neighbors.push(iter.1.clone());
-            self.reversed_new_neighbors.push(iter.2.clone());
-            self.reversed_old_neighbors.push(iter.3.clone());
-        }
     }
 
-    fn iterate(&mut self) -> usize {
-        let mut cc = 0;
-        self.update_cnt = 0;
-        self.cost = 0;
-
+    fn iterate_nn(&self) -> (usize, FixedBitSet) {
         let my_graph = &self.graph;
+        let length = self.nodes.len();
         // let (sender, receiver) = mpsc::channel();
 
         // cc += (0..self.nodes.len())
-        let (c0, flags) = (0..self.nodes.len())
-            .into_par_iter()
-            .map(|i| {
-                let mut flags = FixedBitSet::with_capacity(self.nodes.len() * self.nodes.len());
-                let mut ccc: usize = 0;
-                for j in 0..self.nn_new_neighbors[i].len() {
-                    for k in j..self.nn_new_neighbors[i].len() {
-                        if self.update(
-                            self.nn_new_neighbors[i][j],
-                            self.nn_new_neighbors[i][k],
-                            &my_graph,
-                        ) {
-                            ccc += 1;
+        self.calculation_context
+            .par_iter()
+            .map(
+                |(
+                    nn_new_neighbors,
+                    nn_old_neighbors,
+                    reversed_new_neighbors,
+                    reversed_old_neighbors,
+                )| {
+                    let mut flags = FixedBitSet::with_capacity(length * length);
+                    let mut ccc: usize = 0;
+                    for j in 0..nn_new_neighbors.len() {
+                        for k in j..nn_new_neighbors.len() {
+                            if self.update(nn_new_neighbors[j], nn_new_neighbors[k], &my_graph) {
+                                ccc += 1;
+                            }
+                            flags.insert(nn_new_neighbors[j] * length + nn_new_neighbors[k]);
+                            flags.insert(nn_new_neighbors[k] * length + nn_new_neighbors[j]);
                         }
-                        flags.insert(
-                            self.nn_new_neighbors[i][j] * self.nodes.len()
-                                + self.nn_new_neighbors[i][k],
-                        );
-                        flags.insert(
-                            self.nn_new_neighbors[i][k] * self.nodes.len()
-                                + self.nn_new_neighbors[i][j],
-                        );
                     }
-                    for k in 0..self.nn_old_neighbors[i].len() {
-                        if self.update(
-                            self.nn_new_neighbors[i][j],
-                            self.nn_old_neighbors[i][k],
-                            &my_graph,
-                        ) {
-                            ccc += 1;
-                        }
-                        flags.insert(
-                            self.nn_new_neighbors[i][j] * self.nodes.len()
-                                + self.nn_old_neighbors[i][k],
-                        );
-                        flags.insert(
-                            self.nn_old_neighbors[i][k] * self.nodes.len()
-                                + self.nn_new_neighbors[i][j],
-                        );
-                    }
-                }
 
-                for j in 0..self.reversed_new_neighbors[i].len() {
-                    for k in j..self.reversed_new_neighbors[i].len() {
-                        if self.reversed_new_neighbors[i][j] >= self.reversed_new_neighbors[i][k] {
-                            continue;
-                        }
-                        if self.update(
-                            self.reversed_new_neighbors[i][j],
-                            self.reversed_new_neighbors[i][k],
-                            &my_graph,
-                        ) {
-                            ccc += 1;
-                        }
-                        flags.insert(
-                            self.reversed_new_neighbors[i][j] * self.nodes.len()
-                                + self.reversed_new_neighbors[i][k],
-                        );
-                        flags.insert(
-                            self.reversed_new_neighbors[i][k] * self.nodes.len()
-                                + self.reversed_new_neighbors[i][j],
-                        );
-                    }
-                    for k in 0..self.reversed_old_neighbors[i].len() {
-                        if self.update(
-                            self.reversed_new_neighbors[i][j],
-                            self.reversed_old_neighbors[i][k],
-                            &my_graph,
-                        ) {
-                            ccc += 1;
-                        }
-                        flags.insert(
-                            self.reversed_new_neighbors[i][j] * self.nodes.len()
-                                + self.reversed_old_neighbors[i][k],
-                        );
-                        flags.insert(
-                            self.reversed_old_neighbors[i][k] * self.nodes.len()
-                                + self.reversed_new_neighbors[i][j],
-                        );
-                    }
-                }
+                    nn_new_neighbors.iter().for_each(|j| {
+                        nn_old_neighbors.iter().for_each(|k| {
+                            if self.update(*j, *k, &my_graph) {
+                                ccc += 1;
+                            }
+                            flags.insert(j * length + k);
+                            flags.insert(k * length + j);
+                        })
+                    });
 
-                for j in 0..self.nn_new_neighbors[i].len() {
-                    for k in 0..self.reversed_old_neighbors[i].len() {
-                        if self.update(
-                            self.nn_new_neighbors[i][j],
-                            self.reversed_old_neighbors[i][k],
-                            &my_graph,
-                        ) {
-                            ccc += 1;
+                    for j in 0..reversed_new_neighbors.len() {
+                        for k in j..reversed_new_neighbors.len() {
+                            if reversed_new_neighbors[j] >= reversed_new_neighbors[k] {
+                                continue;
+                            }
+                            if self.update(
+                                reversed_new_neighbors[j],
+                                reversed_new_neighbors[k],
+                                &my_graph,
+                            ) {
+                                ccc += 1;
+                            }
+                            flags.insert(
+                                reversed_new_neighbors[j] * length + reversed_new_neighbors[k],
+                            );
+                            flags.insert(
+                                reversed_new_neighbors[k] * length + reversed_new_neighbors[j],
+                            );
                         }
-                        flags.insert(
-                            self.nn_new_neighbors[i][j] * self.nodes.len()
-                                + self.reversed_old_neighbors[i][k],
-                        );
-                        flags.insert(
-                            self.reversed_old_neighbors[i][k] * self.nodes.len()
-                                + self.nn_new_neighbors[i][j],
-                        );
                     }
-                    for k in 0..self.reversed_new_neighbors[i].len() {
-                        if self.update(
-                            self.nn_new_neighbors[i][j],
-                            self.reversed_new_neighbors[i][k],
-                            &my_graph,
-                        ) {
-                            ccc += 1;
-                        }
-                        flags.insert(
-                            self.nn_new_neighbors[i][j] * self.nodes.len()
-                                + self.reversed_new_neighbors[i][k],
-                        );
-                        flags.insert(
-                            self.reversed_new_neighbors[i][k] * self.nodes.len()
-                                + self.nn_new_neighbors[i][j],
-                        );
-                    }
-                }
+                    reversed_new_neighbors.iter().for_each(|j| {
+                        reversed_old_neighbors.iter().for_each(|k| {
+                            if self.update(*j, *k, &my_graph) {
+                                ccc += 1;
+                            }
+                            flags.insert(j * length + k);
+                            flags.insert(k * length + j);
+                        })
+                    });
 
-                for j in 0..self.nn_old_neighbors[i].len() {
-                    for k in 0..self.reversed_new_neighbors[i].len() {
-                        if self.update(
-                            self.nn_old_neighbors[i][j],
-                            self.reversed_new_neighbors[i][k],
-                            &my_graph,
-                        ) {
-                            ccc += 1;
-                        }
-                        flags.insert(
-                            self.nn_old_neighbors[i][j] * self.nodes.len()
-                                + self.reversed_new_neighbors[i][k],
-                        );
-                        flags.insert(
-                            self.reversed_new_neighbors[i][k] * self.nodes.len()
-                                + self.nn_old_neighbors[i][j],
-                        );
-                    }
-                }
-                (ccc, flags)
-            })
-            .reduce(
-                || {
-                    (
-                        0,
-                        FixedBitSet::with_capacity(self.nodes.len() * self.nodes.len()),
-                    )
+                    nn_new_neighbors.iter().for_each(|j| {
+                        reversed_old_neighbors.iter().for_each(|k| {
+                            if self.update(*j, *k, &my_graph) {
+                                ccc += 1;
+                            }
+                            flags.insert(j * length + k);
+                            flags.insert(k * length + j);
+                        })
+                    });
+
+                    nn_new_neighbors.iter().for_each(|j| {
+                        reversed_new_neighbors.iter().for_each(|k| {
+                            if self.update(*j, *k, &my_graph) {
+                                ccc += 1;
+                            }
+                            flags.insert(j * length + k);
+                            flags.insert(k * length + j);
+                        })
+                    });
+
+                    nn_old_neighbors.iter().for_each(|j| {
+                        reversed_new_neighbors.iter().for_each(|k| {
+                            if self.update(*j, *k, &my_graph) {
+                                ccc += 1;
+                            }
+                            flags.insert(j * length + k);
+                            flags.insert(k * length + j);
+                        })
+                    });
+                    (ccc, flags)
                 },
+            )
+            .reduce(
+                || (0, FixedBitSet::with_capacity(length * length)),
                 |(ccc1, mut flags1), (ccc2, flags2)| {
                     flags1.union_with(&flags2);
                     (ccc1 + ccc2, flags1)
                 },
-            );
+            )
+    }
+
+    fn iterate(&mut self) -> usize {
+        self.update_cnt = 0;
+        self.cost = 0;
+
+        let (cc, flags) = self.iterate_nn();
         self.visited_id.union_with(&flags);
-        cc += c0;
 
         //         s.send(flags).unwrap();
         //         ccc
@@ -340,9 +274,9 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         //     });
         // });
 
-        (0..self.nodes.len()).into_par_iter().for_each(|i| {
-            while self.graph[i].lock().unwrap().len() > self.k {
-                self.graph[i].lock().unwrap().pop();
+        self.graph.par_iter().for_each(|graph| {
+            while graph.lock().unwrap().len() > self.k {
+                graph.lock().unwrap().pop();
             }
         });
 
@@ -388,10 +322,11 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                     nn_new_neighbors = nn_new_neighbors[self.s..].to_vec();
                 }
 
-                for j in 0..nn_new_neighbors.len() {
-                    flags.push(i * self.nodes.len() + graph_item[nn_new_neighbors[j]].idx());
-                    nn_new_neighbors[j] = graph_item[nn_new_neighbors[j]].idx();
-                }
+                nn_new_neighbors.iter_mut().for_each(|j| {
+                    flags.push(i * self.nodes.len() + graph_item[*j].idx());
+                    *j = graph_item[*j].idx();
+                });
+
                 s.send((i, nn_new_neighbors, nn_old_neighbors, flags))
                     .unwrap();
                 tt
@@ -415,8 +350,8 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         receiver2
             .iter()
             .for_each(|(i, nn_new_neighbors, nn_old_neighbors, flags)| {
-                self.nn_new_neighbors[i] = nn_new_neighbors;
-                self.nn_old_neighbors[i] = nn_old_neighbors;
+                self.calculation_context[i].0 = nn_new_neighbors;
+                self.calculation_context[i].1 = nn_old_neighbors;
                 flags.iter().for_each(|j| {
                     self.visited_id.set(*j, false);
                 });
@@ -426,14 +361,14 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         let reversed_old_neighbors = vec![Arc::new(Mutex::new(Vec::new())); self.nodes.len()];
 
         (0..self.nodes.len()).into_par_iter().for_each(|i| {
-            for e in 0..self.nn_old_neighbors[i].len() {
-                reversed_old_neighbors[self.nn_old_neighbors[i][e]]
+            for e in 0..self.calculation_context[i].1.len() {
+                reversed_old_neighbors[self.calculation_context[i].1[e]]
                     .lock()
                     .unwrap()
                     .push(i);
             }
-            for e in 0..self.nn_new_neighbors[i].len() {
-                reversed_new_neighbors[self.nn_new_neighbors[i][e]]
+            for e in 0..self.calculation_context[i].0.len() {
+                reversed_new_neighbors[self.calculation_context[i].0[e]]
                     .lock()
                     .unwrap()
                     .push(i);
@@ -453,13 +388,13 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         });
 
         (0..self.nodes.len()).for_each(|i| {
-            self.reversed_new_neighbors[i] = reversed_new_neighbors[i]
+            self.calculation_context[i].2 = reversed_new_neighbors[i]
                 .lock()
                 .unwrap()
                 .iter()
                 .copied()
                 .collect();
-            self.reversed_old_neighbors[i] = reversed_old_neighbors[i]
+            self.calculation_context[i].3 = reversed_old_neighbors[i]
                 .lock()
                 .unwrap()
                 .iter()
@@ -539,7 +474,7 @@ mod tests {
     fn knn_nn_descent() {
         let dimension = 2;
         let nodes_every_cluster = 10;
-        let node_n = 100;
+        let node_n = 1000;
         let (_, ns) =
             make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 10000000.0);
         println!("hello world {:?}", ns.len());
