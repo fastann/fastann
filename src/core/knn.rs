@@ -154,24 +154,39 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         // let (sender, receiver) = mpsc::channel();
 
         // cc += (0..self.nodes.len())
-        self.calculation_context
+        let flags_len = 64;
+        let flags_vec =
+            vec![Arc::new(Mutex::new(FixedBitSet::with_capacity(length * length))); flags_len];
+
+        let cc = self
+            .calculation_context
             .par_iter()
+            .zip(0..self.calculation_context.len())
             .map(
                 |(
-                    nn_new_neighbors,
-                    nn_old_neighbors,
-                    reversed_new_neighbors,
-                    reversed_old_neighbors,
+                    (
+                        nn_new_neighbors,
+                        nn_old_neighbors,
+                        reversed_new_neighbors,
+                        reversed_old_neighbors,
+                    ),
+                    i,
                 )| {
-                    let mut flags = FixedBitSet::with_capacity(length * length);
+                    let mut flags = &flags_vec[i % flags_len];
                     let mut ccc: usize = 0;
                     for j in 0..nn_new_neighbors.len() {
                         for k in j..nn_new_neighbors.len() {
                             if self.update(nn_new_neighbors[j], nn_new_neighbors[k], &my_graph) {
                                 ccc += 1;
                             }
-                            flags.insert(nn_new_neighbors[j] * length + nn_new_neighbors[k]);
-                            flags.insert(nn_new_neighbors[k] * length + nn_new_neighbors[j]);
+                            flags
+                                .lock()
+                                .unwrap()
+                                .insert(nn_new_neighbors[j] * length + nn_new_neighbors[k]);
+                            flags
+                                .lock()
+                                .unwrap()
+                                .insert(nn_new_neighbors[k] * length + nn_new_neighbors[j]);
                         }
                     }
 
@@ -180,8 +195,8 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                             if self.update(*j, *k, &my_graph) {
                                 ccc += 1;
                             }
-                            flags.insert(j * length + k);
-                            flags.insert(k * length + j);
+                            flags.lock().unwrap().insert(j * length + k);
+                            flags.lock().unwrap().insert(k * length + j);
                         })
                     });
 
@@ -197,10 +212,10 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                             ) {
                                 ccc += 1;
                             }
-                            flags.insert(
+                            flags.lock().unwrap().insert(
                                 reversed_new_neighbors[j] * length + reversed_new_neighbors[k],
                             );
-                            flags.insert(
+                            flags.lock().unwrap().insert(
                                 reversed_new_neighbors[k] * length + reversed_new_neighbors[j],
                             );
                         }
@@ -210,8 +225,8 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                             if self.update(*j, *k, &my_graph) {
                                 ccc += 1;
                             }
-                            flags.insert(j * length + k);
-                            flags.insert(k * length + j);
+                            flags.lock().unwrap().insert(j * length + k);
+                            flags.lock().unwrap().insert(k * length + j);
                         })
                     });
 
@@ -220,8 +235,8 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                             if self.update(*j, *k, &my_graph) {
                                 ccc += 1;
                             }
-                            flags.insert(j * length + k);
-                            flags.insert(k * length + j);
+                            flags.lock().unwrap().insert(j * length + k);
+                            flags.lock().unwrap().insert(k * length + j);
                         })
                     });
 
@@ -230,8 +245,8 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                             if self.update(*j, *k, &my_graph) {
                                 ccc += 1;
                             }
-                            flags.insert(j * length + k);
-                            flags.insert(k * length + j);
+                            flags.lock().unwrap().insert(j * length + k);
+                            flags.lock().unwrap().insert(k * length + j);
                         })
                     });
 
@@ -240,20 +255,26 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                             if self.update(*j, *k, &my_graph) {
                                 ccc += 1;
                             }
-                            flags.insert(j * length + k);
-                            flags.insert(k * length + j);
+                            flags.lock().unwrap().insert(j * length + k);
+                            flags.lock().unwrap().insert(k * length + j);
                         })
                     });
-                    (ccc, flags)
+                    ccc
                 },
             )
-            .reduce(
-                || (0, FixedBitSet::with_capacity(length * length)),
-                |(ccc1, mut flags1), (ccc2, flags2)| {
-                    flags1.union_with(&flags2);
-                    (ccc1 + ccc2, flags1)
-                },
-            )
+            .sum::<usize>();
+
+        let x = flags_vec
+            .iter()
+            .reduce(|mut flags1, flags2| {
+                flags1.lock().unwrap().union_with(&flags2.lock().unwrap());
+                flags1
+            })
+            .unwrap()
+            .lock()
+            .unwrap()
+            .clone();
+        (cc, x)
     }
 
     fn iterate(&mut self) -> usize {
@@ -472,7 +493,7 @@ mod tests {
 
     #[test]
     fn knn_nn_descent() {
-        let dimension = 2;
+        let dimension = 20;
         let nodes_every_cluster = 10;
         let node_n = 1000;
         let (_, ns) =
@@ -486,7 +507,7 @@ mod tests {
 
         let mut graph: Vec<Vec<Neighbor<f64, usize>>> = vec![Vec::new(); data.len()];
         let base_start = SystemTime::now();
-        naive_build_knn_graph::<f64, usize>(&data, metrics::Metric::Euclidean, 100, &mut graph);
+        naive_build_knn_graph::<f64, usize>(&data, metrics::Metric::Euclidean, 20, &mut graph);
         let base_since_the_epoch = SystemTime::now()
             .duration_since(base_start)
             .expect("Time went backwards");
@@ -498,7 +519,7 @@ mod tests {
 
         let base_start = SystemTime::now();
         let mut nn_descent_handler =
-            NNDescentHandler::new(&data, metrics::Metric::Euclidean, 100, 0.2);
+            NNDescentHandler::new(&data, metrics::Metric::Euclidean, 20, 0.2);
         nn_descent_handler.init();
 
         let try_times = 8;
