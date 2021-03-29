@@ -8,7 +8,7 @@ use rand::Rng;
 use rayon::prelude::*;
 use std::collections::BinaryHeap;
 use std::sync::mpsc;
-
+use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 pub fn naive_build_knn_graph<E: FloatElement, T: IdxType>(
@@ -93,17 +93,19 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         let dist = self.nodes[me]
             .metric(&self.nodes[candidate], self.mt)
             .unwrap();
-        if dist > my_graph[me].lock().unwrap().peek().unwrap().distance() {
-            false
-        } else {
-            my_graph[me]
+        let graph = &my_graph[me];
+        if dist < graph.lock().unwrap().peek().unwrap().distance() {
+            graph
                 .lock()
                 .unwrap()
                 .push(Neighbor::new(candidate, dist));
-            if my_graph[me].lock().unwrap().len() > self.k {
-                my_graph[me].lock().unwrap().pop();
+            if graph.lock().unwrap().len() > self.k {
+                graph.lock().unwrap().pop();
             }
             true
+            
+        } else {
+            false
         }
     }
 
@@ -151,19 +153,23 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
     fn iterate_nn(&self) -> (usize, FixedBitSet) {
         let my_graph = &self.graph;
         let length = self.nodes.len();
-        // let (sender, receiver) = mpsc::channel();
+        let (sender, receiver) = mpsc::channel();
+        let mut main_flags = FixedBitSet::with_capacity(length * length);
+        let mut ccc = 0 ;
 
         // cc += (0..self.nodes.len())
-        self.calculation_context
+        ccc += self.calculation_context
             .par_iter()
-            .map(
-                |(
+            .map_with(sender, 
+                |s, (
+            // .map(
+                // |(
                     nn_new_neighbors,
                     nn_old_neighbors,
                     reversed_new_neighbors,
                     reversed_old_neighbors,
                 )| {
-                    let mut flags = FixedBitSet::with_capacity(length * length);
+                    let mut flags = HashSet::with_capacity(self.s * self.s * 4);
                     let mut ccc: usize = 0;
                     for j in 0..nn_new_neighbors.len() {
                         for k in j..nn_new_neighbors.len() {
@@ -244,16 +250,25 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                             flags.insert(k * length + j);
                         })
                     });
-                    (ccc, flags)
-                },
-            )
-            .reduce(
-                || (0, FixedBitSet::with_capacity(length * length)),
-                |(ccc1, mut flags1), (ccc2, flags2)| {
-                    flags1.union_with(&flags2);
-                    (ccc1 + ccc2, flags1)
-                },
-            )
+                    s.send(flags).unwrap();
+                    ccc
+                }
+            ).sum::<usize>();
+            // .reduce(
+            //     || (0, FixedBitSet::with_capacity(length * length)),
+            //     |(ccc1, mut flags1), (ccc2, flags2)| {
+            //         flags1.union_with(&flags2);
+            //         (ccc1 + ccc2, flags1)
+            //     },
+            // )
+
+            (0..self.calculation_context.len()).for_each(|i| {
+                let set = receiver.recv().unwrap();
+                for id in set {
+                    main_flags.insert(id);
+                }
+            });
+            (ccc, main_flags)
     }
 
     fn iterate(&mut self) -> usize {
@@ -474,7 +489,7 @@ mod tests {
     fn knn_nn_descent() {
         let dimension = 2;
         let nodes_every_cluster = 10;
-        let node_n = 1000;
+        let node_n = 50000;
         let (_, ns) =
             make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 10000000.0);
         println!("hello world {:?}", ns.len());
@@ -484,17 +499,17 @@ mod tests {
             data.push(Box::new(node::Node::new_with_idx(&ns[i], i)));
         }
 
-        let mut graph: Vec<Vec<Neighbor<f64, usize>>> = vec![Vec::new(); data.len()];
-        let base_start = SystemTime::now();
-        naive_build_knn_graph::<f64, usize>(&data, metrics::Metric::Euclidean, 100, &mut graph);
-        let base_since_the_epoch = SystemTime::now()
-            .duration_since(base_start)
-            .expect("Time went backwards");
-        println!(
-            "test for {:?} times, base use {:?} millisecond",
-            ns.len(),
-            base_since_the_epoch.as_millis()
-        );
+        // let mut graph: Vec<Vec<Neighbor<f64, usize>>> = vec![Vec::new(); data.len()];
+        // let base_start = SystemTime::now();
+        // naive_build_knn_graph::<f64, usize>(&data, metrics::Metric::Euclidean, 100, &mut graph);
+        // let base_since_the_epoch = SystemTime::now()
+        //     .duration_since(base_start)
+        //     .expect("Time went backwards");
+        // println!(
+        //     "test for {:?} times, base use {:?} millisecond",
+        //     ns.len(),
+        //     base_since_the_epoch.as_millis()
+        // );
 
         let base_start = SystemTime::now();
         let mut nn_descent_handler =
@@ -502,35 +517,37 @@ mod tests {
         nn_descent_handler.init();
 
         let try_times = 8;
-        let mut ground_truth: HashMap<usize, HashSet<usize>> = HashMap::new();
-        for i in 0..graph.len() {
-            ground_truth.insert(i, HashSet::from_iter(graph[i].iter().map(|x| x.idx())));
-        }
+        // let mut ground_truth: HashMap<usize, HashSet<usize>> = HashMap::new();
+        // for i in 0..graph.len() {
+        //     ground_truth.insert(i, HashSet::from_iter(graph[i].iter().map(|x| x.idx())));
+        // }
         // let guard = pprof::ProfilerGuard::new(100).unwrap();
+        println!("start iter");
         for _p in 0..try_times {
             let cc = nn_descent_handler.iterate();
-            let mut error = 0;
-            for i in 0..nn_descent_handler.graph.len() {
-                let nn_descent_handler_val: Vec<Neighbor<f64, usize>> = nn_descent_handler.graph[i]
-                    .lock()
-                    .unwrap()
-                    .iter()
-                    .cloned()
-                    .collect();
-                for j in 0..nn_descent_handler_val.len() {
-                    if !ground_truth[&i].contains(&nn_descent_handler_val[j].idx()) {
-                        error += 1;
-                    }
-                }
-            }
-            println!(
-                "error {} /{:?} cc {:?} cost {:?} update_cnt {:?}",
-                error,
-                data.len() * 10,
-                cc,
-                nn_descent_handler.cost(),
-                nn_descent_handler.ths_update_cnt(),
-            );
+            println!("iter {} times", _p);
+            // let mut error = 0;
+            // for i in 0..nn_descent_handler.graph.len() {
+            //     let nn_descent_handler_val: Vec<Neighbor<f64, usize>> = nn_descent_handler.graph[i]
+            //         .lock()
+            //         .unwrap()
+            //         .iter()
+            //         .cloned()
+            //         .collect();
+            //     for j in 0..nn_descent_handler_val.len() {
+            //         if !ground_truth[&i].contains(&nn_descent_handler_val[j].idx()) {
+            //             error += 1;
+            //         }
+            //     }
+            // }
+            // println!(
+            //     "error {} /{:?} cc {:?} cost {:?} update_cnt {:?}",
+            //     error,
+            //     data.len() * 10,
+            //     cc,
+            //     nn_descent_handler.cost(),
+            //     nn_descent_handler.ths_update_cnt(),
+            // );
         }
         // if let Ok(report) = guard.report().build() {
         //     let file = File::create("flamegraph.svg").unwrap();
