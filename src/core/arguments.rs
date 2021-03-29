@@ -1,55 +1,89 @@
-use crate::core::node;
+#[cfg(feature = "without_std")]
 use hashbrown::HashMap;
+#[cfg(not(feature = "without_std"))]
+use std::collections::HashMap;
 
-// TODO: make this optional
-pub struct Arguments {
-    float_args: HashMap<String, f32>,
-    int_args: HashMap<String, i32>,
-    str_args: HashMap<String, String>,
+// TODO:L find a way to make the arguments generic;
+#[derive(Clone, Debug)]
+pub enum ArgsBox {
+    Float(f32),
+    Int(i32),
+    Str(String),
+    Usize(usize),
 }
 
-impl Arguments {
+// TODO: make this optional
+pub struct Args {
+    args: HashMap<String, ArgsBox>,
+}
+
+impl Args {
     pub fn new() -> Self {
-        Arguments {
-            float_args: HashMap::new(),
-            int_args: HashMap::new(),
-            str_args: HashMap::new(),
+        Args {
+            args: HashMap::new(),
         }
     }
 
     pub fn fget(&self, key: &str) -> Option<f32> {
-        match self.float_args.get(key) {
-            Some(val) => Some(val.clone()),
-            None => None,
+        let val = self.args.get(key)?;
+        match val {
+            ArgsBox::Float(s) => Some(*s),
+            _ => None,
         }
     }
 
     pub fn iget(&self, key: &str) -> Option<i32> {
-        match self.int_args.get(key) {
-            Some(val) => Some(val.clone()),
-            None => None,
+        let val = self.args.get(key)?;
+        match val {
+            ArgsBox::Int(s) => Some(*s),
+            _ => None,
         }
     }
 
     pub fn sget(&self, key: &str) -> Option<String> {
-        match self.str_args.get(key) {
-            Some(val) => Some(val.clone()),
-            None => None,
+        let val = self.args.get(key)?;
+        match val {
+            ArgsBox::Str(s) => Some(s.clone()),
+            _ => None,
         }
     }
 
-    pub fn fset(&mut self, key: &str, value: f32) -> &mut Arguments {
-        self.float_args.insert(key.to_string(), value.clone());
+    pub fn uget(&self, key: &str) -> Option<usize> {
+        let val = self.args.get(key)?;
+        match val {
+            ArgsBox::Usize(s) => Some(*s),
+            _ => None,
+        }
+    }
+
+    pub fn get(&self, key: &str) -> Option<ArgsBox> {
+        let val = self.args.get(key)?;
+        Some(val.clone())
+    }
+
+    pub fn fset(&mut self, key: &str, value: f32) -> &mut Args {
+        self.args.insert(key.to_string(), ArgsBox::Float(value));
         self
     }
 
-    pub fn iset(&mut self, key: &str, value: i32) -> &mut Arguments {
-        self.int_args.insert(key.to_string(), value.clone());
+    pub fn iset(&mut self, key: &str, value: i32) -> &mut Args {
+        self.args.insert(key.to_string(), ArgsBox::Int(value));
         self
     }
 
-    pub fn sset(&mut self, key: &str, value: &str) -> &mut Arguments {
-        self.str_args.insert(key.to_string(), value.to_string());
+    pub fn uset(&mut self, key: &str, value: usize) -> &mut Args {
+        self.args.insert(key.to_string(), ArgsBox::Usize(value));
+        self
+    }
+
+    pub fn sset(&mut self, key: &str, value: &str) -> &mut Args {
+        self.args
+            .insert(key.to_string(), ArgsBox::Str(value.to_string()));
+        self
+    }
+
+    pub fn set(&mut self, key: &str, value: ArgsBox) -> &mut Args {
+        self.args.insert(key.to_string(), value);
         self
     }
 }

@@ -4,6 +4,7 @@ mod bf;
 mod bpforest;
 mod core;
 mod hnsw;
+mod mrng;
 mod pq;
 
 fn main() {

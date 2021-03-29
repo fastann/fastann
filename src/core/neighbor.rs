@@ -11,10 +11,10 @@ pub struct Neighbor<E: node::FloatElement, T: node::IdxType> {
 
 impl<E: node::FloatElement, T: node::IdxType> Neighbor<E, T> {
     pub fn new(idx: T, distance: E) -> Neighbor<E, T> {
-        return Neighbor {
+        Neighbor {
             _idx: idx,
             _distance: distance,
-        };
+        }
     }
 
     pub fn idx(&self) -> T {
