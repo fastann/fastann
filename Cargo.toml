@@ -24,10 +24,10 @@ rayon = "1.5"
 serde = {version = "1.0", features = ["derive"]}
 smallvec = {version = "1.6.1", features = ["serde"], optional = true}
 
-ndarray = { version = "0.13" , features = ["rayon", "serde", "approx"]}
-blas = "0.20"
-openblas-src = "0.9"
-ndarray-linalg = "0.12"
-ndarray-rand = "0.11"
-rand_isaac = "0.2.0"
-ndarray-npy = { version = "0.5", default-features = false }
+#ndarray = { version = "0.13" , features = ["rayon", "serde", "approx"]}
+#blas = "0.20"
+#openblas-src = "0.9"
+#ndarray-linalg = "0.12"
+#ndarray-rand = "0.11"
+#rand_isaac = "0.2.0"
+#ndarray-npy = { version = "0.5", default-features = false }
