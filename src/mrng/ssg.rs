@@ -4,8 +4,8 @@ use crate::core::heap::BinaryHeap;
 use crate::core::metrics;
 use crate::core::neighbor;
 use crate::core::node;
-use rand::prelude::*;
 use fixedbitset::FixedBitSet;
+use rand::prelude::*;
 
 #[cfg(feature = "without_std")]
 use hashbrown::HashSet;
