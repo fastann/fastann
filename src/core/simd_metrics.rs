@@ -6,6 +6,7 @@ pub trait SIMDOptmized<T = Self> {
     fn dot_product(a: &[T], b: &[T]) -> Result<T, &'static str>;
     fn manhattan_distance(a: &[T], b: &[T]) -> Result<T, &'static str>;
     fn euclidean_distance(a: &[T], b: &[T]) -> Result<T, &'static str>;
+    fn miner_distance(a: &[T], b: &[T], c: &[T]) -> Result<(), &'static str>;
 }
 
 macro_rules! simd_optimized_impl {
@@ -75,6 +76,13 @@ macro_rules! simd_optimized_impl {
                 }
                 let d: $type_id = (size..a.len()).map(|i| (a[i] - b[i]).powi(2)).sum();
                 Ok((d + c).sqrt())
+            }
+
+            fn miner_distance(a: &[$type_id], b: &[$type_id], c: &[$type_id]) -> Result<(), &'static str> {
+                same_dimension(a, b)?;
+                let size = 0;
+                (0..a.len()).map(|i| c[i] = a[i] - b[i]);
+                Ok(())
             }
         }
     };
