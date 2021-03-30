@@ -7,8 +7,8 @@ use rand::seq::SliceRandom;
 use rand::Rng;
 use rayon::prelude::*;
 use std::collections::BinaryHeap;
+use std::collections::{BTreeSet, HashSet};
 use std::sync::mpsc;
-use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 pub fn naive_build_knn_graph<E: FloatElement, T: IdxType>(
@@ -95,15 +95,11 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
             .unwrap();
         let graph = &my_graph[me];
         if dist < graph.lock().unwrap().peek().unwrap().distance() {
-            graph
-                .lock()
-                .unwrap()
-                .push(Neighbor::new(candidate, dist));
+            graph.lock().unwrap().push(Neighbor::new(candidate, dist));
             if graph.lock().unwrap().len() > self.k {
                 graph.lock().unwrap().pop();
             }
             true
-            
         } else {
             false
         }
@@ -150,125 +146,115 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
             .collect();
     }
 
-    fn iterate_nn(&self) -> (usize, FixedBitSet) {
+    fn iterate_nn(&self) -> (usize, BTreeSet<usize>) {
         let my_graph = &self.graph;
         let length = self.nodes.len();
-        let (sender, receiver) = mpsc::channel();
-        let mut main_flags = FixedBitSet::with_capacity(length * length);
-        let mut ccc = 0 ;
+        let chunk_size = length / 4 + 1;
 
         // cc += (0..self.nodes.len())
-        ccc += self.calculation_context
-            .par_iter()
-            .map_with(sender, 
-                |s, (
-            // .map(
-                // |(
-                    nn_new_neighbors,
-                    nn_old_neighbors,
-                    reversed_new_neighbors,
-                    reversed_old_neighbors,
-                )| {
-                    let mut flags = HashSet::with_capacity(self.s * self.s * 4);
-                    let mut ccc: usize = 0;
-                    for j in 0..nn_new_neighbors.len() {
-                        for k in j..nn_new_neighbors.len() {
-                            if self.update(nn_new_neighbors[j], nn_new_neighbors[k], &my_graph) {
-                                ccc += 1;
+        self.calculation_context
+            .par_chunks(chunk_size)
+            // .chunks(chunk_size)
+            .map(|x| {
+                let mut flags = BTreeSet::new();
+                let mut ccc: usize = 0;
+                x.iter().for_each(
+                    |(
+                        nn_new_neighbors,
+                        nn_old_neighbors,
+                        reversed_new_neighbors,
+                        reversed_old_neighbors,
+                    )| {
+                        for j in 0..nn_new_neighbors.len() {
+                            for k in j..nn_new_neighbors.len() {
+                                if self.update(nn_new_neighbors[j], nn_new_neighbors[k], &my_graph)
+                                {
+                                    ccc += 1;
+                                }
+                                flags.insert(nn_new_neighbors[j] * length + nn_new_neighbors[k]);
+                                flags.insert(nn_new_neighbors[k] * length + nn_new_neighbors[j]);
                             }
-                            flags.insert(nn_new_neighbors[j] * length + nn_new_neighbors[k]);
-                            flags.insert(nn_new_neighbors[k] * length + nn_new_neighbors[j]);
                         }
-                    }
 
-                    nn_new_neighbors.iter().for_each(|j| {
-                        nn_old_neighbors.iter().for_each(|k| {
-                            if self.update(*j, *k, &my_graph) {
-                                ccc += 1;
-                            }
-                            flags.insert(j * length + k);
-                            flags.insert(k * length + j);
-                        })
-                    });
+                        nn_new_neighbors.iter().for_each(|j| {
+                            nn_old_neighbors.iter().for_each(|k| {
+                                if self.update(*j, *k, &my_graph) {
+                                    ccc += 1;
+                                }
+                                flags.insert(j * length + k);
+                                flags.insert(k * length + j);
+                            })
+                        });
 
-                    for j in 0..reversed_new_neighbors.len() {
-                        for k in j..reversed_new_neighbors.len() {
-                            if reversed_new_neighbors[j] >= reversed_new_neighbors[k] {
-                                continue;
+                        for j in 0..reversed_new_neighbors.len() {
+                            for k in j..reversed_new_neighbors.len() {
+                                if reversed_new_neighbors[j] >= reversed_new_neighbors[k] {
+                                    continue;
+                                }
+                                if self.update(
+                                    reversed_new_neighbors[j],
+                                    reversed_new_neighbors[k],
+                                    &my_graph,
+                                ) {
+                                    ccc += 1;
+                                }
+                                flags.insert(
+                                    reversed_new_neighbors[j] * length + reversed_new_neighbors[k],
+                                );
+                                flags.insert(
+                                    reversed_new_neighbors[k] * length + reversed_new_neighbors[j],
+                                );
                             }
-                            if self.update(
-                                reversed_new_neighbors[j],
-                                reversed_new_neighbors[k],
-                                &my_graph,
-                            ) {
-                                ccc += 1;
-                            }
-                            flags.insert(
-                                reversed_new_neighbors[j] * length + reversed_new_neighbors[k],
-                            );
-                            flags.insert(
-                                reversed_new_neighbors[k] * length + reversed_new_neighbors[j],
-                            );
                         }
-                    }
-                    reversed_new_neighbors.iter().for_each(|j| {
-                        reversed_old_neighbors.iter().for_each(|k| {
-                            if self.update(*j, *k, &my_graph) {
-                                ccc += 1;
-                            }
-                            flags.insert(j * length + k);
-                            flags.insert(k * length + j);
-                        })
-                    });
+                        reversed_new_neighbors.iter().for_each(|j| {
+                            reversed_old_neighbors.iter().for_each(|k| {
+                                if self.update(*j, *k, &my_graph) {
+                                    ccc += 1;
+                                }
+                                flags.insert(j * length + k);
+                                flags.insert(k * length + j);
+                            })
+                        });
 
-                    nn_new_neighbors.iter().for_each(|j| {
-                        reversed_old_neighbors.iter().for_each(|k| {
-                            if self.update(*j, *k, &my_graph) {
-                                ccc += 1;
-                            }
-                            flags.insert(j * length + k);
-                            flags.insert(k * length + j);
-                        })
-                    });
+                        nn_new_neighbors.iter().for_each(|j| {
+                            reversed_old_neighbors.iter().for_each(|k| {
+                                if self.update(*j, *k, &my_graph) {
+                                    ccc += 1;
+                                }
+                                flags.insert(j * length + k);
+                                flags.insert(k * length + j);
+                            })
+                        });
 
-                    nn_new_neighbors.iter().for_each(|j| {
-                        reversed_new_neighbors.iter().for_each(|k| {
-                            if self.update(*j, *k, &my_graph) {
-                                ccc += 1;
-                            }
-                            flags.insert(j * length + k);
-                            flags.insert(k * length + j);
-                        })
-                    });
+                        nn_new_neighbors.iter().for_each(|j| {
+                            reversed_new_neighbors.iter().for_each(|k| {
+                                if self.update(*j, *k, &my_graph) {
+                                    ccc += 1;
+                                }
+                                flags.insert(j * length + k);
+                                flags.insert(k * length + j);
+                            })
+                        });
 
-                    nn_old_neighbors.iter().for_each(|j| {
-                        reversed_new_neighbors.iter().for_each(|k| {
-                            if self.update(*j, *k, &my_graph) {
-                                ccc += 1;
-                            }
-                            flags.insert(j * length + k);
-                            flags.insert(k * length + j);
-                        })
-                    });
-                    s.send(flags).unwrap();
-                    ccc
-                }
-            ).sum::<usize>();
-            // .reduce(
-            //     || (0, FixedBitSet::with_capacity(length * length)),
-            //     |(ccc1, mut flags1), (ccc2, flags2)| {
-            //         flags1.union_with(&flags2);
-            //         (ccc1 + ccc2, flags1)
-            //     },
-            // )
-
-            (0..self.calculation_context.len()).for_each(|i| {
-                let set = receiver.recv().unwrap();
-                for id in set {
-                    main_flags.insert(id);
-                }
-            });
-            (ccc, main_flags)
+                        nn_old_neighbors.iter().for_each(|j| {
+                            reversed_new_neighbors.iter().for_each(|k| {
+                                if self.update(*j, *k, &my_graph) {
+                                    ccc += 1;
+                                }
+                                flags.insert(j * length + k);
+                                flags.insert(k * length + j);
+                            })
+                        });
+                    },
+                );
+                (ccc, flags)
+            })
+            .reduce(
+                || (0, BTreeSet::new()),
+                |(ccc1, flags1), (ccc2, flags2)| {
+                    (ccc1 + ccc2, flags1.union(&flags2).cloned().collect())
+                },
+            )
     }
 
     fn iterate(&mut self) -> usize {
@@ -276,7 +262,9 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         self.cost = 0;
 
         let (cc, flags) = self.iterate_nn();
-        self.visited_id.union_with(&flags);
+        flags.iter().for_each(|j| {
+            self.visited_id.insert(*j);
+        });
 
         //         s.send(flags).unwrap();
         //         ccc
@@ -289,11 +277,14 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         //     });
         // });
 
-        self.graph.par_iter().for_each(|graph| {
-            while graph.lock().unwrap().len() > self.k {
-                graph.lock().unwrap().pop();
-            }
-        });
+        self.graph
+            // .par_iter()
+            .iter()
+            .for_each(|graph| {
+                while graph.lock().unwrap().len() > self.k {
+                    graph.lock().unwrap().pop();
+                }
+            });
 
         self.cost += cc;
         let mut t = 0;
@@ -353,8 +344,8 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
         // t += pending_status2
         //     .iter()
         //     .map(|(i, tt, nn_new_neighbors, nn_old_neighbors, flags)| {
-        //         self.nn_new_neighbors[*i] = nn_new_neighbors.to_vec();
-        //         self.nn_old_neighbors[*i] = nn_old_neighbors.to_vec();
+        //         self.calculation_context[*i].0 = nn_new_neighbors.to_vec();
+        //         self.calculation_context[*i].1 = nn_old_neighbors.to_vec();
         //         flags.iter().for_each(|j| {
         //             self.visited_id.set(*j, false);
         //         });
@@ -446,6 +437,7 @@ mod tests {
     use rand::Rng;
     use std::collections::HashMap;
     use std::collections::HashSet;
+    use std::fs::File;
 
     use std::iter::FromIterator;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -489,7 +481,7 @@ mod tests {
     fn knn_nn_descent() {
         let dimension = 2;
         let nodes_every_cluster = 10;
-        let node_n = 50000;
+        let node_n = 500;
         let (_, ns) =
             make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 10000000.0);
         println!("hello world {:?}", ns.len());
@@ -499,60 +491,60 @@ mod tests {
             data.push(Box::new(node::Node::new_with_idx(&ns[i], i)));
         }
 
-        // let mut graph: Vec<Vec<Neighbor<f64, usize>>> = vec![Vec::new(); data.len()];
-        // let base_start = SystemTime::now();
-        // naive_build_knn_graph::<f64, usize>(&data, metrics::Metric::Euclidean, 100, &mut graph);
-        // let base_since_the_epoch = SystemTime::now()
-        //     .duration_since(base_start)
-        //     .expect("Time went backwards");
-        // println!(
-        //     "test for {:?} times, base use {:?} millisecond",
-        //     ns.len(),
-        //     base_since_the_epoch.as_millis()
-        // );
+        let mut graph: Vec<Vec<Neighbor<f64, usize>>> = vec![Vec::new(); data.len()];
+        let base_start = SystemTime::now();
+        naive_build_knn_graph::<f64, usize>(&data, metrics::Metric::Euclidean, 100, &mut graph);
+        let base_since_the_epoch = SystemTime::now()
+            .duration_since(base_start)
+            .expect("Time went backwards");
+        println!(
+            "test for {:?} times, base use {:?} millisecond",
+            ns.len(),
+            base_since_the_epoch.as_millis()
+        );
 
         let base_start = SystemTime::now();
         let mut nn_descent_handler =
             NNDescentHandler::new(&data, metrics::Metric::Euclidean, 100, 0.2);
         nn_descent_handler.init();
 
-        let try_times = 8;
-        // let mut ground_truth: HashMap<usize, HashSet<usize>> = HashMap::new();
-        // for i in 0..graph.len() {
-        //     ground_truth.insert(i, HashSet::from_iter(graph[i].iter().map(|x| x.idx())));
-        // }
-        // let guard = pprof::ProfilerGuard::new(100).unwrap();
+        let try_times = 20;
+        let mut ground_truth: HashMap<usize, HashSet<usize>> = HashMap::new();
+        for i in 0..graph.len() {
+            ground_truth.insert(i, HashSet::from_iter(graph[i].iter().map(|x| x.idx())));
+        }
+        let guard = pprof::ProfilerGuard::new(100).unwrap();
         println!("start iter");
         for _p in 0..try_times {
             let cc = nn_descent_handler.iterate();
             println!("iter {} times", _p);
-            // let mut error = 0;
-            // for i in 0..nn_descent_handler.graph.len() {
-            //     let nn_descent_handler_val: Vec<Neighbor<f64, usize>> = nn_descent_handler.graph[i]
-            //         .lock()
-            //         .unwrap()
-            //         .iter()
-            //         .cloned()
-            //         .collect();
-            //     for j in 0..nn_descent_handler_val.len() {
-            //         if !ground_truth[&i].contains(&nn_descent_handler_val[j].idx()) {
-            //             error += 1;
-            //         }
-            //     }
-            // }
-            // println!(
-            //     "error {} /{:?} cc {:?} cost {:?} update_cnt {:?}",
-            //     error,
-            //     data.len() * 10,
-            //     cc,
-            //     nn_descent_handler.cost(),
-            //     nn_descent_handler.ths_update_cnt(),
-            // );
+            let mut error = 0;
+            for i in 0..nn_descent_handler.graph.len() {
+                let nn_descent_handler_val: Vec<Neighbor<f64, usize>> = nn_descent_handler.graph[i]
+                    .lock()
+                    .unwrap()
+                    .iter()
+                    .cloned()
+                    .collect();
+                for j in 0..nn_descent_handler_val.len() {
+                    if !ground_truth[&i].contains(&nn_descent_handler_val[j].idx()) {
+                        error += 1;
+                    }
+                }
+            }
+            println!(
+                "error {} /{:?} cc {:?} cost {:?} update_cnt {:?}",
+                error,
+                data.len() * 10,
+                cc,
+                nn_descent_handler.cost(),
+                nn_descent_handler.ths_update_cnt(),
+            );
         }
-        // if let Ok(report) = guard.report().build() {
-        //     let file = File::create("flamegraph.svg").unwrap();
-        //     report.flamegraph(file).unwrap();
-        // };
+        if let Ok(report) = guard.report().build() {
+            let file = File::create("flamegraph.svg").unwrap();
+            report.flamegraph(file).unwrap();
+        };
 
         let base_since_the_epoch = SystemTime::now()
             .duration_since(base_start)
