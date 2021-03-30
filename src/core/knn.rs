@@ -7,7 +7,7 @@ use rand::seq::SliceRandom;
 use rand::Rng;
 use rayon::prelude::*;
 use std::collections::BinaryHeap;
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeSet};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 
