@@ -180,9 +180,9 @@ impl<E: FloatElement, T: IdxType> Node<E, T> {
 
     fn valid_elements(vectors: &[E]) -> bool {
         for e in vectors.iter() {
-            if e.is_nan() || e.is_infinite() || !e.is_normal() {
+            if e.is_nan() || e.is_infinite() {
                 //TODO: log
-                panic!("invalid float elemet");
+                panic!("invalid float element");
             }
         }
         true
