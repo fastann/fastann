@@ -48,20 +48,22 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Brut
         k: usize,
         _args: &arguments::Args,
     ) -> Vec<(node::Node<E, T>, E)> {
-        // let start = SystemTime::now();
-        let mut heap = BinaryHeap::new();
-        (0..self.nodes.len()).for_each(|i| {
-            heap.push(neighbor::Neighbor::new(
-                // use max heap, and every time pop out the greatest one in the heap
-                i,
-                item.metric(&self.nodes[i], self.mt).unwrap(),
-            ));
-            if heap.len() > k {
-                let _xp = heap.pop().unwrap();
-            }
-        });
+        let mut heap = BinaryHeap::with_capacity(k + 1);
+        self.nodes
+            .iter()
+            .zip(0..self.nodes.len())
+            .for_each(|(node, i)| {
+                heap.push(neighbor::Neighbor::new(
+                    // use max heap, and every time pop out the greatest one in the heap
+                    i,
+                    item.metric(node, self.mt).unwrap(),
+                ));
+                if heap.len() > k {
+                    let _xp = heap.pop().unwrap();
+                }
+            });
 
-        let mut result = Vec::new();
+        let mut result = Vec::with_capacity(heap.len());
         while !heap.is_empty() {
             let neighbor_rev = heap.pop().unwrap();
             result.push((

@@ -17,6 +17,7 @@ where
     T::dot_product(&vec1, &vec2)
 }
 
+#[inline(always)]
 pub fn same_dimension<T>(vec1: &[T], vec2: &[T]) -> Result<(), &'static str>
 where
     T: FloatElement,
