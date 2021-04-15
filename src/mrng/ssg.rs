@@ -6,7 +6,7 @@ use crate::core::neighbor;
 use crate::core::node;
 use fixedbitset::FixedBitSet;
 use rand::prelude::*;
-
+use std::collections::LinkedList;
 #[cfg(feature = "without_std")]
 use hashbrown::HashSet;
 
@@ -411,19 +411,18 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         // let mut search_flags = HashSet::with_capacity(self.nodes.len());
         let mut search_flags = FixedBitSet::with_capacity(self.nodes.len());
         let mut heap: BinaryHeap<neighbor::Neighbor<E, usize>> = BinaryHeap::new(); // max-heap
-        let mut search_queue = VecDeque::new();
+        let mut search_queue = LinkedList::new();
 
         (0..self.root_nodes.len()).for_each(|i| {
             init_ids[i] = self.root_nodes[i];
         });
         self.get_random_nodes_idx_lite(&mut init_ids[self.root_nodes.len()..]);
 
-        (0..l).for_each(|i| {
-            let id = init_ids[i];
-            let dist = self.nodes[id].metric(query, self.mt).unwrap();
-            heap.push(neighbor::Neighbor::new(id, dist));
-            search_queue.extend(&self.graph[id]);
-            search_flags.insert(id);
+        init_ids.iter().for_each(|id| {
+            let dist = self.nodes[*id].metric(query, self.mt).unwrap();
+            heap.push(neighbor::Neighbor::new(*id, dist));
+            search_queue.extend(self.graph[*id].iter());
+            search_flags.insert(*id);
         });
 
         // greedy BFS search
@@ -437,7 +436,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
             if dist < heap.peek().unwrap().distance() {
                 heap.pop();
                 heap.push(neighbor::Neighbor::new(id, dist));
-                search_queue.extend(&self.graph[id]);
+                search_queue.extend(self.graph[id].iter());
             }
             search_flags.insert(id);
         }

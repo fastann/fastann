@@ -306,7 +306,8 @@ pub fn run() {
     );
 
     let indices: Vec<Box<dyn ANNIndex<f32, usize>>> =
-        vec![bpforest_idx, pq_idx, ssg_idx, hnsw_idx];
+        // vec![bpforest_idx, pq_idx, ssg_idx, hnsw_idx];
+        vec![hnsw_idx];
 
     const K: i32 = 1000;
     let words: Vec<usize> = (0..K)
