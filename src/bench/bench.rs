@@ -27,7 +27,7 @@ use std::io::{self, prelude::*, BufReader};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
-const LINE_SIZE: usize = 500;
+const LINE_SIZE: usize = 40000;
 // rayon::ThreadPoolBuilder::new()
 //     .num_threads(4)
 //     .build_global()
@@ -305,9 +305,10 @@ pub fn run() {
         mrng::ssg::SatelliteSystemGraphIndex::<f32, usize>::load("ssg_idx.idx", &argument).unwrap(),
     );
 
-    let mut indices: Vec<Box<dyn ANNIndex<f32, usize>>> = vec![bpforest_idx, pq_idx, ssg_idx];
+    let mut indices: Vec<Box<dyn ANNIndex<f32, usize>>> =
+        vec![bpforest_idx, pq_idx, ssg_idx, hnsw_idx];
 
-    const K: i32 = 10;
+    const K: i32 = 1000;
     let words: Vec<usize> = (0..K)
         .map(|i| {
             let mut rng = rand::thread_rng();
