@@ -1,6 +1,6 @@
 extern crate num;
 use crate::core::calc::dot;
-use crate::core::calc::same_dimension;
+
 use crate::core::node::FloatElement;
 use serde::{Deserialize, Serialize};
 

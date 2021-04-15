@@ -17,7 +17,7 @@ use prgrs::{Length, Prgrs};
 use rand::distributions::{Distribution, Normal};
 
 use rand::Rng;
-use rayon;
+
 use rayon::prelude::*;
 #[cfg(not(feature = "without_std"))]
 use std::collections::HashMap;
@@ -245,7 +245,7 @@ pub fn run_word_emb_demo() {
     make_idx_baseline(train_data.clone(), &mut bpforest_idx);
     make_idx_baseline(train_data.clone(), &mut hnsw_idx);
     make_idx_baseline(train_data.clone(), &mut pq_idx);
-    make_idx_baseline(train_data.clone(), &mut ssg_idx);
+    make_idx_baseline(train_data, &mut ssg_idx);
 
     let argument = arguments::Args::new();
     bf_idx.dump("bf_idx.idx", &argument);
@@ -305,16 +305,16 @@ pub fn run() {
         mrng::ssg::SatelliteSystemGraphIndex::<f32, usize>::load("ssg_idx.idx", &argument).unwrap(),
     );
 
-    let mut indices: Vec<Box<dyn ANNIndex<f32, usize>>> =
+    let indices: Vec<Box<dyn ANNIndex<f32, usize>>> =
         vec![bpforest_idx, pq_idx, ssg_idx, hnsw_idx];
 
     const K: i32 = 1000;
     let words: Vec<usize> = (0..K)
-        .map(|i| {
+        .map(|_i| {
             let mut rng = rand::thread_rng();
             let target_word: usize = rng.gen_range(1, words_vec.len());
             let w = words.get(&words_vec[target_word]).unwrap();
-            w.clone()
+            *w
         })
         .collect();
 
@@ -336,7 +336,7 @@ pub fn run() {
         words.iter().zip(0..words.len()).for_each(|(w, i)| {
             let result = idx.search_k(&train_data[*w as usize], 10);
 
-            for (n, d) in result.iter() {
+            for (n, _d) in result.iter() {
                 if results[i].contains(&n.idx().unwrap()) {
                     accuracy += 1;
                 }
