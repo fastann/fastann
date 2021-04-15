@@ -290,7 +290,7 @@ pub fn run() {
     let argument = arguments::Args::new();
     let bf_idx =
         Box::new(bf::bf::BruteForceIndex::<f32, usize>::load("bf_idx.idx", &argument).unwrap());
-    let bpforest_idx = Box::new(
+    let _bpforest_idx = Box::new(
         bpforest::bpforest::BinaryProjectionForestIndex::<f32, usize>::load(
             "bpforest_idx.idx",
             &argument,
@@ -300,8 +300,8 @@ pub fn run() {
     let hnsw_idx =
         Box::new(hnsw::hnsw::HNSWIndex::<f32, usize>::load("hnsw_idx.idx", &argument).unwrap());
 
-    let pq_idx = Box::new(pq::pq::PQIndex::<f32, usize>::load("pq_idx.idx", &argument).unwrap());
-    let ssg_idx = Box::new(
+    let _pq_idx = Box::new(pq::pq::PQIndex::<f32, usize>::load("pq_idx.idx", &argument).unwrap());
+    let _ssg_idx = Box::new(
         mrng::ssg::SatelliteSystemGraphIndex::<f32, usize>::load("ssg_idx.idx", &argument).unwrap(),
     );
 
