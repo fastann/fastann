@@ -5,3 +5,5 @@
 /src/bench/*.tar.gz
 *.svg
 *.idx
+*.txt
+*.zip

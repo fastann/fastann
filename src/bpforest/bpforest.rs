@@ -457,10 +457,10 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         }
 
         let mut heap: BinaryHeap<neighbor::Neighbor<E, i32>> = BinaryHeap::new(); // max-heap
-        (0..self._roots.len()).for_each(|i| {
+        self._roots.iter().for_each(|root| {
             heap.push(neighbor::Neighbor {
                 _distance: self.pq_initial_value(), // float MAX
-                _idx: self._roots[i],
+                _idx: *root,
             });
         });
 

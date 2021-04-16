@@ -12,11 +12,12 @@ macro_rules! simd_optimized_impl {
     (  $type_id:ident, $simd_type:ident ,$size: expr ,$simd_size:expr) => {
         impl SIMDOptmized for $type_id {
             fn dot_product(a: &[$type_id], b: &[$type_id]) -> Result<$type_id, &'static str> {
-                same_dimension(a, b)?;
-                let size = 0;
-                let c: $type_id = 0.;
+                assert_eq!(a.len(), b.len());
+
                 #[cfg(feature = $simd_size)]
                 {
+                    let size = 0;
+                    let c: $type_id = 0.;
                     size = a.len() / $size;
                     c = a
                         .chunks_exact($size)
@@ -25,20 +26,25 @@ macro_rules! simd_optimized_impl {
                         .map(|(a, b)| a * b)
                         .sum::<$simd_type>()
                         .sum();
+                    let d: $type_id = (size..a.len()).map(|i| a[i] * b[i]).sum();
+                    Ok(c + d)
                 }
-                let d: $type_id = (size..a.len()).map(|i| a[i] * b[i]).sum();
-                Ok(c + d)
+                #[cfg(not(feature = $simd_size))]
+                {
+                    Ok(a.iter().zip(b).map(|(p, q)| p * q).sum::<$type_id>())
+                }
             }
 
             fn manhattan_distance(
                 a: &[$type_id],
                 b: &[$type_id],
             ) -> Result<$type_id, &'static str> {
-                same_dimension(a, b)?;
-                let size = 0;
-                let c: $type_id = 0.;
+                assert_eq!(a.len(), b.len());
+
                 #[cfg(feature = $simd_size)]
                 {
+                    let size = 0;
+                    let c: $type_id = 0.;
                     size = a.len() / $size;
                     c = a
                         .chunks_exact($size)
@@ -47,9 +53,17 @@ macro_rules! simd_optimized_impl {
                         .map(|(a, b)| (a - b).abs())
                         .sum::<$simd_type>()
                         .sum();
+                    let d: $type_id = (size..a.len()).map(|i| (a[i] - b[i]).abs()).sum();
+                    Ok(c + d)
                 }
-                let d: $type_id = (size..a.len()).map(|i| (a[i] - b[i]).abs()).sum();
-                Ok(c + d)
+
+                #[cfg(not(feature = $simd_size))]
+                {
+                    Ok(a.iter()
+                        .zip(b)
+                        .map(|(p, q)| (p - q).abs())
+                        .sum::<$type_id>())
+                }
             }
 
             fn euclidean_distance(
@@ -57,10 +71,11 @@ macro_rules! simd_optimized_impl {
                 b: &[$type_id],
             ) -> Result<$type_id, &'static str> {
                 same_dimension(a, b)?;
-                let size = 0;
-                let c: $type_id = 0.;
+
                 #[cfg(feature = $simd_size)]
                 {
+                    let size = 0;
+                    let c: $type_id = 0.;
                     size = a.len() / $size;
                     c = a
                         .chunks_exact($size)
@@ -72,9 +87,17 @@ macro_rules! simd_optimized_impl {
                         })
                         .sum::<$simd_type>()
                         .sum();
+                    let d: $type_id = (size..a.len()).map(|i| (a[i] - b[i]).powi(2)).sum();
+                    Ok((d + c).sqrt())
                 }
-                let d: $type_id = (size..a.len()).map(|i| (a[i] - b[i]).powi(2)).sum();
-                Ok((d + c).sqrt())
+                #[cfg(not(feature = $simd_size))]
+                {
+                    Ok(a.iter()
+                        .zip(b)
+                        .map(|(p, q)| (p - q).powi(2))
+                        .sum::<$type_id>()
+                        .sqrt())
+                }
             }
         }
     };
