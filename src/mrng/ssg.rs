@@ -5,10 +5,10 @@ use crate::core::metrics;
 use crate::core::neighbor;
 use crate::core::node;
 use fixedbitset::FixedBitSet;
-use rand::prelude::*;
-use std::collections::LinkedList;
 #[cfg(feature = "without_std")]
 use hashbrown::HashSet;
+use rand::prelude::*;
+use std::collections::LinkedList;
 
 use rayon::prelude::*;
 use serde::de::DeserializeOwned;
@@ -22,6 +22,28 @@ use std::fs::File;
 use std::io::Read;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SatelliteSystemGraphParams<E: node::FloatElement> {
+    angle: E,
+    init_k: usize,
+    index_size: usize,
+    neighbor_size: usize,
+    root_size: usize,
+}
+
+impl<E: node::FloatElement> SatelliteSystemGraphParams<E> {
+    // pub fn new() -> Self {
+    //     SatelliteSystemGraphParams {
+    //         angle: E::from_i8(50);
+
+    //     }
+    // }
+    pub fn angle(mut self, new_angle: &E) -> Self {
+        self.angle = new_angle.clone();
+        self
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SatelliteSystemGraphIndex<E: node::FloatElement, T: node::IdxType> {

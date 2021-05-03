@@ -27,7 +27,7 @@ use std::io::{self, prelude::*, BufReader};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
-const LINE_SIZE: usize = 40000;
+const LINE_SIZE: usize = 10000;
 // rayon::ThreadPoolBuilder::new()
 //     .num_threads(4)
 //     .build_global()
@@ -268,6 +268,7 @@ pub fn run() {
     for line in reader.lines() {
         if let Ok(l) = line {
             if idx == LINE_SIZE {
+                println!("done {:?}", idx);
                 break;
             }
             let split_line = l.split(' ').collect::<Vec<&str>>();
@@ -282,7 +283,7 @@ pub fn run() {
             words_train_data.insert(word.to_string(), vecs.clone());
             idx += 1;
             train_data.push(vecs.clone());
-            if idx % 100000 == 0 {
+            if idx % 1000 == 0 {
                 println!("load {:?}", idx);
             }
         }
@@ -307,7 +308,7 @@ pub fn run() {
 
     let indices: Vec<Box<dyn ANNIndex<f32, usize>>> =
         // vec![bpforest_idx, pq_idx, ssg_idx, hnsw_idx];
-        vec![hnsw_idx];
+        vec![hnsw_idx, _ssg_idx];
 
     const K: i32 = 1000;
     let words: Vec<usize> = (0..K)

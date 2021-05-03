@@ -95,8 +95,7 @@ macro_rules! simd_optimized_impl {
                     Ok(a.iter()
                         .zip(b)
                         .map(|(p, q)| (p - q).powi(2))
-                        .sum::<$type_id>()
-                        .sqrt())
+                        .sum::<$type_id>())
                 }
             }
         }

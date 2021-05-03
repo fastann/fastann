@@ -50,10 +50,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
         let dimension = self._dimension;
         let n_center = self._n_center;
         let begin = self._data_range_begin;
-        let mut mean_center: Vec<E> = Vec::new();
-        for _i in 0..dimension {
-            mean_center.push(E::from_f32(0.0).unwrap());
-        }
+        let mut mean_center = vec![E::from_f32(0.0).unwrap(); dimension];
 
         for i in 0..batch_size {
             let cur_data = batch_data[i].vectors();
