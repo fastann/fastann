@@ -92,18 +92,22 @@ mod tests {
 
     #[test]
     fn bench_dot() {
-        let dimension = 1024;
-        let nodes_every_cluster = 40;
+        let dimension = 8024;
+        let nodes_every_cluster = 600;
         let node_n = 50;
-        let (_, ns) =
+        let (_, nso) =
             make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 10000000.0);
-        println!("hello world {:?}", ns.len());
+        println!("hello world {:?}", nso.len());
+        let ns: Vec<Vec<f32>> = nso
+            .iter()
+            .map(|x| x.iter().map(|p| *p as f32).collect())
+            .collect();
 
         {
             let base_start = SystemTime::now();
-            for x in 0..ns.len() {
-                dot(&ns[x], &ns[x]);
-            }
+            ns.iter().for_each(|nsx| {
+                dot(&nsx, &nsx);
+            });
             let base_since_the_epoch = SystemTime::now()
                 .duration_since(base_start)
                 .expect("Time went backwards");
@@ -116,15 +120,15 @@ mod tests {
 
         {
             let base_start = SystemTime::now();
-            for x in 0..ns.len() {
-                f64::dot_product(&ns[x], &ns[x]);
-                // println!("hello {:?}, {:?}", ns[x].len(), ns[x]);
-            }
+            ns.iter().for_each(|nsx| {
+                dot(&nsx, &nsx);
+                f32::dot_product(&nsx, &nsx);
+            });
             let base_since_the_epoch = SystemTime::now()
                 .duration_since(base_start)
                 .expect("Time went backwards");
             println!(
-                "test for {:?} times, base use {:?} millisecond",
+                "test for {:?} times, simd use {:?} millisecond",
                 ns.len(),
                 base_since_the_epoch.as_millis()
             );
@@ -133,7 +137,7 @@ mod tests {
         let b = 25;
         println!(
             "{:?}, {:?}",
-            f64::dot_product(&ns[b], &ns[b]),
+            f32::dot_product(&ns[b], &ns[b]),
             dot(&ns[b], &ns[b]).unwrap()
         );
     }
