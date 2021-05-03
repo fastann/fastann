@@ -16,8 +16,7 @@ macro_rules! simd_optimized_impl {
 
                 #[cfg(feature = $simd_size)]
                 {
-                    let mut size = 0;
-                    size = a.len() / $size;
+                    let size = a.len() - (a.len() % $size);
                     let c = a
                         .chunks_exact($size)
                         .map($simd_type::from_slice_unaligned)
@@ -42,8 +41,7 @@ macro_rules! simd_optimized_impl {
 
                 #[cfg(feature = $simd_size)]
                 {
-                    let mut size = 0;
-                    size = a.len() / $size;
+                    let size = a.len() - (a.len() % $size);
                     let c = a
                         .chunks_exact($size)
                         .map($simd_type::from_slice_unaligned)
@@ -76,8 +74,7 @@ macro_rules! simd_optimized_impl {
 
                 #[cfg(feature = $simd_size)]
                 {
-                    let mut size = 0;
-                    size = a.len() / $size;
+                    let size = a.len() - (a.len() % $size);
                     let c = a
                         .chunks_exact($size)
                         .map($simd_type::from_slice_unaligned)

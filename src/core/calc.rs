@@ -92,11 +92,11 @@ mod tests {
 
     #[test]
     fn bench_dot() {
-        let dimension = 8024;
+        let dimension = 8022;
         let nodes_every_cluster = 600;
         let node_n = 50;
         let (_, nso) =
-            make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 10000000.0);
+            make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 100000.0);
         println!("hello world {:?}", nso.len());
         let ns: Vec<Vec<f32>> = nso
             .iter()
@@ -105,32 +105,38 @@ mod tests {
 
         {
             let base_start = SystemTime::now();
-            ns.iter().for_each(|nsx| {
-                dot(&nsx, &nsx);
-            });
+            let sumbase = ns
+                .iter()
+                .map(|nsx| {
+                    // dot(&nsx, &nsx);
+                    nsx.iter().zip(nsx).map(|(p, q)| p * q).sum::<f32>()
+                })
+                .sum::<f32>();
             let base_since_the_epoch = SystemTime::now()
                 .duration_since(base_start)
                 .expect("Time went backwards");
             println!(
-                "test for {:?} times, base use {:?} millisecond",
+                "test for {:?} times, base use {:?} millisecond {:?}",
                 ns.len(),
-                base_since_the_epoch.as_millis()
+                base_since_the_epoch.as_millis(),
+                sumbase
             );
         }
 
         {
             let base_start = SystemTime::now();
-            ns.iter().for_each(|nsx| {
-                dot(&nsx, &nsx);
-                f32::dot_product(&nsx, &nsx);
-            });
+            let sumsimd = ns
+                .iter()
+                .map(|nsx| f32::dot_product(&nsx, &nsx).unwrap())
+                .sum::<f32>();
             let base_since_the_epoch = SystemTime::now()
                 .duration_since(base_start)
                 .expect("Time went backwards");
             println!(
-                "test for {:?} times, simd use {:?} millisecond",
+                "test for {:?} times, simd use {:?} millisecond, {:?}",
                 ns.len(),
-                base_since_the_epoch.as_millis()
+                base_since_the_epoch.as_millis(),
+                sumsimd
             );
         }
 
