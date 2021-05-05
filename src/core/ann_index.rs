@@ -50,6 +50,11 @@ pub trait ANNIndex<E: node::FloatElement, T: node::IdxType>: Send + Sync {
         self.node_search_k(&n, k, &arguments::Args::new())
     }
 
+    fn search_k_ids(&self, item: &[E], k: usize) -> Vec<T> {
+        let n = node::Node::new(item);
+        self.node_search_k(&n, k, &arguments::Args::new()).iter().map(|x| x.0.idx().as_ref().unwrap().clone()).collect::<Vec<T>>()
+    }
+
     fn search_k_with_args(
         &self,
         item: &[E],
