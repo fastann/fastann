@@ -89,9 +89,7 @@ macro_rules! simd_optimized_impl {
                     let d: $type_id = a[size..]
                         .iter()
                         .zip(&b[size..])
-                        .map(|(p, q)| {
-                            (p - q).powi(2)
-                        })
+                        .map(|(p, q)| (p - q).powi(2))
                         .sum();
                     Ok((d + c))
                 }

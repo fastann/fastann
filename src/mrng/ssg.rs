@@ -443,24 +443,27 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         init_ids.iter().for_each(|id| {
             let dist = self.nodes[*id].metric(query, self.mt).unwrap();
             heap.push(neighbor::Neighbor::new(*id, dist));
-            search_queue.extend(self.graph[*id].iter());
+            search_queue.push_back(id);
             search_flags.insert(*id);
         });
 
         // greedy BFS search
         while !search_queue.is_empty() {
             let id = search_queue.pop_front().unwrap();
-            if search_flags.contains(id) {
-                continue;
-            }
 
-            let dist = self.nodes[id].metric(query, self.mt).unwrap();
-            if dist < heap.peek().unwrap().distance() {
-                heap.pop();
-                heap.push(neighbor::Neighbor::new(id, dist));
-                search_queue.extend(self.graph[id].iter());
+            for iter in self.graph[*id].iter() {
+                if search_flags.contains(*iter) {
+                    continue;
+                }
+
+                let dist = self.nodes[*iter].metric(query, self.mt).unwrap();
+                if dist < heap.peek().unwrap().distance() {
+                    heap.pop();
+                    heap.push(neighbor::Neighbor::new(*iter, dist));
+                    search_queue.push_back(iter);
+                }
+                search_flags.insert(*iter);
             }
-            search_flags.insert(id);
         }
 
         let mut result = Vec::new();
