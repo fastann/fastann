@@ -92,7 +92,7 @@ mod tests {
 
     #[test]
     fn bench_dot() {
-        let dimension = 8022;
+        let dimension = 8024;
         let nodes_every_cluster = 600;
         let node_n = 50;
         let (_, nso) =
@@ -109,7 +109,11 @@ mod tests {
                 .iter()
                 .map(|nsx| {
                     // dot(&nsx, &nsx);
-                    nsx.iter().zip(nsx).map(|(p, q)| p * q).sum::<f32>()
+                    // nsx.iter().zip(nsx).map(|(p, q)| p * q).sum::<f32>()
+                    nsx.iter()
+                        .zip(nsx)
+                        .map(|(p, q)| (p - q).powi(2))
+                        .sum::<f32>()
                 })
                 .sum::<f32>();
             let base_since_the_epoch = SystemTime::now()
@@ -127,7 +131,7 @@ mod tests {
             let base_start = SystemTime::now();
             let sumsimd = ns
                 .iter()
-                .map(|nsx| f32::dot_product(&nsx, &nsx).unwrap())
+                .map(|nsx| f32::euclidean_distance(&nsx, &nsx).unwrap())
                 .sum::<f32>();
             let base_since_the_epoch = SystemTime::now()
                 .duration_since(base_start)

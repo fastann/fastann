@@ -90,8 +90,7 @@ macro_rules! simd_optimized_impl {
                         .iter()
                         .zip(&b[size..])
                         .map(|(p, q)| {
-                            let c = (p - q);
-                            c * c
+                            (p - q).powi(2)
                         })
                         .sum();
                     Ok((d + c))
@@ -108,5 +107,5 @@ macro_rules! simd_optimized_impl {
     };
 }
 
-simd_optimized_impl!(f32, f32x4, 4, "simd");
+simd_optimized_impl!(f32, f32x8, 8, "simd");
 simd_optimized_impl!(f64, f64x4, 4, "simd");
