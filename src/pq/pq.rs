@@ -57,28 +57,28 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
         let dimension = self._dimension;
         let n_center = self._n_center;
         let begin = self._data_range_begin;
-        let mut mean_center: Vec<E> = Vec::new();
-        mean_center.resize(dimension, E::from_f32(0.0).unwrap());
+        let mut mean_center: Vec<E> = vec![E::from_f32(0.0).unwrap(); dimension];
+        // mean_center.resize(dimension, E::from_f32(0.0).unwrap());
 
-        for i in 0..batch_size {
+        (0..batch_size).for_each(|i| {
             let cur_data = batch_data[i].vectors();
-            for j in 0..dimension {
+            (0..dimension).for_each(|j| {
                 if self._has_residual {
                     mean_center[j] += cur_data[begin + j] - self._residual[begin + j];
                 } else {
                     mean_center[j] += cur_data[begin + j];
                 }
-            }
-        }
+            });
+        });
 
-        for i in 0..dimension {
+        (0..dimension).for_each(|i| {
             mean_center[i] /= E::from_usize(batch_size).unwrap();
-        }
+        });
 
-        let mut new_centers: Vec<Vec<E>> = Vec::new();
-        for i in 0..n_center {
+        let mut new_centers: Vec<Vec<E>> = Vec::with_capacity(n_center);
+        (0..n_center).for_each(|i| {
             let mut cur_center: Vec<E> = Vec::new();
-            for j in 0..dimension {
+            (0..dimension).for_each(|j| {
                 let mut val = mean_center[j];
                 if i & (1 << j) == 1 {
                     val += E::from_f32(1.0).unwrap();
@@ -86,9 +86,9 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
                     val -= E::from_f32(1.0).unwrap();
                 }
                 cur_center.push(val);
-            }
+            });
             new_centers.push(cur_center);
-        }
+        });
         self._centers = new_centers;
     }
 
@@ -101,39 +101,32 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
         let dimension = self._dimension;
         let n_center = self._n_center;
         let begin = self._data_range_begin;
-        let mut new_centers: Vec<Vec<E>> = Vec::new();
-        for _i in 0..n_center {
-            let mut cur_center: Vec<E> = Vec::new();
-            for _j in 0..dimension {
-                cur_center.push(E::from_f32(0.0).unwrap());
-            }
-            new_centers.push(cur_center);
-        }
-        let mut n_assigned_per_center: Vec<usize> = Vec::new();
-        for _i in 0..n_center {
-            n_assigned_per_center.push(0);
-        }
-        for i in 0..batch_size {
+        let mut new_centers: Vec<Vec<E>> = Vec::with_capacity(n_center);
+        (0..n_center).for_each(|_| {
+            new_centers.push(vec![E::from_f32(0.0).unwrap(); dimension]);
+        });
+        let mut n_assigned_per_center: Vec<usize> = vec![0; n_center];
+        (0..batch_size).for_each(|i| {
             let cur_data = batch_data[i].vectors();
             let cur_center = assigned_center[i];
             n_assigned_per_center[cur_center] += 1;
-            for j in 0..dimension {
+            (0..dimension).for_each(|j| {
                 if self._has_residual {
                     new_centers[cur_center][j] += cur_data[begin + j] - self._residual[begin + j];
                 } else {
                     new_centers[cur_center][j] += cur_data[begin + j];
                 }
-            }
-        }
+            });
+        });
 
-        for i in 0..n_center {
+        (0..n_center).for_each(|i| {
             if n_assigned_per_center[i] == 0 {
-                continue;
+                return;
             }
-            for j in 0..dimension {
+            (0..dimension).for_each(|j| {
                 new_centers[i][j] /= E::from_usize(n_assigned_per_center[i]).unwrap();
-            }
-        }
+            });
+        });
         self._centers = new_centers;
         Ok(n_assigned_per_center)
     }
@@ -146,9 +139,9 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
     ) {
         let n_center = self._n_center;
         let _dimension = self._dimension;
-        for i in 0..batch_size {
+        (0..batch_size).for_each(|i| {
             let mut nearist_center_id: usize = 0;
-            for j in 1..n_center {
+            (1..n_center).for_each(|j| {
                 let cur_center = &self._centers[j];
                 let nearist_center = &self._centers[nearist_center_id];
                 if self.get_distance_from_vec(&batch_data[i], cur_center)
@@ -156,9 +149,9 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
                 {
                     nearist_center_id = j;
                 }
-            }
+            });
             assigned_center.push(nearist_center_id);
-        }
+        });
     }
 
     fn split_center(
@@ -173,7 +166,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
             return Err("None to assigned impossible split center");
         }
 
-        for i in 0..n_center {
+        (0..n_center).for_each(|i| {
             if n_assigned_per_center[i] == 0 {
                 //rand pick split center
                 let mut split_center_id = (i + 1) % n_center;
@@ -187,7 +180,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
                     split_center_id = (split_center_id + 1) % n_center;
                 }
                 const EPS: f32 = 1.0 / 1024.0;
-                for j in 0..dimension {
+                (0..dimension).for_each(|j| {
                     if j % 2 == 0 {
                         self._centers[i][j] =
                             self._centers[split_center_id][j] * E::from_f32(1.0 - EPS).unwrap();
@@ -197,11 +190,11 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
                             self._centers[split_center_id][j] * E::from_f32(1.0 + EPS).unwrap();
                         self._centers[split_center_id][j] *= E::from_f32(1.0 - EPS).unwrap();
                     }
-                }
+                });
                 n_assigned_per_center[i] = n_assigned_per_center[split_center_id] / 2;
                 n_assigned_per_center[split_center_id] -= n_assigned_per_center[i];
             }
-        }
+        });
         Ok(())
     }
 
@@ -212,8 +205,8 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
         n_epoch: usize,
     ) {
         self.init_center(batch_size, batch_data);
-        for epoch in 0..n_epoch {
-            let mut assigned_center: Vec<usize> = Vec::new();
+        (0..n_epoch).for_each(|epoch| {
+            let mut assigned_center: Vec<usize> = Vec::with_capacity(batch_size);
             self.search_data(batch_size, batch_data, &mut assigned_center);
             let mut n_assigned_per_center = self
                 .update_center(batch_size, batch_data, &assigned_center)
@@ -222,7 +215,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
                 self.split_center(batch_size, &mut n_assigned_per_center)
                     .unwrap();
             }
-        }
+        });
     }
 
     pub fn set_range(&mut self, begin: usize, end: usize) {
@@ -321,7 +314,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
     pub fn train_center(&mut self) {
         let n_item = self._n_items;
         let n_sub = self._n_sub;
-        for i in 0..n_sub {
+        (0..n_sub).for_each(|i| {
             let dimension = self._sub_dimension;
             let n_center = self._n_sub_center;
             let n_epoch = self._train_epoch;
@@ -337,7 +330,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
             cluster.search_data(n_item, &self._nodes, &mut assigned_center);
             self._centers.push(cluster._centers);
             self._assigned_center.push(assigned_center);
-        }
+        });
         self._is_trained = true;
     }
 
@@ -350,7 +343,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
     ) -> E {
         let mut z = x.vectors()[begin..end].to_vec();
         if self._has_residual {
-            (begin..end).map(|i| z[i] -= self._residual[i + begin]);
+            (begin..end).for_each(|i| z[i] -= self._residual[i + begin]);
         }
         return metrics::metric(&z, y, self.mt).unwrap();
     }
@@ -360,29 +353,29 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         search_data: &node::Node<E, T>,
         k: usize,
     ) -> Result<BinaryHeap<Neighbor<E, usize>>, &'static str> {
-        let mut dis2centers: Vec<Vec<E>> = Vec::new();
-        for i in 0..self._n_sub {
-            let mut sub_dis: Vec<E> = Vec::new();
-            for j in 0..self._n_sub_center {
+        let mut dis2centers: Vec<Vec<E>> = Vec::with_capacity(self._n_sub);
+        (0..self._n_sub).for_each(|i| {
+            let mut sub_dis: Vec<E> = Vec::with_capacity(self._n_sub_center);
+            (0..self._n_sub_center).for_each(|j| {
                 sub_dis.push(self.get_distance_from_vec_range(
                     search_data,
                     &self._centers[i][j],
                     i * self._sub_dimension,
                     (i + 1) * self._sub_dimension,
                 ));
-            }
+            });
             dis2centers.push(sub_dis);
-        }
+        });
 
         let mut top_candidate: BinaryHeap<Neighbor<E, usize>> = BinaryHeap::new();
-        for i in 0..self._n_items {
+        (0..self._n_items).for_each(|i| {
             let mut distance = E::from_f32(0.0).unwrap();
-            for j in 0..self._n_sub {
+            (0..self._n_sub).for_each(|j| {
                 let center_id = self._assigned_center[j][i];
                 distance += dis2centers[j][center_id];
-            }
+            });
             top_candidate.push(Neighbor::new(i, distance));
-        }
+        });
         while top_candidate.len() > k {
             top_candidate.pop();
         }

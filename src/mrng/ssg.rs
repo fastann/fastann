@@ -33,24 +33,24 @@ pub struct SatelliteSystemGraphParams<E: node::FloatElement> {
 }
 
 impl<E: node::FloatElement> SatelliteSystemGraphParams<E> {
-    pub fn angle(mut self, new_angle: &E) -> Self {
-        self.angle = *new_angle;
+    pub fn angle(mut self, new_angle: E) -> Self {
+        self.angle = new_angle;
         self
     }
-    pub fn init_k(mut self, new_init_k: &usize) -> Self {
-        self.init_k = *new_init_k;
+    pub fn init_k(mut self, new_init_k: usize) -> Self {
+        self.init_k = new_init_k;
         self
     }
-    pub fn index_size(mut self, new_index_size: &usize) -> Self {
-        self.index_size = *new_index_size;
+    pub fn index_size(mut self, new_index_size: usize) -> Self {
+        self.index_size = new_index_size;
         self
     }
-    pub fn neighbor_neighbor_size(mut self, new_neighbor_neighbor_size: &usize) -> Self {
-        self.neighbor_neighbor_size = *new_neighbor_neighbor_size;
+    pub fn neighbor_neighbor_size(mut self, new_neighbor_neighbor_size: usize) -> Self {
+        self.neighbor_neighbor_size = new_neighbor_neighbor_size;
         self
     }
-    pub fn root_size(mut self, new_root_size: &usize) -> Self {
-        self.root_size = *new_root_size;
+    pub fn root_size(mut self, new_root_size: usize) -> Self {
+        self.root_size = new_root_size;
         self
     }
 }
