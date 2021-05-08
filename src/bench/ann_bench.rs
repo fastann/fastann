@@ -83,19 +83,19 @@ fn bench_ssg<E: core::node::FloatElement>(
 ) {
     let params_set = vec![
         mrng::ssg::SatelliteSystemGraphParams::<E>::default()
-            .angle(E::from_f32(60.0).unwrap())
+            .angle(60.0)
             .init_k(50)
             .index_size(20)
             .neighbor_neighbor_size(30)
             .root_size(20),
         mrng::ssg::SatelliteSystemGraphParams::default()
-            .angle(E::from_f32(60.0).unwrap())
+            .angle(60.0)
             .init_k(50)
             .index_size(50)
             .neighbor_neighbor_size(50)
             .root_size(20),
         mrng::ssg::SatelliteSystemGraphParams::default()
-            .angle(E::from_f32(60.0).unwrap())
+            .angle(60.0)
             .init_k(50)
             .index_size(50)
             .neighbor_neighbor_size(50)
