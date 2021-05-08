@@ -352,7 +352,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
     ) -> E {
         let mut z = x.vectors()[begin..end].to_vec();
         if self._has_residual{
-            (begin..end).map(|i| z[i] = z[i] - self._residual[i+begin]);
+            (begin..end).map(|i| z[i] -= self._residual[i+begin]);
         }
         return metrics::metric(&z, y, self.mt).unwrap();
     }
@@ -511,7 +511,7 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
         let n_center_per_sub = (1 << sub_bits) as usize;
         let code_bytes = sub_bytes * n_sub;
         let mut ivflist: Vec<Vec<usize>> = Vec::new();
-        for i in 0..n_kmeans_center{
+        for _i in 0..n_kmeans_center{
             let ivf: Vec<usize> = Vec::new();
             ivflist.push(ivf);
         }
@@ -624,7 +624,7 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
         }
 
         let mut top_candidate: BinaryHeap<Neighbor<E, usize>> = BinaryHeap::new();
-        for i in 0..self._search_n_center{
+        for _i in 0..self._search_n_center{
             let center = top_centers.pop().unwrap().idx();
             let mut ret = self._pq_list[center]
                     .search_knn_adc(search_data, k)

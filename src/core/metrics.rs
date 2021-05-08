@@ -4,10 +4,6 @@ use crate::core::calc::dot;
 use crate::core::node::FloatElement;
 use serde::{Deserialize, Serialize};
 
-pub trait SIMDOptmized<T = Self> {
-    fn dot(a: &[T], b: &[T]) -> T;
-}
-
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Metric {
     Unknown,
