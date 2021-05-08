@@ -110,7 +110,7 @@ pub fn run_similarity_profile(test_time: usize) {
     make_idx_baseline(ns.clone(), &mut bf_idx);
     // make_idx_baseline(ns.clone(), &mut ssg_idx);
     // ssg_idx.connectivity_profile();
-    let guard = pprof::ProfilerGuard::new(100).unwrap();
+    let _guard = pprof::ProfilerGuard::new(100).unwrap();
     for _i in Prgrs::new(0..test_time, 1000).set_length_move(Length::Proportional(0.5)) {
         // (0..test_time).into_par_iter().for_each(|_| {
         let mut rng = rand::thread_rng();
@@ -298,7 +298,7 @@ pub fn run() {
     //     )
     //     .unwrap(),
     // );
-    let hnsw_idx =
+    let _hnsw_idx =
         Box::new(hnsw::hnsw::HNSWIndex::<f32, usize>::load("hnsw_idx.idx", &argument).unwrap());
 
     // let _pq_idx = Box::new(pq::pq::PQIndex::<f32, usize>::load("pq_idx.idx", &argument).unwrap());
@@ -339,7 +339,7 @@ pub fn run() {
         let mut accuracy = 0;
         words.iter().zip(0..words.len()).for_each(|(w, i)| {
             println!("hioyo {:?} {:?}", i, words.len());
-            let result = idx.search_k(&train_data[w.clone() as usize], 10);
+            let result = idx.search_k(&train_data[*w as usize], 10);
             println!("hio {:?} {:?}", i, words.len());
             for (n, _d) in result.iter() {
                 if results[i].contains(&n.idx().unwrap()) {

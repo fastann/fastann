@@ -1,16 +1,15 @@
 use crate::bf;
-use crate::bpforest;
+
 use crate::core;
 use crate::core::ann_index::ANNIndex;
-use crate::core::ann_index::SerializableIndex;
-use crate::core::arguments;
+
+
 use crate::hnsw;
 use crate::mrng;
-use crate::pq;
-use std::time::{Duration, SystemTime};
+
+use std::time::{SystemTime};
 use std::{
     collections::HashSet,
-    sync::{Arc, Mutex},
 };
 
 pub fn ann_bench() {
@@ -45,11 +44,11 @@ pub fn ann_bench() {
         .map(|s| s[..K].iter().cloned().collect::<HashSet<usize>>())
         .collect();
 
-    let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f32, usize>::new());
+    let _bf_idx = Box::new(bf::bf::BruteForceIndex::<f32, usize>::new());
     // let mut bpforest_idx = Box::new(
     //     bpforest::bpforest::BinaryProjectionForestIndex::<f32, usize>::new(dimension, 6, -1),
     // );
-    let mut hnsw_idx = Box::new(hnsw::hnsw::HNSWIndex::<f32, usize>::new(
+    let _hnsw_idx = Box::new(hnsw::hnsw::HNSWIndex::<f32, usize>::new(
         dimension, 100000, 16, 32, 20, 500, false,
     ));
 
@@ -78,7 +77,7 @@ pub fn ann_bench() {
             let start = SystemTime::now();
             let result = ann_idx.search_k_ids(test_data, K);
             let since_start = SystemTime::now().duration_since(start).expect("error");
-            cost = cost + since_start.as_millis();
+            cost += since_start.as_millis();
             let true_set = &neighbors[idx];
             result.iter().for_each(|candidate| {
                 if true_set.contains(candidate) {

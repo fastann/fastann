@@ -34,23 +34,23 @@ pub struct SatelliteSystemGraphParams<E: node::FloatElement> {
 
 impl<E: node::FloatElement> SatelliteSystemGraphParams<E> {
     pub fn angle(mut self, new_angle: &E) -> Self {
-        self.angle = new_angle.clone();
+        self.angle = *new_angle;
         self
     }
     pub fn init_k(mut self, new_init_k: &usize) -> Self {
-        self.init_k = new_init_k.clone();
+        self.init_k = *new_init_k;
         self
     }
     pub fn index_size(mut self, new_index_size: &usize) -> Self {
-        self.index_size = new_index_size.clone();
+        self.index_size = *new_index_size;
         self
     }
     pub fn neighbor_neighbor_size(mut self, new_neighbor_neighbor_size: &usize) -> Self {
-        self.neighbor_neighbor_size = new_neighbor_neighbor_size.clone();
+        self.neighbor_neighbor_size = *new_neighbor_neighbor_size;
         self
     }
     pub fn root_size(mut self, new_root_size: &usize) -> Self {
-        self.root_size = new_root_size.clone();
+        self.root_size = *new_root_size;
         self
     }
 }
@@ -98,7 +98,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
             nodes: Vec::new(),
             tmp_nodes: Vec::new(),
             mt: metrics::Metric::Unknown,
-            dimension: dimension,
+            dimension,
             neighbor_neighbor_size: params.neighbor_neighbor_size,
             init_k: params.init_k,
             graph: Vec::new(),
