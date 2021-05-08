@@ -104,7 +104,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         &self,
         sorted_list: &[Neighbor<E, usize>],
         ret_size: usize,
-    ) -> Result<Vec<Neighbor<E, usize>>, &'static str> {
+    ) -> Vec<Neighbor<E, usize>> {
         let sorted_list_len = sorted_list.len();
         let mut return_list: Vec<Neighbor<E, usize>> = Vec::with_capacity(sorted_list_len);
 
@@ -135,7 +135,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
             }
         }
 
-        Ok(return_list) // from small to large
+        return_list // from small to large
     }
 
     fn get_neighbor(&self, id: usize, level: usize) -> &RwLock<Vec<usize>> {
@@ -162,9 +162,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         } else {
             self._n_neighbor
         };
-        let selected_neighbors = self
-            .get_neighbors_by_heuristic2(sorted_candidates, n_neigh)
-            .unwrap();
+        let selected_neighbors = self.get_neighbors_by_heuristic2(sorted_candidates, n_neigh);
         if selected_neighbors.len() > n_neigh {
             return Err("Should be not be more than M_ candidates returned by the heuristic");
         }
@@ -220,9 +218,8 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
                             self.get_distance_from_id(neighbor_id, selected_neighbor.idx());
                         candidates.push(Neighbor::new(neighbor_id, d_neigh));
                     }
-                    let return_list = self
-                        .get_neighbors_by_heuristic2(&candidates.into_sorted_vec(), n_neigh)
-                        .unwrap();
+                    let return_list =
+                        self.get_neighbors_by_heuristic2(&candidates.into_sorted_vec(), n_neigh);
 
                     neighbor_of_selected_neighbors.clear();
                     for neighbor_in_list in return_list {

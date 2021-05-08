@@ -98,7 +98,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
         batch_size: usize,
         batch_data: &[Box<node::Node<E, T>>],
         assigned_center: &[usize],
-    ) -> Result<Vec<usize>, &'static str> {
+    ) -> Vec<usize> {
         let dimension = self._dimension;
         let n_center = self._n_center;
         let begin = self._data_range_begin;
@@ -129,7 +129,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
             });
         });
         self._centers = new_centers;
-        Ok(n_assigned_per_center)
+        n_assigned_per_center
     }
 
     fn search_data(
@@ -209,9 +209,8 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
         (0..n_epoch).for_each(|epoch| {
             let mut assigned_center: Vec<usize> = Vec::with_capacity(batch_size);
             self.search_data(batch_size, batch_data, &mut assigned_center);
-            let mut n_assigned_per_center = self
-                .update_center(batch_size, batch_data, &assigned_center)
-                .unwrap();
+            let mut n_assigned_per_center =
+                self.update_center(batch_size, batch_data, &assigned_center);
             if epoch < n_epoch - 1 {
                 self.split_center(batch_size, &mut n_assigned_per_center)
                     .unwrap();
@@ -602,7 +601,7 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
         &self,
         search_data: &node::Node<E, T>,
         k: usize,
-    ) -> Result<BinaryHeap<Neighbor<E, usize>>, &'static str> {
+    ) -> BinaryHeap<Neighbor<E, usize>> {
         let mut top_centers: BinaryHeap<Neighbor<E, usize>> = BinaryHeap::new();
         let n_kmeans_center = self._n_kmeans_center;
         let dimension = self._dimension;
@@ -628,6 +627,6 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
             }
         }
 
-        Ok(top_candidate)
+        top_candidate
     }
 }

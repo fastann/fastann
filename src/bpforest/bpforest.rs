@@ -237,16 +237,15 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         Ok(())
     }
 
-    fn clear(&mut self) -> Result<(), &'static str> {
+    fn clear(&mut self) {
         self._roots.clear();
         self._tot_leaves_cnt = self._tot_items_cnt;
         self._built = false;
-        Ok(())
     }
-    fn get_distance(&self, i: i32, j: i32) -> Result<E, &'static str> {
+    fn get_distance(&self, i: i32, j: i32) -> E {
         let ni = self.get_leaf(i).unwrap();
         let nj = self.get_leaf(j).unwrap();
-        return Ok(metrics::metric(&ni.node.vectors(), &nj.node.vectors(), self.mt).unwrap());
+        return metrics::metric(&ni.node.vectors(), &nj.node.vectors(), self.mt).unwrap();
     }
 
     fn get_tot_items_cnt(&self) -> i32 {
