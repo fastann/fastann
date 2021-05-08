@@ -1,5 +1,4 @@
-
-
+#![deny(clippy::all)]
 use crate::core;
 use crate::core::ann_index::ANNIndex;
 

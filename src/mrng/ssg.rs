@@ -1,6 +1,6 @@
+#![allow(dead_code)]
 use crate::core::ann_index;
 use crate::core::arguments;
-use crate::core::heap::BinaryHeap;
 use crate::core::metrics;
 use crate::core::neighbor;
 use crate::core::node;
@@ -8,6 +8,7 @@ use fixedbitset::FixedBitSet;
 #[cfg(feature = "without_std")]
 use hashbrown::HashSet;
 use rand::prelude::*;
+use std::collections::BinaryHeap;
 use std::collections::LinkedList;
 
 use rayon::prelude::*;
@@ -19,7 +20,6 @@ use std::collections::HashSet;
 use std::collections::VecDeque;
 
 use std::fs::File;
-use std::io::Read;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 
@@ -302,16 +302,16 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
             start += 1;
         }
 
-        for t in 0..result.len() {
+        (0..result.len()).for_each(|t| {
             pruned_graph_tmp[t + query_id * self.index_size]._idx = result[t].idx();
             pruned_graph_tmp[t + query_id * self.index_size]._distance = result[t].distance();
-        }
+        });
         if result.len() < self.index_size {
-            for i in result.len()..self.index_size {
+            (result.len()..self.index_size).for_each(|i| {
                 pruned_graph_tmp[query_id * self.index_size + i]._distance = E::max_value();
                 pruned_graph_tmp[query_id * self.index_size + i]._idx = self.nodes.len();
                 // means not exist
-            }
+            });
         }
     }
 
@@ -360,17 +360,16 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
                 while result.len() < range && start < temp_pool.len() {
                     let p = &temp_pool[start];
                     let mut occlude = false;
-                    for t in 0..result.len() {
-                        if p.idx() == result[t].idx() {
+                    for rt in result.iter() {
+                        if p.idx() == rt.idx() {
                             occlude = true;
                             break;
                         }
-                        let djk = self.nodes[result[t].idx()]
+                        let djk = self.nodes[rt.idx()]
                             .metric(&self.nodes[p.idx()], self.mt)
                             .unwrap();
-                        let cos_ij = (p.distance().powi(2) + result[t].distance().powi(2)
-                            - djk.powi(2))
-                            / (E::from_usize(2).unwrap() * (p.distance() * result[t].distance()));
+                        let cos_ij = (p.distance().powi(2) + rt.distance().powi(2) - djk.powi(2))
+                            / (E::from_usize(2).unwrap() * (p.distance() * rt.distance()));
 
                         if cos_ij > self.threshold {
                             occlude = true;
@@ -382,9 +381,9 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
                     }
                     start += 1;
                 }
-                for t in 0..result.len() {
+                (0..result.len()).for_each(|t| {
                     pruned_graph_tmp[t + des * self.index_size] = result[t].clone();
-                }
+                });
 
                 if result.len() < range {
                     pruned_graph_tmp[result.len() + des * self.index_size]._distance =

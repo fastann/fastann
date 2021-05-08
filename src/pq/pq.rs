@@ -1,12 +1,13 @@
+#![allow(dead_code)]
 use crate::core::ann_index;
 use crate::core::arguments;
-use crate::core::heap::BinaryHeap;
 use crate::core::metrics;
 use crate::core::neighbor::Neighbor;
 use crate::core::node;
 use metrics::metric;
 use rand::prelude::*;
 use serde::de::DeserializeOwned;
+use std::collections::BinaryHeap;
 
 use serde::{Deserialize, Serialize};
 
@@ -39,7 +40,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
         }
     }
 
-    pub fn get_distance_from_vec(&self, x: &node::Node<E, T>, y: &Vec<E>) -> E {
+    pub fn get_distance_from_vec(&self, x: &node::Node<E, T>, y: &[E]) -> E {
         return metric(
             &x.vectors()[self._data_range_begin..self._data_range_end],
             y,
@@ -53,7 +54,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
         self._residual = residual;
     }
 
-    pub fn init_center(&mut self, batch_size: usize, batch_data: &Vec<Box<node::Node<E, T>>>) {
+    pub fn init_center(&mut self, batch_size: usize, batch_data: &[Box<node::Node<E, T>>]) {
         let dimension = self._dimension;
         let n_center = self._n_center;
         let begin = self._data_range_begin;
@@ -95,8 +96,8 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
     fn update_center(
         &mut self,
         batch_size: usize,
-        batch_data: &Vec<Box<node::Node<E, T>>>,
-        assigned_center: &Vec<usize>,
+        batch_data: &[Box<node::Node<E, T>>],
+        assigned_center: &[usize],
     ) -> Result<Vec<usize>, &'static str> {
         let dimension = self._dimension;
         let n_center = self._n_center;
@@ -134,7 +135,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
     fn search_data(
         &mut self,
         batch_size: usize,
-        batch_data: &Vec<Box<node::Node<E, T>>>,
+        batch_data: &[Box<node::Node<E, T>>],
         assigned_center: &mut Vec<usize>,
     ) {
         let n_center = self._n_center;
@@ -201,7 +202,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
     pub fn train(
         &mut self,
         batch_size: usize,
-        batch_data: &Vec<Box<node::Node<E, T>>>,
+        batch_data: &[Box<node::Node<E, T>>],
         n_epoch: usize,
     ) {
         self.init_center(batch_size, batch_data);
@@ -260,7 +261,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         assert_eq!(dimension % n_sub, 0);
         let sub_dimension = dimension / n_sub;
         let sub_bytes = (sub_bits + 7) / 8;
-        assert_eq!(sub_bits <= 32, true);
+        assert!(sub_bits <= 32);
         let n_center_per_sub = (1 << sub_bits) as usize;
         let code_bytes = sub_bytes * n_sub;
         PQIndex {
@@ -337,7 +338,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
     pub fn get_distance_from_vec_range(
         &self,
         x: &node::Node<E, T>,
-        y: &Vec<E>,
+        y: &[E],
         begin: usize,
         end: usize,
     ) -> E {
@@ -496,7 +497,7 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
         assert_eq!(dimension % n_sub, 0);
         let sub_dimension = dimension / n_sub;
         let sub_bytes = (sub_bits + 7) / 8;
-        assert_eq!(sub_bits <= 32, true);
+        assert!(sub_bits <= 32);
         let n_center_per_sub = (1 << sub_bits) as usize;
         let code_bytes = sub_bytes * n_sub;
         let mut ivflist: Vec<Vec<usize>> = Vec::new();
@@ -560,10 +561,10 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
         let mut assigned_center: Vec<usize> = Vec::new();
         cluster.search_data(n_item, &self._nodes, &mut assigned_center);
         self._centers = cluster._centers;
-        for i in 0..n_item {
+        (0..n_item).for_each(|i| {
             let center_id = assigned_center[i];
             self._ivflist[center_id].push(i);
-        }
+        });
 
         for i in 0..n_center {
             let mut center_pq = PQIndex::<E, T>::new(
@@ -574,7 +575,9 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
             );
 
             for j in 0..self._ivflist[i].len() {
-                center_pq.add_item(&self._nodes[self._ivflist[i][j]].clone());
+                center_pq
+                    .add_item(&self._nodes[self._ivflist[i][j]].clone())
+                    .unwrap();
             }
 
             center_pq.set_residual(self._centers[i].to_vec());
@@ -585,17 +588,17 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
         self._is_trained = true;
     }
 
-    pub fn get_distance_from_vec_range(
+    fn get_distance_from_vec_range(
         &self,
         x: &node::Node<E, T>,
-        y: &Vec<E>,
+        y: &[E],
         begin: usize,
         end: usize,
     ) -> E {
         return metrics::metric(&x.vectors()[begin..end], y, self.mt).unwrap();
     }
 
-    pub fn search_knn_adc(
+    fn search_knn_adc(
         &self,
         search_data: &node::Node<E, T>,
         k: usize,

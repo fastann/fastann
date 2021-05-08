@@ -1,6 +1,6 @@
+#![allow(dead_code)]
 use crate::core::ann_index;
 use crate::core::arguments;
-use crate::core::heap::BinaryHeap;
 use crate::core::metrics;
 use crate::core::neighbor::Neighbor;
 use crate::core::node;
@@ -12,6 +12,7 @@ use hashbrown::HashSet;
 use rand::prelude::*;
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use serde::de::DeserializeOwned;
+use std::collections::BinaryHeap;
 
 use serde::{Deserialize, Serialize};
 
@@ -20,7 +21,6 @@ use std::collections::HashMap;
 #[cfg(not(feature = "without_std"))]
 use std::collections::HashSet;
 use std::fs::File;
-use std::io::Read;
 use std::io::Write;
 
 use std::sync::RwLock;
@@ -178,9 +178,9 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         {
             let mut cur_neigh = self.get_neighbor(cur_id, level).write().unwrap();
             cur_neigh.clear();
-            for i in 0..selected_neighbors.len() {
-                cur_neigh.push(selected_neighbors[i].idx());
-            }
+            selected_neighbors.iter().for_each(|selected_neighbor| {
+                cur_neigh.push(selected_neighbor.idx());
+            });
         }
 
         for selected_neighbor in selected_neighbors.iter() {
@@ -484,7 +484,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         (self._n_constructed_items..self._n_items)
             .into_par_iter()
             .for_each(|insert_id: usize| {
-                self.construct_single_item(insert_id);
+                self.construct_single_item(insert_id).unwrap();
                 // println!("insert_id {}", insert_id);
             });
 
@@ -537,7 +537,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
 
         let insert_id = self.init_item(data);
         let _insert_level = self.get_level(insert_id);
-        self.construct_single_item(insert_id);
+        self.construct_single_item(insert_id).unwrap();
 
         self._n_constructed_items += 1;
 

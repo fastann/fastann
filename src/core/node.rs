@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::core::metrics;
 
 use crate::core::simd_metrics;
@@ -168,6 +169,10 @@ impl<E: FloatElement, T: IdxType> Node<E, T> {
 
     pub fn len(&self) -> usize {
         self.vectors.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.vectors.is_empty()
     }
 
     pub fn idx(&self) -> &Option<T> {

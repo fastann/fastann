@@ -19,9 +19,8 @@ pub trait ANNIndex<E: node::FloatElement, T: node::IdxType>: Send + Sync {
     fn batch_add(&mut self, vss: &[&[E]], indices: &[T]) -> Result<(), &'static str> {
         for idx in 0..vss.len() {
             let n = node::Node::new_with_idx(vss[idx], indices[idx].clone());
-            match self.add_node(&n) {
-                Err(err) => return Err(err),
-                _ => (),
+            if let Err(err) = self.add_node(&n) {
+                return Err(err);
             }
         }
         Ok(())
