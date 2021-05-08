@@ -689,7 +689,7 @@ impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwn
             .map(|x| Box::new(x.clone()))
             .collect();
         instance._id2neigh = Vec::with_capacity(instance._id2neigh_tmp.len());
-        for i in 0..instance._id2neigh.len() {
+        for i in 0..instance._id2neigh_tmp.len() {
             let mut tmp = Vec::with_capacity(instance._id2neigh_tmp[i].len());
             for j in 0..instance._id2neigh_tmp[i].len() {
                 tmp.push(RwLock::new(instance._id2neigh_tmp[i][j].clone()));

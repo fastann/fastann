@@ -17,6 +17,7 @@ use prgrs::{Length, Prgrs};
 use rand::distributions::{Distribution, Normal};
 
 use rand::Rng;
+
 use rayon::prelude::*;
 #[cfg(not(feature = "without_std"))]
 use std::collections::HashMap;
@@ -26,7 +27,12 @@ use std::io::{self, prelude::*, BufReader};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
-
+const LINE_SIZE: usize = 40000;
+// rayon::ThreadPoolBuilder::new()
+//     .num_threads(4)
+//     .build_global()
+//     .unwrap();
+const DIMENSION: usize = 50;
 fn make_normal_distribution_clustering(
     clustering_n: usize,
     node_n: usize,
@@ -190,20 +196,20 @@ pub fn run_word_emb_demo() {
     let mut words_vec = Vec::new();
     let mut train_data = Vec::new();
     let mut words_train_data = HashMap::new();
-    let file = File::open("src/bench/glove.6B.50d.txt").unwrap();
+    let file = File::open("glove.6B.50d.txt").unwrap();
     let reader = BufReader::new(file);
 
     let mut idx = 0;
     for line in reader.lines() {
         if let Ok(l) = line {
-            if idx == 80000 {
+            if idx == LINE_SIZE {
                 break;
             }
             let split_line = l.split(' ').collect::<Vec<&str>>();
             let word = split_line[0];
             let mut vecs = Vec::with_capacity(split_line.len() - 1);
             for i in 1..split_line.len() {
-                vecs.push(split_line[i].parse::<f64>().unwrap());
+                vecs.push(split_line[i].parse::<f32>().unwrap());
             }
             words.insert(word.to_string(), idx);
             word_idxs.insert(idx, word.to_string());
@@ -217,78 +223,150 @@ pub fn run_word_emb_demo() {
         }
     }
 
-    let bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new());
-    let bpforest_idx =
-        Box::new(bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(50, 6, -1));
-    // bpforest_idx.show_trees();
-    let _hnsw_idx = Box::new(hnsw::hnsw::HNSWIndex::<f64, usize>::new(
-        50, 10000000, 16, 32, 20, 500, false,
+    let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f32, usize>::new());
+    let mut bpforest_idx = Box::new(
+        bpforest::bpforest::BinaryProjectionForestIndex::<f32, usize>::new(DIMENSION, 6, -1),
+    );
+    let mut hnsw_idx = Box::new(hnsw::hnsw::HNSWIndex::<f32, usize>::new(
+        DIMENSION, 100000, 16, 32, 20, 500, false,
     ));
 
-    let _pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(50, 10, 4, 100));
+    let mut pq_idx = Box::new(pq::pq::PQIndex::<f32, usize>::new(
+        DIMENSION,
+        DIMENSION / 2,
+        4,
+        100,
+    ));
+    let mut ssg_idx = Box::new(mrng::ssg::SatelliteSystemGraphIndex::<f32, usize>::new(
+        DIMENSION, 20, 30, 50, 20.0, 5,
+    ));
 
-    // let indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bf_idx, bpforest_idx, hnsw_idx, pq_idx];
-    let mut indices: Vec<Box<dyn ANNIndex<f64, usize>>> = vec![bf_idx, bpforest_idx];
-    for i in 0..indices.len() {
-        make_idx_baseline(train_data.clone(), &mut indices[i]);
+    make_idx_baseline(train_data.clone(), &mut bf_idx);
+    make_idx_baseline(train_data.clone(), &mut bpforest_idx);
+    make_idx_baseline(train_data.clone(), &mut hnsw_idx);
+    make_idx_baseline(train_data.clone(), &mut pq_idx);
+    make_idx_baseline(train_data, &mut ssg_idx);
+
+    let argument = arguments::Args::new();
+    bf_idx.dump("bf_idx.idx", &argument);
+    bpforest_idx.dump("bpforest_idx.idx", &argument);
+    hnsw_idx.dump("hnsw_idx.idx", &argument);
+    pq_idx.dump("pq_idx.idx", &argument);
+    ssg_idx.dump("ssg_idx.idx", &argument);
+}
+
+pub fn run() {
+    let mut words = HashMap::new();
+    let mut word_idxs = HashMap::new();
+    let mut words_vec = Vec::new();
+    let mut train_data = Vec::new();
+    let mut words_train_data = HashMap::new();
+    let file = File::open("glove.6B.50d.txt").unwrap();
+    let reader = BufReader::new(file);
+
+    let mut idx = 0;
+    for line in reader.lines() {
+        if let Ok(l) = line {
+            if idx == LINE_SIZE {
+                break;
+            }
+            let split_line = l.split(' ').collect::<Vec<&str>>();
+            let word = split_line[0];
+            let mut vecs = Vec::with_capacity(split_line.len() - 1);
+            for i in 1..split_line.len() {
+                vecs.push(split_line[i].parse::<f32>().unwrap());
+            }
+            words.insert(word.to_string(), idx);
+            word_idxs.insert(idx, word.to_string());
+            words_vec.push(word.to_string());
+            words_train_data.insert(word.to_string(), vecs.clone());
+            idx += 1;
+            train_data.push(vecs.clone());
+            if idx % 100000 == 0 {
+                println!("load {:?}", idx);
+            }
+        }
     }
+    let argument = arguments::Args::new();
+    let bf_idx =
+        Box::new(bf::bf::BruteForceIndex::<f32, usize>::load("bf_idx.idx", &argument).unwrap());
+    let _bpforest_idx = Box::new(
+        bpforest::bpforest::BinaryProjectionForestIndex::<f32, usize>::load(
+            "bpforest_idx.idx",
+            &argument,
+        )
+        .unwrap(),
+    );
+    let hnsw_idx =
+        Box::new(hnsw::hnsw::HNSWIndex::<f32, usize>::load("hnsw_idx.idx", &argument).unwrap());
 
-    const K: i32 = 10;
-    for _i in 0..K {
-        let mut rng = rand::thread_rng();
+    let _pq_idx = Box::new(pq::pq::PQIndex::<f32, usize>::load("pq_idx.idx", &argument).unwrap());
+    let _ssg_idx = Box::new(
+        mrng::ssg::SatelliteSystemGraphIndex::<f32, usize>::load("ssg_idx.idx", &argument).unwrap(),
+    );
 
-        let target_word: usize = rng.gen_range(1, words_vec.len());
-        let w = words.get(&words_vec[target_word]).unwrap();
+    let indices: Vec<Box<dyn ANNIndex<f32, usize>>> =
+        // vec![bpforest_idx, pq_idx, ssg_idx, hnsw_idx];
+        vec![hnsw_idx];
 
-        for idx in indices.iter() {
-            let start = SystemTime::now();
+    const K: i32 = 1000;
+    let words: Vec<usize> = (0..K)
+        .map(|_i| {
+            let mut rng = rand::thread_rng();
+            let target_word: usize = rng.gen_range(1, words_vec.len());
+            let w = words.get(&words_vec[target_word]).unwrap();
+            *w
+        })
+        .collect();
+
+    let results: Vec<HashSet<usize>> = words
+        .iter()
+        .map(|w| {
+            bf_idx
+                .search_k(&train_data[*w as usize], 100)
+                .into_iter()
+                .map(|x| x.0.idx().unwrap())
+                .collect()
+        })
+        .collect();
+
+    for idx in indices.iter() {
+        let start = SystemTime::now();
+        let guard = pprof::ProfilerGuard::new(100).unwrap();
+        let mut accuracy = 0;
+        words.iter().zip(0..words.len()).for_each(|(w, i)| {
             let result = idx.search_k(&train_data[*w as usize], 10);
-            for (n, d) in result.iter() {
-                println!(
-                    "{:?} target word: {}, neighbor: {:?}, distance: {:?}",
-                    idx.name(),
-                    words_vec[target_word],
-                    words_vec[n.idx().unwrap()],
-                    d
-                );
-            }
-            let since_the_epoch = SystemTime::now()
-                .duration_since(start)
-                .expect("Time went backwards");
-            println!("{:?}: {:?}", idx.name(), since_the_epoch);
-        }
-    }
 
-    let test_words = vec![
-        "frog", "china", "english", "football", "school", "computer", "apple", "math",
-    ];
-    for tw in test_words.iter() {
-        if let Some(w) = words.get(&tw.to_string()) {
-            for idx in indices.iter() {
-                let start = SystemTime::now();
-                let result = idx.search_k(&train_data[*w as usize], 10);
-                for (n, d) in result.iter() {
-                    println!(
-                        "{:?} target word: {}, neighbor: {:?}, distance: {:?}",
-                        idx.name(),
-                        tw,
-                        words_vec[n.idx().unwrap()],
-                        d
-                    );
+            for (n, _d) in result.iter() {
+                if results[i].contains(&n.idx().unwrap()) {
+                    accuracy += 1;
                 }
-                let since_the_epoch = SystemTime::now()
-                    .duration_since(start)
-                    .expect("Time went backwards");
-                println!("{:?}: {:?}", idx.name(), since_the_epoch);
             }
-        }
+        });
+
+        if let Ok(report) = guard.report().build() {
+            let file = File::create(format!("flamegraph.{}.svg", idx.name())).unwrap();
+            report.flamegraph(file).unwrap();
+        };
+        let since_the_epoch = SystemTime::now()
+            .duration_since(start)
+            .expect("Time went backwards");
+        println!(
+            "{:?}: {:?} accuracy: {}",
+            idx.name(),
+            since_the_epoch,
+            accuracy
+        );
     }
 }
 
-fn make_idx_baseline<T: ANNIndex<f64, usize> + ?Sized>(embs: Vec<Vec<f64>>, idx: &mut Box<T>) {
+fn make_idx_baseline<E: core::node::FloatElement, T: ANNIndex<E, usize> + ?Sized>(
+    embs: Vec<Vec<E>>,
+    idx: &mut Box<T>,
+) {
     let start = SystemTime::now();
     for i in 0..embs.len() {
-        idx.add_node(&core::node::Node::<f64, usize>::new_with_idx(&embs[i], i));
+        idx.add_node(&core::node::Node::<E, usize>::new_with_idx(&embs[i], i));
     }
     idx.construct(core::metrics::Metric::Euclidean).unwrap();
     let since_start = SystemTime::now()
