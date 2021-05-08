@@ -48,7 +48,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
         .unwrap();
     }
 
-    pub fn set_residual(&mut self, residual: Vec<E>){
+    pub fn set_residual(&mut self, residual: Vec<E>) {
         self._has_residual = true;
         self._residual = residual;
     }
@@ -63,10 +63,9 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
         for i in 0..batch_size {
             let cur_data = batch_data[i].vectors();
             for j in 0..dimension {
-                if self._has_residual{
+                if self._has_residual {
                     mean_center[j] += cur_data[begin + j] - self._residual[begin + j];
-                }
-                else{
+                } else {
                     mean_center[j] += cur_data[begin + j];
                 }
             }
@@ -121,8 +120,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
             for j in 0..dimension {
                 if self._has_residual {
                     new_centers[cur_center][j] += cur_data[begin + j] - self._residual[begin + j];
-                }
-                else{
+                } else {
                     new_centers[cur_center][j] += cur_data[begin + j];
                 }
             }
@@ -315,7 +313,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         Ok(insert_id)
     }
 
-    pub fn set_residual(&mut self, residual: Vec<E>){
+    pub fn set_residual(&mut self, residual: Vec<E>) {
         self._has_residual = true;
         self._residual = residual;
     }
@@ -351,8 +349,8 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         end: usize,
     ) -> E {
         let mut z = x.vectors()[begin..end].to_vec();
-        if self._has_residual{
-            (begin..end).map(|i| z[i] -= self._residual[i+begin]);
+        if self._has_residual {
+            (begin..end).map(|i| z[i] -= self._residual[i + begin]);
         }
         return metrics::metric(&z, y, self.mt).unwrap();
     }
@@ -466,7 +464,6 @@ impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwn
     }
 }
 
-
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct IVFPQIndex<E: node::FloatElement, T: node::IdxType> {
     _dimension: usize,     //dimension of data
@@ -476,13 +473,13 @@ pub struct IVFPQIndex<E: node::FloatElement, T: node::IdxType> {
     _sub_bytes: usize,     //code save as byte: (_sub_bit + 7)//8
     _n_sub_center: usize,  //num of centers per subdata code
     //n_center_per_sub = 1 << sub_bits
-    _code_bytes: usize,         // byte of code
-    _train_epoch: usize,        // training epoch
+    _code_bytes: usize,  // byte of code
+    _train_epoch: usize, // training epoch
     _search_n_center: usize,
     _n_kmeans_center: usize,
     _centers: Vec<Vec<E>>,
     _ivflist: Vec<Vec<usize>>, //ivf center id
-    _pq_list: Vec<PQIndex<E,T>>,
+    _pq_list: Vec<PQIndex<E, T>>,
     _is_trained: bool,
 
     _n_items: usize,
@@ -493,7 +490,6 @@ pub struct IVFPQIndex<E: node::FloatElement, T: node::IdxType> {
     // _item2id: HashMap<i32, usize>,
     _nodes_tmp: Vec<node::Node<E, T>>,
 }
-
 
 impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
     pub fn new(
@@ -511,7 +507,7 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
         let n_center_per_sub = (1 << sub_bits) as usize;
         let code_bytes = sub_bytes * n_sub;
         let mut ivflist: Vec<Vec<usize>> = Vec::new();
-        for _i in 0..n_kmeans_center{
+        for _i in 0..n_kmeans_center {
             let ivf: Vec<usize> = Vec::new();
             ivflist.push(ivf);
         }
@@ -571,20 +567,20 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
         let mut assigned_center: Vec<usize> = Vec::new();
         cluster.search_data(n_item, &self._nodes, &mut assigned_center);
         self._centers = cluster._centers;
-        for i in 0..n_item{
+        for i in 0..n_item {
             let center_id = assigned_center[i];
             self._ivflist[center_id].push(i);
         }
-        
-        for i in 0..n_center{
-            let mut center_pq =  PQIndex::<E,T>::new(
+
+        for i in 0..n_center {
+            let mut center_pq = PQIndex::<E, T>::new(
                 self._dimension,
                 self._n_sub,
                 self._sub_bits,
-                self._train_epoch
+                self._train_epoch,
             );
 
-            for j in 0..self._ivflist[i].len(){
+            for j in 0..self._ivflist[i].len() {
                 center_pq.add_item(&self._nodes[self._ivflist[i][j]].clone());
             }
 
@@ -595,7 +591,6 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
 
         self._is_trained = true;
     }
-
 
     pub fn get_distance_from_vec_range(
         &self,
@@ -612,25 +607,24 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
         search_data: &node::Node<E, T>,
         k: usize,
     ) -> Result<BinaryHeap<Neighbor<E, usize>>, &'static str> {
-
         let mut top_centers: BinaryHeap<Neighbor<E, usize>> = BinaryHeap::new();
         let n_kmeans_center = self._n_kmeans_center;
         let dimension = self._dimension;
-        for i in 0..n_kmeans_center{
+        for i in 0..n_kmeans_center {
             top_centers.push(Neighbor::new(
-                i, 
-                -self.get_distance_from_vec_range( search_data, &self._centers[i], 0, dimension)
+                i,
+                -self.get_distance_from_vec_range(search_data, &self._centers[i], 0, dimension),
             ))
         }
 
         let mut top_candidate: BinaryHeap<Neighbor<E, usize>> = BinaryHeap::new();
-        for _i in 0..self._search_n_center{
+        for _i in 0..self._search_n_center {
             let center = top_centers.pop().unwrap().idx();
             let mut ret = self._pq_list[center]
-                    .search_knn_adc(search_data, k)
-                    .unwrap();
+                .search_knn_adc(search_data, k)
+                .unwrap();
             while !ret.is_empty() {
-                let ret_peek= ret.pop().unwrap();
+                let ret_peek = ret.pop().unwrap();
                 top_candidate.push(ret_peek);
                 if top_candidate.len() > k {
                     top_candidate.pop();

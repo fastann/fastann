@@ -3,14 +3,11 @@ use crate::bf;
 use crate::core;
 use crate::core::ann_index::ANNIndex;
 
-
 use crate::hnsw;
 use crate::mrng;
 
-use std::time::{SystemTime};
-use std::{
-    collections::HashSet,
-};
+use std::collections::HashSet;
+use std::time::SystemTime;
 
 pub fn ann_bench() {
     let data_path =
@@ -59,7 +56,8 @@ pub fn ann_bench() {
     //     100,
     // ));
     let mut ssg_idx = Box::new(mrng::ssg::SatelliteSystemGraphIndex::<f32, usize>::new(
-        dimension, &mrng::ssg::SatelliteSystemGraphParams::default(),
+        dimension,
+        &mrng::ssg::SatelliteSystemGraphParams::default(),
     ));
 
     // make_idx_baseline(train.clone(), &mut bf_idx);

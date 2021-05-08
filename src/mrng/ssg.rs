@@ -92,7 +92,7 @@ pub struct SatelliteSystemGraphIndex<E: node::FloatElement, T: node::IdxType> {
 impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
     pub fn new(
         dimension: usize,
-        params:&SatelliteSystemGraphParams<E>
+        params: &SatelliteSystemGraphParams<E>,
     ) -> SatelliteSystemGraphIndex<E, T> {
         SatelliteSystemGraphIndex::<E, T> {
             nodes: Vec::new(),
@@ -105,10 +105,10 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
             knn_graph: Vec::new(),
             root_nodes: Vec::new(),
             width: 0,
-            index_size:params.index_size,
+            index_size: params.index_size,
             angle: params.angle,
             threshold: (params.angle / E::from_f32(180.0).unwrap() * E::PI()).cos(),
-            root_size:params.root_size,
+            root_size: params.root_size,
 
             search_times: 0,
         }

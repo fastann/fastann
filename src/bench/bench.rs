@@ -93,7 +93,8 @@ pub fn run_similarity_profile(test_time: usize) {
         100,
     ));
     let ssg_idx = Box::new(mrng::ssg::SatelliteSystemGraphIndex::<f64, usize>::new(
-        dimension, &mrng::ssg::SatelliteSystemGraphParams::default(),
+        dimension,
+        &mrng::ssg::SatelliteSystemGraphParams::default(),
     ));
 
     // let mut indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bpforest_idx];
@@ -238,7 +239,8 @@ pub fn run_word_emb_demo() {
         100,
     ));
     let mut ssg_idx = Box::new(mrng::ssg::SatelliteSystemGraphIndex::<f32, usize>::new(
-        DIMENSION, &mrng::ssg::SatelliteSystemGraphParams::default(),
+        DIMENSION,
+        &mrng::ssg::SatelliteSystemGraphParams::default(),
     ));
 
     make_idx_baseline(train_data.clone(), &mut bf_idx);
