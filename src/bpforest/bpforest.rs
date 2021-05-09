@@ -1,14 +1,15 @@
+#![allow(dead_code)]
 use crate::core::ann_index;
 use crate::core::arguments;
 use crate::core::calc;
-use crate::core::heap::BinaryHeap;
 use crate::core::metrics;
 use crate::core::neighbor;
 use crate::core::node;
 use crate::core::random;
-
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
+use std::collections::BinaryHeap;
 
 use std::fs::File;
 
@@ -141,9 +142,10 @@ fn two_means<E: node::FloatElement, T: node::IdxType>(
         let mut norm = one;
         if mt == metrics::Metric::CosineSimilarity {
             norm = calc::get_norm(&leaves[k].node.vectors()).unwrap();
-            if !(norm > zero) {
-                continue;
-            }
+            match norm.partial_cmp(&zero) {
+                Some(Ordering::Equal) | Some(Ordering::Less) => continue,
+                _ => {}
+            };
         }
 
         // make p more closer to k in space.
@@ -235,16 +237,15 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         Ok(())
     }
 
-    fn clear(&mut self) -> Result<(), &'static str> {
+    fn clear(&mut self) {
         self._roots.clear();
         self._tot_leaves_cnt = self._tot_items_cnt;
         self._built = false;
-        Ok(())
     }
-    fn get_distance(&self, i: i32, j: i32) -> Result<E, &'static str> {
+    fn get_distance(&self, i: i32, j: i32) -> E {
         let ni = self.get_leaf(i).unwrap();
         let nj = self.get_leaf(j).unwrap();
-        return Ok(metrics::metric(&ni.node.vectors(), &nj.node.vectors(), self.mt).unwrap());
+        return metrics::metric(&ni.node.vectors(), &nj.node.vectors(), self.mt).unwrap();
     }
 
     fn get_tot_items_cnt(&self) -> i32 {
@@ -359,9 +360,8 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         }
 
         let mut children: Vec<Leaf<E, T>> = Vec::new();
-        for i in 1..indices.len() {
-            let j = indices[i];
-            match self.get_leaf(j) {
+        for j in indices.iter().skip(1) {
+            match self.get_leaf(*j) {
                 None => continue,
                 Some(leaf) => {
                     children.push(leaf.clone());
@@ -380,11 +380,10 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
             self.create_split(children.as_slice(), &mut new_parent_leaf, mt)
                 .unwrap();
 
-            for i in 1..indices.len() {
-                let leaf_idx = indices[i];
-                let leaf = self.get_leaf(leaf_idx as i32).unwrap();
+            for leaf_idx in indices.iter().skip(1) {
+                let leaf = self.get_leaf(*leaf_idx as i32).unwrap();
                 let side = self.side(&new_parent_leaf, &leaf.node.vectors());
-                children_indices[(side as usize)].push(leaf_idx);
+                children_indices[(side as usize)].push(*leaf_idx);
             }
 
             if calc::split_imbalance(&children_indices[0], &children_indices[1]) < 0.85 {
@@ -407,9 +406,8 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
                 }
             }
 
-            for i in 1..indices.len() {
-                let j = indices[i];
-                children_indices[random::flip() as usize].push(j);
+            for j in indices.iter().skip(1) {
+                children_indices[random::flip() as usize].push(*j);
             }
         }
 
@@ -495,16 +493,15 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         nns.sort_unstable(); // sort id and filter dup to avoid same id;
         let mut nns_vec: Vec<neighbor::Neighbor<E, usize>> = Vec::new();
         let mut last = -1;
-        for i in 0..nns.len() {
-            let j = nns[i];
-            if j == last {
+        for j in nns.iter() {
+            if *j == last {
                 continue;
             }
-            last = j;
-            let leaf = self.get_leaf(j).unwrap();
+            last = *j;
+            let leaf = self.get_leaf(*j).unwrap();
             if leaf.n_descendants == 1 {
                 nns_vec.push(neighbor::Neighbor::new(
-                    j as usize,
+                    *j as usize,
                     metrics::metric(&v_leaf.node.vectors(), &leaf.node.vectors(), self.mt).unwrap(),
                 ))
             }
@@ -514,10 +511,10 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         let return_size = if n < nns_vec.len() { n } else { nns_vec.len() };
         let mut result: Vec<(node::Node<E, T>, E)> = Vec::new();
 
-        for i in 0..return_size {
+        for item in nns_vec.iter().take(return_size) {
             result.push((
-                self.get_leaf(nns_vec[i]._idx as i32).unwrap().clone_node(),
-                nns_vec[i]._distance,
+                self.get_leaf(item._idx as i32).unwrap().clone_node(),
+                item._distance,
             ));
         }
 

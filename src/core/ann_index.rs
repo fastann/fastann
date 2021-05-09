@@ -19,9 +19,8 @@ pub trait ANNIndex<E: node::FloatElement, T: node::IdxType>: Send + Sync {
     fn batch_add(&mut self, vss: &[&[E]], indices: &[T]) -> Result<(), &'static str> {
         for idx in 0..vss.len() {
             let n = node::Node::new_with_idx(vss[idx], indices[idx].clone());
-            match self.add_node(&n) {
-                Err(err) => return Err(err),
-                _ => (),
+            if let Err(err) = self.add_node(&n) {
+                return Err(err);
             }
         }
         Ok(())
@@ -48,6 +47,14 @@ pub trait ANNIndex<E: node::FloatElement, T: node::IdxType>: Send + Sync {
     fn search_k(&self, item: &[E], k: usize) -> Vec<(node::Node<E, T>, E)> {
         let n = node::Node::new(item);
         self.node_search_k(&n, k, &arguments::Args::new())
+    }
+
+    fn search_k_ids(&self, item: &[E], k: usize) -> Vec<T> {
+        let n = node::Node::new(item);
+        self.node_search_k(&n, k, &arguments::Args::new())
+            .iter()
+            .map(|x| x.0.idx().as_ref().unwrap().clone())
+            .collect::<Vec<T>>()
     }
 
     fn search_k_with_args(

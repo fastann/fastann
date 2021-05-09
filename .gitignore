@@ -7,3 +7,4 @@
 *.idx
 *.txt
 *.zip
+.DS_Store

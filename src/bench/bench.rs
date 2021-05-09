@@ -27,7 +27,7 @@ use std::io::{self, prelude::*, BufReader};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
-const LINE_SIZE: usize = 40000;
+const LINE_SIZE: usize = 10000;
 // rayon::ThreadPoolBuilder::new()
 //     .num_threads(4)
 //     .build_global()
@@ -93,7 +93,8 @@ pub fn run_similarity_profile(test_time: usize) {
         100,
     ));
     let ssg_idx = Box::new(mrng::ssg::SatelliteSystemGraphIndex::<f64, usize>::new(
-        dimension, 100, 30, 50, 20.0, 5,
+        dimension,
+        &mrng::ssg::SatelliteSystemGraphParams::default(),
     ));
 
     // let mut indices: Vec<Box<ANNIndex<f64, usize>>> = vec![bpforest_idx];
@@ -110,7 +111,7 @@ pub fn run_similarity_profile(test_time: usize) {
     make_idx_baseline(ns.clone(), &mut bf_idx);
     // make_idx_baseline(ns.clone(), &mut ssg_idx);
     // ssg_idx.connectivity_profile();
-    let guard = pprof::ProfilerGuard::new(100).unwrap();
+    let _guard = pprof::ProfilerGuard::new(100).unwrap();
     for _i in Prgrs::new(0..test_time, 1000).set_length_move(Length::Proportional(0.5)) {
         // (0..test_time).into_par_iter().for_each(|_| {
         let mut rng = rand::thread_rng();
@@ -145,12 +146,12 @@ pub fn run_similarity_profile(test_time: usize) {
         }
     }
 
-    if let Ok(report) = guard.report().build() {
-        let file = File::create("flamegraph.svg").unwrap();
-        let mut options = pprof::flamegraph::Options::default();
-        options.image_width = Some(2500);
-        report.flamegraph_with_options(file, &mut options).unwrap();
-    };
+    // if let Ok(report) = guard.report().build() {
+    //     let file = File::create("flamegraph.svg").unwrap();
+    //     let mut options = pprof::flamegraph::Options::default();
+    //     options.image_width = Some(2500);
+    //     report.flamegraph_with_options(file, &mut options).unwrap();
+    // };
     // });
 
     println!(
@@ -238,7 +239,8 @@ pub fn run_word_emb_demo() {
         100,
     ));
     let mut ssg_idx = Box::new(mrng::ssg::SatelliteSystemGraphIndex::<f32, usize>::new(
-        DIMENSION, 20, 30, 50, 20.0, 5,
+        DIMENSION,
+        &mrng::ssg::SatelliteSystemGraphParams::default(),
     ));
 
     make_idx_baseline(train_data.clone(), &mut bf_idx);
@@ -268,6 +270,7 @@ pub fn run() {
     for line in reader.lines() {
         if let Ok(l) = line {
             if idx == LINE_SIZE {
+                println!("done {:?}", idx);
                 break;
             }
             let split_line = l.split(' ').collect::<Vec<&str>>();
@@ -282,7 +285,7 @@ pub fn run() {
             words_train_data.insert(word.to_string(), vecs.clone());
             idx += 1;
             train_data.push(vecs.clone());
-            if idx % 100000 == 0 {
+            if idx % 1000 == 0 {
                 println!("load {:?}", idx);
             }
         }
@@ -290,24 +293,24 @@ pub fn run() {
     let argument = arguments::Args::new();
     let bf_idx =
         Box::new(bf::bf::BruteForceIndex::<f32, usize>::load("bf_idx.idx", &argument).unwrap());
-    let _bpforest_idx = Box::new(
-        bpforest::bpforest::BinaryProjectionForestIndex::<f32, usize>::load(
-            "bpforest_idx.idx",
-            &argument,
-        )
-        .unwrap(),
-    );
-    let hnsw_idx =
+    // let _bpforest_idx = Box::new(
+    //     bpforest::bpforest::BinaryProjectionForestIndex::<f32, usize>::load(
+    //         "bpforest_idx.idx",
+    //         &argument,
+    //     )
+    //     .unwrap(),
+    // );
+    let _hnsw_idx =
         Box::new(hnsw::hnsw::HNSWIndex::<f32, usize>::load("hnsw_idx.idx", &argument).unwrap());
 
-    let _pq_idx = Box::new(pq::pq::PQIndex::<f32, usize>::load("pq_idx.idx", &argument).unwrap());
+    // let _pq_idx = Box::new(pq::pq::PQIndex::<f32, usize>::load("pq_idx.idx", &argument).unwrap());
     let _ssg_idx = Box::new(
         mrng::ssg::SatelliteSystemGraphIndex::<f32, usize>::load("ssg_idx.idx", &argument).unwrap(),
     );
 
     let indices: Vec<Box<dyn ANNIndex<f32, usize>>> =
         // vec![bpforest_idx, pq_idx, ssg_idx, hnsw_idx];
-        vec![hnsw_idx];
+        vec![_ssg_idx];
 
     const K: i32 = 1000;
     let words: Vec<usize> = (0..K)
@@ -332,11 +335,14 @@ pub fn run() {
 
     for idx in indices.iter() {
         let start = SystemTime::now();
-        let guard = pprof::ProfilerGuard::new(100).unwrap();
+        println!("hioyipppppp");
+        let guard = pprof::ProfilerGuard::new(50).unwrap();
+        println!("hioyioiohio");
         let mut accuracy = 0;
         words.iter().zip(0..words.len()).for_each(|(w, i)| {
+            println!("hioyo {:?} {:?}", i, words.len());
             let result = idx.search_k(&train_data[*w as usize], 10);
-
+            println!("hio {:?} {:?}", i, words.len());
             for (n, _d) in result.iter() {
                 if results[i].contains(&n.idx().unwrap()) {
                     accuracy += 1;
@@ -345,7 +351,7 @@ pub fn run() {
         });
 
         if let Ok(report) = guard.report().build() {
-            let file = File::create(format!("flamegraph.{}.svg", idx.name())).unwrap();
+            let file = File::create(format!("flamegraph2.{}.svg", idx.name())).unwrap();
             report.flamegraph(file).unwrap();
         };
         let since_the_epoch = SystemTime::now()
