@@ -4,3 +4,7 @@
 /src/bench/*.zip
 /src/bench/*.tar.gz
 *.svg
+*.idx
+*.txt
+*.zip
+.DS_Store

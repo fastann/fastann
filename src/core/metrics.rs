@@ -1,9 +1,10 @@
 extern crate num;
 use crate::core::calc::dot;
-use crate::core::calc::same_dimension;
-use crate::core::node::FloatElement;
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+use crate::core::node::FloatElement;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Metric {
     Unknown,
     Manhattan,
@@ -53,7 +54,7 @@ pub fn dot_product<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
 where
     T: FloatElement,
 {
-    same_dimension(vec1, vec2)?;
+    assert_eq!(vec1.len(), vec2.len());
     // smaller means closer.
     match dot(vec1, vec2) {
         Ok(x) => Result::Ok(-x),
@@ -65,33 +66,21 @@ pub fn manhattan_distance<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
 where
     T: FloatElement,
 {
-    same_dimension(vec1, vec2)?;
-    Result::Ok(
-        vec1.iter()
-            .zip(vec2.iter())
-            .map(|v| (*v.0 - *v.1).abs())
-            .sum(),
-    )
+    T::manhattan_distance(vec1, vec2)
 }
 
 pub fn euclidean_distance<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
 where
     T: FloatElement,
 {
-    same_dimension(vec1, vec2)?;
-    Result::Ok(
-        vec1.iter()
-            .zip(vec2.iter())
-            .map(|v| (*v.0 - *v.1).powi(2))
-            .sum(),
-    )
+    T::euclidean_distance(vec1, vec2)
 }
 
 pub fn cosine_similarity<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
 where
     T: FloatElement,
 {
-    same_dimension(vec1, vec2)?;
+    assert_eq!(vec1.len(), vec2.len());
     // smaller means closer.
     Result::Ok(
         -dot(vec1, vec2).unwrap()
@@ -106,7 +95,7 @@ pub fn angular_distance<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
 where
     T: FloatElement,
 {
-    same_dimension(vec1, vec2)?;
+    assert_eq!(vec1.len(), vec2.len());
     let rhd = dot(vec1, vec1).unwrap();
     let lhd = dot(vec2, vec2).unwrap();
     let rldot = dot(vec1, vec2).unwrap();

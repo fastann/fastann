@@ -14,10 +14,10 @@ pub fn dot<T>(vec1: &[T], vec2: &[T]) -> Result<T, &'static str>
 where
     T: FloatElement,
 {
-    same_dimension(vec1, vec2)?;
-    Result::Ok(vec1.iter().zip(vec2.iter()).map(|v| *v.0 * *v.1).sum())
+    T::dot_product(&vec1, &vec2)
 }
 
+#[inline(always)]
 pub fn same_dimension<T>(vec1: &[T], vec2: &[T]) -> Result<(), &'static str>
 where
     T: FloatElement,
@@ -36,5 +36,119 @@ pub fn split_imbalance<T>(vec1: &[T], vec2: &[T]) -> f64 {
         f
     } else {
         1.0 - f
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::simd_metrics::SIMDOptmized;
+
+    use rand::distributions::{Distribution, Normal};
+
+    use rand::Rng;
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+    fn make_normal_distribution_clustering(
+        clustering_n: usize,
+        node_n: usize,
+        dimension: usize,
+        range: f64,
+    ) -> (
+        Vec<Vec<f64>>, // center of cluster
+        Vec<Vec<f64>>, // cluster data
+    ) {
+        let mut rng = rand::thread_rng();
+
+        let mut bases: Vec<Vec<f64>> = Vec::new();
+        let mut ns: Vec<Vec<f64>> = Vec::new();
+        let normal = Normal::new(0.0, range / 50.0);
+        for _i in 0..clustering_n {
+            let mut base: Vec<f64> = Vec::with_capacity(dimension);
+            for _i in 0..dimension {
+                let n: f64 = rng.gen_range(-range, range); // base number
+                base.push(n);
+            }
+
+            for _i in 0..node_n {
+                let v_iter: Vec<f64> = rng.sample_iter(&normal).take(dimension).collect();
+                let mut vec_item = Vec::with_capacity(dimension);
+                for i in 0..dimension {
+                    let vv = v_iter[i] + base[i]; // add normal distribution noise
+                    vec_item.push(vv);
+                }
+                ns.push(vec_item);
+            }
+            bases.push(base);
+        }
+
+        (bases, ns)
+    }
+    #[test]
+    fn test_dot() {
+        let a = [1., 2., 3.];
+        let b = [1., 2., 3.];
+        assert_eq!(dot(&a, &b).unwrap(), 14.0);
+    }
+
+    #[test]
+    fn bench_dot() {
+        let dimension = 8024;
+        let nodes_every_cluster = 600;
+        let node_n = 50;
+        let (_, nso) =
+            make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 100000.0);
+        println!("hello world {:?}", nso.len());
+        let ns: Vec<Vec<f32>> = nso
+            .iter()
+            .map(|x| x.iter().map(|p| *p as f32).collect())
+            .collect();
+
+        {
+            let base_start = SystemTime::now();
+            let sumbase = ns
+                .iter()
+                .map(|nsx| {
+                    // dot(&nsx, &nsx);
+                    // nsx.iter().zip(nsx).map(|(p, q)| p * q).sum::<f32>()
+                    nsx.iter()
+                        .zip(nsx)
+                        .map(|(p, q)| (p - q).powi(2))
+                        .sum::<f32>()
+                })
+                .sum::<f32>();
+            let base_since_the_epoch = SystemTime::now()
+                .duration_since(base_start)
+                .expect("Time went backwards");
+            println!(
+                "test for {:?} times, base use {:?} millisecond {:?}",
+                ns.len(),
+                base_since_the_epoch.as_millis(),
+                sumbase
+            );
+        }
+
+        {
+            let base_start = SystemTime::now();
+            let sumsimd = ns
+                .iter()
+                .map(|nsx| f32::euclidean_distance(&nsx, &nsx).unwrap())
+                .sum::<f32>();
+            let base_since_the_epoch = SystemTime::now()
+                .duration_since(base_start)
+                .expect("Time went backwards");
+            println!(
+                "test for {:?} times, simd use {:?} millisecond, {:?}",
+                ns.len(),
+                base_since_the_epoch.as_millis(),
+                sumsimd
+            );
+        }
+
+        let b = 25;
+        println!(
+            "{:?}, {:?}",
+            f32::dot_product(&ns[b], &ns[b]),
+            dot(&ns[b], &ns[b]).unwrap()
+        );
     }
 }
