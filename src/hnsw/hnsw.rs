@@ -46,7 +46,8 @@ pub struct HNSWIndex<E: node::FloatElement, T: node::IdxType> {
     _root_id: usize,     //root of hnsw
     _id2level: Vec<usize>,
     _has_removed: bool,
-    _ef_default: usize, // num of max candidates when searching
+    _ef_build: usize, // num of max candidates when building
+    _ef_search: usize, // num of max candidates when searching
     #[serde(skip_serializing, skip_deserializing)]
     _delete_ids: HashSet<usize>, //save deleted ids
     mt: metrics::Metric, //compute metrics
@@ -66,17 +67,14 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         n_neighbor: usize,
         n_neighbor0: usize,
         max_level: usize,
-        ef: usize,
+        ef_build: usize,
+        ef_search: usize,
         has_deletion: bool,
     ) -> HNSWIndex<E, T> {
         HNSWIndex {
             _dimension: dimension,
             _n_items: 0,
-<<<<<<< HEAD
-            _n_contructed_items: 0,
-=======
             _n_constructed_items: 0,
->>>>>>> upstream/main
             _max_item: max_item,
             _n_neighbor: n_neighbor,
             _n_neighbor0: n_neighbor0,
@@ -84,12 +82,9 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
             _cur_level: 0,
             _root_id: 0,
             _has_removed: has_deletion,
-            _ef_default: ef,
-<<<<<<< HEAD
-            _metri: metrics::Metric::Manhattan,
-=======
+            _ef_build: ef_build,
+            _ef_search: ef_search,
             mt: metrics::Metric::Unknown,
->>>>>>> upstream/main
             ..Default::default()
         }
     }
@@ -104,11 +99,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
                 break;
             }
         }
-<<<<<<< HEAD
-        return ret;
-=======
         ret
->>>>>>> upstream/main
     }
     //input top_candidate as max top heap
     //return min top heap in top_candidates, delete part candidate
@@ -147,28 +138,14 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
             }
         }
 
-<<<<<<< HEAD
-        for ret_neighbor in &return_list {
-            top_candidates.push(Neighbor::new(ret_neighbor.idx(), ret_neighbor._distance));
-        }
-
-        return Ok(());
-=======
         return_list // from small to large
->>>>>>> upstream/main
     }
 
     fn get_neighbor(&self, id: usize, level: usize) -> &RwLock<Vec<usize>> {
         if level == 0 {
-<<<<<<< HEAD
-            return &self._id2neigh0[id];
-        }
-        return &self._id2neigh[id][level - 1];
-=======
             return &self._id2neighbor0[id];
         }
         &self._id2neighbor[id][level - 1]
->>>>>>> upstream/main
     }
 
     #[allow(dead_code)]
@@ -202,15 +179,6 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         {
             let mut cur_neigh = self.get_neighbor(cur_id, level).write().unwrap();
             cur_neigh.clear();
-<<<<<<< HEAD
-            for i in 0..selected_neighbors.len() {
-                cur_neigh.push(selected_neighbors[i]);
-            }
-        }
-
-        for selected_neighbor in selected_neighbors {
-            let mut neighbor_of_selected_neighbors = self.get_neighbor(selected_neighbor, level).write().unwrap();
-=======
             selected_neighbors.iter().for_each(|selected_neighbor| {
                 cur_neigh.push(selected_neighbor.idx());
             });
@@ -221,7 +189,6 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
                 .get_neighbor(selected_neighbor.idx(), level)
                 .write()
                 .unwrap();
->>>>>>> upstream/main
             if neighbor_of_selected_neighbors.len() > n_neigh {
                 return Err("Bad Value of neighbor_of_selected_neighbors");
             }
@@ -248,21 +215,6 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
 
                     let mut candidates: BinaryHeap<Neighbor<E, usize>> = BinaryHeap::new();
                     candidates.push(Neighbor::new(cur_id, d_max));
-<<<<<<< HEAD
-                    for i in 0..neighbor_of_selected_neighbors.len(){
-                        let neighbor_id = neighbor_of_selected_neighbors[i];
-                        let d_neigh = self.get_distance_from_id(neighbor_id, selected_neighbor);
-                        candidates.push(Neighbor::new(neighbor_id, d_neigh));
-                    }
-                    self.get_neighbors_by_heuristic2(&mut candidates, n_neigh)
-                        .unwrap();
-
-                    neighbor_of_selected_neighbors.clear();
-                    while !candidates.is_empty() {
-                        // selected_neighbor = candidates.peek().unwrap().idx();
-                        neighbor_of_selected_neighbors.push(candidates.peek().unwrap().idx());
-                        candidates.pop();
-=======
                     for iter in neighbor_of_selected_neighbors.iter() {
                         let neighbor_id = *iter;
                         let d_neigh =
@@ -275,7 +227,6 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
                     neighbor_of_selected_neighbors.clear();
                     for neighbor_in_list in return_list {
                         neighbor_of_selected_neighbors.push(neighbor_in_list.idx());
->>>>>>> upstream/main
                     }
                 }
             }
@@ -286,11 +237,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
 
     #[allow(dead_code)]
     pub fn delete_id(&mut self, id: usize) -> Result<(), &'static str> {
-<<<<<<< HEAD
-        if id > self._n_contructed_items {
-=======
         if id > self._n_constructed_items {
->>>>>>> upstream/main
             return Err("Invalid delete id");
         }
         if self.is_deleted(id) {
@@ -418,27 +365,17 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
                 break;
             }
             let cur_neighbors = self.get_neighbor(cur_id, level).read().unwrap();
-<<<<<<< HEAD
-            for i in 0..cur_neighbors.len() {
-                let neigh = cur_neighbors[i];
-                if visted_id.contains(&neigh) {
-                    continue;
-                }
-                visted_id.insert(neigh);
-                let dist = self.get_distance_from_vec(self.get_data(neigh), search_data);
-=======
             cur_neighbors.iter().for_each(|neigh| {
                 if visited_id.contains(*neigh) {
                     return;
                 }
                 visited_id.insert(*neigh);
                 let dist = self.get_distance_from_vec(self.get_data(*neigh), search_data);
->>>>>>> upstream/main
                 if top_candidates.len() < ef || dist < lower_bound {
-                    candidates.push(Neighbor::new(neigh, -dist));
+                    candidates.push(Neighbor::new(*neigh, -dist));
 
-                    if !self.is_deleted(neigh) {
-                        top_candidates.push(Neighbor::new(neigh, dist))
+                    if !self.is_deleted(*neigh) {
+                        top_candidates.push(Neighbor::new(*neigh, dist))
                     }
 
                     if top_candidates.len() > ef {
@@ -461,7 +398,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
     //     search_data: &node::Node<E, T>,
     //     level: usize,
     // ) -> BinaryHeap<Neighbor<E, usize>> {
-    //     return self.search_layer(root, search_data, level, self._ef_default, false);
+    //     return self.search_layer(root, search_data, level, self._ef_build, false);
     // }
 
     pub fn search_knn(
@@ -470,11 +407,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         k: usize,
     ) -> Result<BinaryHeap<Neighbor<E, usize>>, &'static str> {
         let mut top_candidate: BinaryHeap<Neighbor<E, usize>> = BinaryHeap::new();
-<<<<<<< HEAD
-        if self._n_contructed_items == 0 {
-=======
         if self._n_constructed_items == 0 {
->>>>>>> upstream/main
             return Ok(top_candidate);
         }
         let mut cur_id = self._root_id;
@@ -484,25 +417,18 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
             let mut changed = true;
             while changed {
                 changed = false;
-<<<<<<< HEAD
-                let cur_neighs = self.get_neighbor(cur_id, cur_level as usize).read().unwrap();
-                for i in 0..cur_neighs.len() {
-                    let neigh = cur_neighs[i];
-                    if neigh > self._max_item {
-=======
                 let cur_neighs = self
                     .get_neighbor(cur_id, cur_level as usize)
                     .read()
                     .unwrap();
                 for neigh in cur_neighs.iter() {
                     if *neigh > self._max_item {
->>>>>>> upstream/main
                         return Err("cand error");
                     }
                     let dist = self.get_distance_from_vec(self.get_data(cur_id), search_data);
                     if dist < cur_dist {
                         cur_dist = dist;
-                        cur_id = neigh;
+                        cur_id = *neigh;
                         changed = true;
                     }
                 }
@@ -513,18 +439,13 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
             cur_level -= 1;
         }
 
-        let search_range = if self._ef_default > k {
-            self._ef_default
+        let search_range = if self._ef_search > k {
+            self._ef_search
         } else {
             k
         };
 
-<<<<<<< HEAD
-        top_candidate =
-            self.search_laryer(cur_id, search_data, 0, search_range, self._has_deletons);
-=======
         top_candidate = self.search_layer(cur_id, search_data, 0, search_range, self._has_removed);
->>>>>>> upstream/main
         while top_candidate.len() > k {
             top_candidate.pop();
         }
@@ -540,17 +461,10 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
             self._cur_level = cur_level;
             self._root_id = cur_id;
         }
-<<<<<<< HEAD
-        let neigh0: RwLock<Vec<usize>> = RwLock::new(Vec::new());
-        let mut neigh: Vec<RwLock<Vec<usize>>> = Vec::new();
-        for i in 0..cur_level {
-            let level_neigh:  RwLock<Vec<usize>> = RwLock::new(Vec::new());
-=======
         let neigh0: RwLock<Vec<usize>> = RwLock::new(Vec::with_capacity(self._n_neighbor0));
         let mut neigh: Vec<RwLock<Vec<usize>>> = Vec::with_capacity(cur_level);
         for _i in 0..cur_level {
             let level_neigh: RwLock<Vec<usize>> = RwLock::new(Vec::with_capacity(self._n_neighbor));
->>>>>>> upstream/main
             neigh.push(level_neigh);
         }
         self._nodes.push(Box::new(data.clone()));
@@ -605,59 +519,9 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         Ok(())
     }
 
-<<<<<<< HEAD
-    fn batch_construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
-        if self._n_items < self._n_contructed_items{
-            return Err("contruct error");
-        }
-
-        (self._n_contructed_items..self._n_items)
-        .into_par_iter()
-        .for_each(|insert_id: usize|
-        {
-            self.construct_single_item(insert_id);
-            // println!("insert_id {}", insert_id);
-            return;
-        });
-        
-        // for insert_id in self._n_contructed_items..self._n_items{
-        //     // println!("insert id {}", insert_id);
-        //     self.construct_single_item(insert_id);
-        // }
-
-
-        self._n_contructed_items = self._n_items;
-        return Ok(());
-    }
-
-
-    pub fn add_item_not_constructed(&mut self, data: &node::Node<E, T>) -> Result<(), &'static str> {
-        if data.len() != self._demension {
-            return Err("dimension is different");
-        }
-        {
-            // if self._item2id.contains_key(data.idx().unwrap()) {
-            //     //to_do update point
-            //     return Ok(self._item2id[data.idx().unwrap()]);
-            // }
-
-            if self._n_items >= self._max_item {
-                return Err("The number of elements exceeds the specified limit");
-            }
-        }
-
-        let insert_id = self.init_item(data);
-        let insert_level = self.get_level(insert_id);
-        return Ok(());
-    }
-
-    pub fn add_single_item(&mut self, data: &node::Node<E, T>) -> Result<(), &'static str> {//not support asysn
-        if data.len() != self._demension {
-=======
     pub fn add_single_item(&mut self, data: &node::Node<E, T>) -> Result<(), &'static str> {
         //not support asysn
         if data.len() != self._dimension {
->>>>>>> upstream/main
             return Err("dimension is different");
         }
         {
@@ -672,17 +536,6 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         }
 
         let insert_id = self.init_item(data);
-<<<<<<< HEAD
-        let insert_level= self.get_level(insert_id);
-        self.construct_single_item(insert_id);
-
-        self._n_contructed_items += 1;
-
-        return Ok(());
-    }
-
-    pub fn construct_single_item(&self, insert_id: usize) -> Result<(), &'static str>{
-=======
         let _insert_level = self.get_level(insert_id);
         self.construct_single_item(insert_id).unwrap();
 
@@ -692,7 +545,6 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
     }
 
     pub fn construct_single_item(&self, insert_id: usize) -> Result<(), &'static str> {
->>>>>>> upstream/main
         let insert_level = self._id2level[insert_id];
         // println!("insert id {} insert_level {}", insert_id, insert_level);
         // println!("self._cur_level {}", self._cur_level);
@@ -712,20 +564,14 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
                 while changed {
                     changed = false;
                     let cur_neighs = self.get_neighbor(cur_id, cur_level).read().unwrap();
-<<<<<<< HEAD
-                    for i in 0..cur_neighs.len() {
-                        let cur_neigh = cur_neighs[i];
-                        if cur_neigh > self._n_items {
-=======
                     for cur_neigh in cur_neighs.iter() {
                         if *cur_neigh > self._n_items {
->>>>>>> upstream/main
                             return Err("cand error");
                         }
-                        let neigh_dist = self.get_distance_from_id(cur_neigh, insert_id);
+                        let neigh_dist = self.get_distance_from_id(*cur_neigh, insert_id);
                         if neigh_dist < cur_dist {
                             cur_dist = neigh_dist;
-                            cur_id = cur_neigh;
+                            cur_id = *cur_neigh;
                             changed = true;
                         }
                     }
@@ -754,14 +600,14 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
                 &sorted_candidates,
                 &mut visited_id,
                 level,
-                self._ef_default,
+                self._ef_build,
                 false,
             );
             // let mut top_candidates = self.search_layer_default(cur_id, insert_data, level);
             if self.is_deleted(cur_id) {
                 let cur_dist = self.get_distance_from_id(cur_id, insert_id);
                 top_candidates.push(Neighbor::new(cur_id, cur_dist));
-                if top_candidates.len() > self._ef_default {
+                if top_candidates.len() > self._ef_build {
                     top_candidates.pop();
                 }
             }
@@ -779,22 +625,14 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
             }
             level -= 1;
         }
-<<<<<<< HEAD
-        return Ok(());
-=======
         Ok(())
->>>>>>> upstream/main
     }
 }
 
 impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for HNSWIndex<E, T> {
     fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
-<<<<<<< HEAD
-        return self.batch_construct(mt);
-=======
         self.mt = mt;
         self.batch_construct(mt)
->>>>>>> upstream/main
     }
     fn add_node(&mut self, item: &node::Node<E, T>) -> Result<(), &'static str> {
         self.add_item_not_constructed(item)
