@@ -25,6 +25,65 @@ use std::io::Write;
 
 use std::sync::RwLock;
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HNSWParams<E: node::FloatElement> {
+    max_item: usize,
+    n_neighbor: usize,
+    n_neighbor0: usize,
+    max_level: usize,
+    ef_build: usize,
+    ef_search: usize,
+    has_deletion: bool,
+    e_type: E,
+}
+
+impl<E: node::FloatElement> HNSWParams<E> {
+    pub fn max_item(mut self, new_max_item: usize) -> Self {
+        self.max_item = new_max_item;
+        self
+    }
+
+    pub fn n_neighbor(mut self, new_n_neighbor: usize) -> Self {
+        self.n_neighbor = new_n_neighbor;
+        self
+    }
+
+    pub fn n_neighbor0(mut self, new_n_neighbor0: usize) -> Self {
+        self.n_neighbor0 = new_n_neighbor0;
+        self
+    }
+
+    pub fn ef_build(mut self, new_ef_build: usize) -> Self {
+        self.ef_build = new_ef_build;
+        self
+    }
+
+    pub fn ef_search(mut self, new_ef_search: usize) -> Self {
+        self.ef_search = new_ef_search;
+        self
+    }
+
+    pub fn has_deletion(mut self, new_has_deletion: bool) -> Self {
+        self.has_deletion = new_has_deletion;
+        self
+    }
+}
+
+impl<E: node::FloatElement> Default for HNSWParams<E> {
+    fn default() -> Self {
+        HNSWParams {
+            max_item: 1000000,
+            n_neighbor: 32,
+            n_neighbor0: 64,
+            max_level: 20,
+            ef_build: 500,
+            ef_search: 16,
+            has_deletion: false,
+            e_type: E::from_f32(0.0).unwrap()
+        }
+    }
+}
+
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct HNSWIndex<E: node::FloatElement, T: node::IdxType> {
     _dimension: usize, // dimension
@@ -63,27 +122,21 @@ pub struct HNSWIndex<E: node::FloatElement, T: node::IdxType> {
 impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
     pub fn new(
         dimension: usize,
-        max_item: usize,
-        n_neighbor: usize,
-        n_neighbor0: usize,
-        max_level: usize,
-        ef_build: usize,
-        ef_search: usize,
-        has_deletion: bool,
+        params: &HNSWParams<E>,
     ) -> HNSWIndex<E, T> {
         HNSWIndex {
             _dimension: dimension,
             _n_items: 0,
             _n_constructed_items: 0,
-            _max_item: max_item,
-            _n_neighbor: n_neighbor,
-            _n_neighbor0: n_neighbor0,
-            _max_level: max_level,
+            _max_item: params.max_item,
+            _n_neighbor: params.n_neighbor,
+            _n_neighbor0: params.n_neighbor0,
+            _max_level: params.max_level,
             _cur_level: 0,
             _root_id: 0,
-            _has_removed: has_deletion,
-            _ef_build: ef_build,
-            _ef_search: ef_search,
+            _has_removed: params.has_deletion,
+            _ef_build: params.ef_build,
+            _ef_search: params.ef_search,
             mt: metrics::Metric::Unknown,
             ..Default::default()
         }

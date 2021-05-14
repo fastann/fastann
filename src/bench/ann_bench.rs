@@ -4,6 +4,7 @@ use crate::core::ann_index::ANNIndex;
 
 
 use crate::mrng;
+use crate::hnsw;
 
 use std::time::SystemTime;
 use std::{collections::HashSet, u128};
@@ -17,7 +18,7 @@ struct StatMetrics {
 }
 
 const data_path: &str =
-    "/Users/chenyangyang/pkg/ann_bench/ann-benchmarks/data/fashion-mnist-784-euclidean.hdf5";
+    "fashion-mnist-784-euclidean.hdf5";
 const dimension: usize = 784;
 const K: usize = 10;
 
@@ -72,6 +73,9 @@ pub fn ann_bench() {
     // make_idx_baseline(train.clone(), &mut hnsw_idx);
     // make_idx_baseline(train.clone(), &mut pq_idx);
     // make_idx_baseline(train, &mut ssg_idx);
+    println!("train len: {:?}", train.len() );
+    println!("test len: {:?}", test.len() );
+    bench_hnsw(&train, &test, &neighbors);
     bench_ssg(&train, &test, &neighbors);
 }
 
@@ -122,6 +126,45 @@ fn bench_ssg<E: core::node::FloatElement>(
         );
     }
 }
+
+fn bench_hnsw<E: core::node::FloatElement>(
+    train: &Vec<Vec<E>>,
+    test: &Vec<Vec<E>>,
+    neighbors: &Vec<HashSet<usize>>,
+) {
+    let params_set = vec![
+        hnsw::hnsw::HNSWParams::<E>::default()
+        .max_item(100000)
+        .n_neighbor(16)
+        .n_neighbor0(32)
+        .ef_build(500)
+        .ef_search(16)
+        .has_deletion(false),
+    ];
+    println!("****");
+
+    let mut metrics_stats: Vec<StatMetrics> = Vec::new();
+    for params in params_set.iter() {
+        let mut hnsw_idx = Box::new(hnsw::hnsw::HNSWIndex::<E, usize>::new(
+            dimension, params,
+        ));
+        make_idx_baseline(train, &mut hnsw_idx);
+        metrics_stats.push(bench_calc(hnsw_idx, test, neighbors));
+        println!("finish params {:?}", params);
+    }
+
+    for i in 0..metrics_stats.len() {
+        println!(
+            "idx ssg params {:?} result {:?}/{:?} {:?}ms qps {:?}",
+            params_set[i],
+            metrics_stats[i].Accuracy,
+            metrics_stats[i].TestSize,
+            metrics_stats[i].Cost,
+            metrics_stats[i].QPS,
+        );
+    }
+}
+
 
 fn bench_calc<E: core::node::FloatElement, T: ANNIndex<E, usize> + ?Sized>(
     ann_idx: Box<T>,

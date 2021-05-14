@@ -83,7 +83,8 @@ pub fn run_similarity_profile(test_time: usize) {
         bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(dimension, 6, -1),
     );
     let hnsw_idx = Box::new(hnsw::hnsw::HNSWIndex::<f64, usize>::new(
-        dimension, 100000, 2, 4, 20, 500, 32, false,
+        dimension,
+        &hnsw::hnsw::HNSWParams::default(),
     ));
 
     let pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(
@@ -229,7 +230,8 @@ pub fn run_word_emb_demo() {
         bpforest::bpforest::BinaryProjectionForestIndex::<f32, usize>::new(DIMENSION, 6, -1),
     );
     let mut hnsw_idx = Box::new(hnsw::hnsw::HNSWIndex::<f32, usize>::new(
-        DIMENSION, 100000, 4, 8, 20, 16, 4, false,
+        DIMENSION, 
+        &hnsw::hnsw::HNSWParams::default()
     ));
 
     let mut pq_idx = Box::new(pq::pq::PQIndex::<f32, usize>::new(
