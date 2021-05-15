@@ -5,6 +5,7 @@ use crate::core::ann_index::ANNIndex;
 
 use crate::mrng;
 use crate::hnsw;
+use crate::pq;
 
 use std::time::SystemTime;
 use std::{collections::HashSet, u128};
@@ -76,7 +77,8 @@ pub fn ann_bench() {
     println!("train len: {:?}", train.len() );
     println!("test len: {:?}", test.len() );
     // bench_hnsw(&train, &test, &neighbors);
-    bench_ssg(&train, &test, &neighbors);
+    // bench_ssg(&train, &test, &neighbors);
+    bench_ivfpq(&train, &test, &neighbors);
 }
 
 fn bench_ssg<E: core::node::FloatElement>(
@@ -169,6 +171,42 @@ fn bench_hnsw<E: core::node::FloatElement>(
     for i in 0..metrics_stats.len() {
         println!(
             "idx hnsw params {:?} result {:?}/{:?} {:?}ms qps {:?}",
+            params_set[i],
+            metrics_stats[i].Accuracy,
+            metrics_stats[i].TestSize,
+            metrics_stats[i].Cost,
+            metrics_stats[i].QPS,
+        );
+    }
+}
+
+fn bench_ivfpq<E: core::node::FloatElement>(
+    train: &Vec<Vec<E>>,
+    test: &Vec<Vec<E>>,
+    neighbors: &Vec<HashSet<usize>>,
+) {
+    let params_set = vec![
+        pq::pq::IVFPQParams::<E>::default()
+        .n_sub(16)
+        .sub_bits(4)
+        .n_kmeans_center(256)
+        .search_n_center(4)
+        .train_epoch(100)
+    ];
+
+    let mut metrics_stats: Vec<StatMetrics> = Vec::new();
+    for params in params_set.iter() {
+        let mut ivfpq_idx = Box::new(pq::pq::IVFPQIndex::<E, usize>::new(
+            dimension, params,
+        ));
+        make_idx_baseline(train, &mut ivfpq_idx);
+        metrics_stats.push(bench_calc(ivfpq_idx, test, neighbors));
+        println!("finish params {:?}", params);
+    }
+
+    for i in 0..metrics_stats.len() {
+        println!(
+            "idx ivfpq params {:?} result {:?}/{:?} {:?}ms qps {:?}",
             params_set[i],
             metrics_stats[i].Accuracy,
             metrics_stats[i].TestSize,

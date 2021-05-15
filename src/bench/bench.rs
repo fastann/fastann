@@ -89,9 +89,10 @@ pub fn run_similarity_profile(test_time: usize) {
 
     let pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(
         dimension,
-        dimension / 2,
-        4,
-        100,
+        &pq::pq::PQParams::<f64>::default()
+        .n_sub(DIMENSION/2)
+        .sub_bits(4)
+        .train_epoch(100)
     ));
     let ssg_idx = Box::new(mrng::ssg::SatelliteSystemGraphIndex::<f64, usize>::new(
         dimension,
@@ -236,19 +237,21 @@ pub fn run_word_emb_demo() {
 
     let mut pq_idx = Box::new(pq::pq::PQIndex::<f32, usize>::new(
         DIMENSION,
-        DIMENSION / 2,
-        4,
-        100,
+        &pq::pq::PQParams::<f32>::default()
+        .n_sub(DIMENSION/2)
+        .sub_bits(4)
+        .train_epoch(100)
     ));
 
     let mut ivfpq_idx = Box::new(
         pq::pq::IVFPQIndex::<f32, usize>::new(
             DIMENSION,
-            DIMENSION / 2,
-            4,
-            256,
-            4,
-            100,
+            &pq::pq::IVFPQParams::<f32>::default()
+            .n_sub(DIMENSION/2)
+            .sub_bits(4)
+            .n_kmeans_center(256)
+            .search_n_center(4)
+            .train_epoch(100)
         )
     );
 

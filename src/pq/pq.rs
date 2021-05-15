@@ -232,6 +232,44 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
     }
 }
 
+
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PQParams<E: node::FloatElement> {
+    n_sub: usize,
+    sub_bits: usize,
+    train_epoch: usize,
+    e_type: E,
+}
+
+impl<E: node::FloatElement> PQParams<E> {
+    pub fn n_sub(mut self, new_n_sub: usize) -> Self {
+        self.n_sub = new_n_sub;
+        self
+    }
+
+    pub fn sub_bits(mut self, new_sub_bits: usize) -> Self {
+        self.sub_bits = new_sub_bits;
+        self
+    }
+
+    pub fn train_epoch(mut self, new_train_epoch: usize) -> Self {
+        self.train_epoch = new_train_epoch;
+        self
+    }
+}
+
+impl<E: node::FloatElement> Default for PQParams<E> {
+    fn default() -> Self {
+        PQParams {
+            n_sub: 4,
+            sub_bits: 4,
+            train_epoch: 100,
+            e_type: E::from_f32(0.0).unwrap()
+        }
+    }
+}
+
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct PQIndex<E: node::FloatElement, T: node::IdxType> {
     _dimension: usize,     //dimension of data
@@ -260,10 +298,11 @@ pub struct PQIndex<E: node::FloatElement, T: node::IdxType> {
 impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
     pub fn new(
         dimension: usize,
-        n_sub: usize,
-        sub_bits: usize,
-        train_epoch: usize,
+        params: &PQParams<E>,
     ) -> PQIndex<E, T> {
+        let n_sub = params.n_sub;
+        let sub_bits = params.sub_bits;
+        let train_epoch = params.train_epoch;
         assert_eq!(dimension % n_sub, 0);
         let sub_dimension = dimension / n_sub;
         let sub_bytes = (sub_bits + 7) / 8;
@@ -464,6 +503,56 @@ impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwn
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct IVFPQParams<E: node::FloatElement> {
+    n_sub: usize,
+    sub_bits: usize,
+    n_kmeans_center: usize,
+    search_n_center: usize,
+    train_epoch: usize,
+    e_type: E,
+}
+
+impl<E: node::FloatElement> IVFPQParams<E> {
+    pub fn n_sub(mut self, new_n_sub: usize) -> Self {
+        self.n_sub = new_n_sub;
+        self
+    }
+
+    pub fn sub_bits(mut self, new_sub_bits: usize) -> Self {
+        self.sub_bits = new_sub_bits;
+        self
+    }
+
+    pub fn n_kmeans_center(mut self, new_n_kmeans_center: usize) -> Self {
+        self.n_kmeans_center = new_n_kmeans_center;
+        self
+    }
+
+    pub fn search_n_center(mut self, new_search_n_center: usize) -> Self {
+        self.search_n_center = new_search_n_center;
+        self
+    }
+
+    pub fn train_epoch(mut self, new_train_epoch: usize) -> Self {
+        self.train_epoch = new_train_epoch;
+        self
+    }
+}
+
+impl<E: node::FloatElement> Default for IVFPQParams<E> {
+    fn default() -> Self {
+        IVFPQParams {
+            n_sub: 25,
+            sub_bits: 4,
+            n_kmeans_center: 256,
+            search_n_center: 8,
+            train_epoch: 100,
+            e_type: E::from_f32(0.0).unwrap()
+        }
+    }
+}
+
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct IVFPQIndex<E: node::FloatElement, T: node::IdxType> {
     _dimension: usize,     //dimension of data
@@ -494,12 +583,14 @@ pub struct IVFPQIndex<E: node::FloatElement, T: node::IdxType> {
 impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
     pub fn new(
         dimension: usize,
-        n_sub: usize,
-        sub_bits: usize,
-        n_kmeans_center: usize,
-        search_n_center: usize,
-        train_epoch: usize,
+        params: &IVFPQParams<E>,
     ) -> IVFPQIndex<E, T> {
+        let n_sub = params.n_sub;
+        let sub_bits = params.sub_bits;
+        let n_kmeans_center = params.n_kmeans_center;
+        let search_n_center = params.search_n_center;
+        let train_epoch = params.train_epoch;
+
         assert_eq!(dimension % n_sub, 0);
         let sub_dimension = dimension / n_sub;
         let sub_bytes = (sub_bits + 7) / 8;
@@ -576,9 +667,10 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
             // println!("train center len {:?}", self._ivflist[i].len());
             let mut center_pq = PQIndex::<E, T>::new(
                 self._dimension,
-                self._n_sub,
-                self._sub_bits,
-                self._train_epoch,
+                &PQParams::default()
+                .n_sub(self._n_sub)
+                .sub_bits(self._sub_bits)
+                .train_epoch(self._train_epoch)
             );
 
             for j in 0..self._ivflist[i].len() {
