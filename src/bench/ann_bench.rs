@@ -12,7 +12,7 @@ use std::{collections::HashSet, u128};
 struct StatMetrics {
     QPS: f64,
     Accuracy: usize,
-    Cost: u128,
+    Cost: f64,
     BuildCost: f64,
     TestSize: usize,
 }
@@ -75,7 +75,7 @@ pub fn ann_bench() {
     // make_idx_baseline(train, &mut ssg_idx);
     println!("train len: {:?}", train.len() );
     println!("test len: {:?}", test.len() );
-    bench_hnsw(&train, &test, &neighbors);
+    // bench_hnsw(&train, &test, &neighbors);
     bench_ssg(&train, &test, &neighbors);
 }
 
@@ -140,8 +140,21 @@ fn bench_hnsw<E: core::node::FloatElement>(
         .ef_build(500)
         .ef_search(16)
         .has_deletion(false),
+        hnsw::hnsw::HNSWParams::<E>::default()
+        .max_item(100000)
+        .n_neighbor(8)
+        .n_neighbor0(16)
+        .ef_build(500)
+        .ef_search(16)
+        .has_deletion(false),
+        hnsw::hnsw::HNSWParams::<E>::default()
+        .max_item(100000)
+        .n_neighbor(16)
+        .n_neighbor0(32)
+        .ef_build(500)
+        .ef_search(16)
+        .has_deletion(false),
     ];
-    println!("****");
 
     let mut metrics_stats: Vec<StatMetrics> = Vec::new();
     for params in params_set.iter() {
@@ -155,7 +168,7 @@ fn bench_hnsw<E: core::node::FloatElement>(
 
     for i in 0..metrics_stats.len() {
         println!(
-            "idx ssg params {:?} result {:?}/{:?} {:?}ms qps {:?}",
+            "idx hnsw params {:?} result {:?}/{:?} {:?}ms qps {:?}",
             params_set[i],
             metrics_stats[i].Accuracy,
             metrics_stats[i].TestSize,
@@ -172,12 +185,13 @@ fn bench_calc<E: core::node::FloatElement, T: ANNIndex<E, usize> + ?Sized>(
     neighbors: &Vec<HashSet<usize>>,
 ) -> StatMetrics {
     let mut accuracy = 0;
-    let mut cost = 0;
+    let mut cost = 0.0;
+    
     for idx in 0..test.len() {
         let start = SystemTime::now();
         let result = ann_idx.search_k_ids(test[idx].as_slice(), K);
         let since_start = SystemTime::now().duration_since(start).expect("error");
-        cost += since_start.as_millis();
+        cost += (since_start.as_micros() as f64)/1000.0;
         let true_set = &neighbors[idx];
         result.iter().for_each(|candidate| {
             if true_set.contains(candidate) {
@@ -185,6 +199,10 @@ fn bench_calc<E: core::node::FloatElement, T: ANNIndex<E, usize> + ?Sized>(
             }
         });
     }
+    println!(
+        "cost: {:?}",
+        cost
+    );
     println!(
         "{:?} result {:?}/{:?} {:?}ms qps {:?}",
         ann_idx.name(),
