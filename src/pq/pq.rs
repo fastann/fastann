@@ -7,7 +7,7 @@ use crate::core::node;
 use metrics::metric;
 use rand::prelude::*;
 use serde::de::DeserializeOwned;
-use std::{collections::BinaryHeap, process::exit};
+use std::collections::BinaryHeap;
 
 use serde::{Deserialize, Serialize};
 
@@ -700,7 +700,7 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
         }
 
         let mut top_candidate: BinaryHeap<Neighbor<E, usize>> = BinaryHeap::new();
-        for i in 0..self._search_n_center {
+        for _i in 0..self._search_n_center {
             let center = top_centers.pop().unwrap().idx();
             // println!("{:?}", center);
             let mut ret = self._pq_list[center]

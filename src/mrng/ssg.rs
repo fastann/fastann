@@ -8,12 +8,12 @@ use fixedbitset::FixedBitSet;
 #[cfg(feature = "without_std")]
 use hashbrown::HashSet;
 use rand::prelude::*;
-use std::collections::BinaryHeap;
-use std::collections::LinkedList;
-use std::cmp::Reverse;
 use rayon::prelude::*;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use std::cmp::Reverse;
+use std::collections::BinaryHeap;
+use std::collections::LinkedList;
 
 #[cfg(not(feature = "without_std"))]
 use std::collections::HashSet;
@@ -460,7 +460,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         // let mut search_flags = HashSet::with_capacity(self.nodes.len());
         let mut search_flags = FixedBitSet::with_capacity(self.nodes.len());
         let mut heap: BinaryHeap<neighbor::Neighbor<E, usize>> = BinaryHeap::new(); // max-heap
-        let mut search_queue :LinkedList<usize> = LinkedList::new();
+        let mut search_queue: LinkedList<usize> = LinkedList::new();
 
         (0..self.root_nodes.len()).for_each(|i| {
             init_ids[i] = self.root_nodes[i];
@@ -510,11 +510,11 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
                     break;
                 }
                 heap.pop();
-                search_queue.push_back(item.idx().clone());
+                search_queue.push_back(item.idx());
                 heap.push(item);
                 contribute += 1;
             }
-            
+
             c.push((
                 contribute,
                 calc,

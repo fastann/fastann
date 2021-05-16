@@ -6,8 +6,8 @@ use crate::hnsw;
 use crate::mrng;
 use crate::pq;
 
+use std::collections::HashSet;
 use std::time::SystemTime;
-use std::{collections::HashSet, u128};
 
 struct StatMetrics {
     QPS: f64,

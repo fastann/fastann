@@ -14,7 +14,7 @@ use hashbrown::HashMap;
 
 use prgrs::{Length, Prgrs};
 
-use rand::distributions::{Distribution, Normal}; 
+use rand::distributions::{Distribution, Normal};
 
 use rand::Rng;
 
@@ -79,7 +79,7 @@ pub fn run_similarity_profile(test_time: usize) {
     let (_, ns) =
         make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 100.0);
     let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new());
-    let bpforest_idx = Box::new(
+    let _bpforest_idx = Box::new(
         bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(dimension, 6, -1),
     );
     let hnsw_idx = Box::new(hnsw::hnsw::HNSWIndex::<f64, usize>::new(
@@ -87,19 +87,19 @@ pub fn run_similarity_profile(test_time: usize) {
         &hnsw::hnsw::HNSWParams::default(),
     ));
 
-    let pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(
+    let _pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(
         dimension,
         &pq::pq::PQParams::<f64>::default()
             .n_sub(DIMENSION / 2)
             .sub_bits(4)
             .train_epoch(100),
     ));
-    let ssg_idx = Box::new(mrng::ssg::SatelliteSystemGraphIndex::<f64, usize>::new(
+    let _ssg_idx = Box::new(mrng::ssg::SatelliteSystemGraphIndex::<f64, usize>::new(
         dimension,
         &mrng::ssg::SatelliteSystemGraphParams::default(),
     ));
 
-    let mut indices: Vec<Box<ANNIndex<f64, usize>>> = vec![hnsw_idx];
+    let mut indices: Vec<Box<dyn ANNIndex<f64, usize>>> = vec![hnsw_idx];
     // let mut indices: Vec<Box<dyn ANNIndex<f64, usize>>> =
     //     vec![ssg_idx, bpforest_idx, pq_idx, hnsw_idx];
     let accuracy = Arc::new(Mutex::new(Vec::new()));
@@ -227,15 +227,15 @@ pub fn run_word_emb_demo() {
     }
 
     let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f32, usize>::new());
-    let mut bpforest_idx = Box::new(
+    let _bpforest_idx = Box::new(
         bpforest::bpforest::BinaryProjectionForestIndex::<f32, usize>::new(DIMENSION, 6, -1),
     );
-    let mut hnsw_idx = Box::new(hnsw::hnsw::HNSWIndex::<f32, usize>::new(
+    let _hnsw_idx = Box::new(hnsw::hnsw::HNSWIndex::<f32, usize>::new(
         DIMENSION,
         &hnsw::hnsw::HNSWParams::default(),
     ));
 
-    let mut pq_idx = Box::new(pq::pq::PQIndex::<f32, usize>::new(
+    let _pq_idx = Box::new(pq::pq::PQIndex::<f32, usize>::new(
         DIMENSION,
         &pq::pq::PQParams::<f32>::default()
             .n_sub(DIMENSION / 2)
@@ -243,7 +243,7 @@ pub fn run_word_emb_demo() {
             .train_epoch(100),
     ));
 
-    let mut ivfpq_idx = Box::new(pq::pq::IVFPQIndex::<f32, usize>::new(
+    let _ivfpq_idx = Box::new(pq::pq::IVFPQIndex::<f32, usize>::new(
         DIMENSION,
         &pq::pq::IVFPQParams::<f32>::default()
             .n_sub(DIMENSION / 2)
