@@ -1,8 +1,6 @@
 pub mod ann_index;
 pub mod arguments;
 pub mod calc;
-pub mod dtype;
-pub mod heap;
 pub mod knn;
 pub mod metrics;
 pub mod neighbor;

@@ -1,4 +1,4 @@
-// use crate::core::heap::BinaryHeap;
+#![allow(dead_code)]
 use crate::core::metrics;
 use crate::core::neighbor::Neighbor;
 use crate::core::node::{FloatElement, IdxType, Node};
@@ -12,7 +12,7 @@ use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 
 pub fn naive_build_knn_graph<E: FloatElement, T: IdxType>(
-    nodes: &Vec<Box<Node<E, T>>>,
+    nodes: &[Box<Node<E, T>>],
     mt: metrics::Metric,
     k: usize,
     graph: &mut Vec<Vec<Neighbor<E, usize>>>, // TODO: not use this one
@@ -21,15 +21,15 @@ pub fn naive_build_knn_graph<E: FloatElement, T: IdxType>(
     (0..nodes.len()).into_par_iter().for_each(|n| {
         let item = &nodes[n];
         let mut heap = BinaryHeap::with_capacity(k);
-        for i in 0..nodes.len() {
+        (0..nodes.len()).for_each(|i| {
             if i == n {
-                continue;
+                return;
             }
             heap.push(Neighbor::new(i, item.metric(&nodes[i], mt).unwrap()));
             if heap.len() > k {
                 heap.pop();
             }
-        }
+        });
         let mut tmp = Vec::with_capacity(heap.len());
         while !heap.is_empty() {
             tmp.push(heap.pop().unwrap());
@@ -41,7 +41,7 @@ pub fn naive_build_knn_graph<E: FloatElement, T: IdxType>(
 }
 
 pub struct NNDescentHandler<'a, E: FloatElement, T: IdxType> {
-    nodes: &'a Vec<Box<Node<E, T>>>,
+    nodes: &'a [Box<Node<E, T>>],
     graph: Vec<Arc<Mutex<BinaryHeap<Neighbor<E, usize>>>>>,
     mt: metrics::Metric,
     k: usize,
@@ -54,7 +54,7 @@ pub struct NNDescentHandler<'a, E: FloatElement, T: IdxType> {
 }
 
 impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
-    fn new(nodes: &'a Vec<Box<Node<E, T>>>, mt: metrics::Metric, k: usize, rho: f32) -> Self {
+    fn new(nodes: &'a [Box<Node<E, T>>], mt: metrics::Metric, k: usize, rho: f32) -> Self {
         NNDescentHandler {
             nodes,
             graph: Vec::new(), // TODO: as params
@@ -299,18 +299,18 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
 
                 let mut tt: usize = 0;
 
-                for j in 0..self.k {
-                    if graph_item[j].idx() == self.nodes.len() {
+                for (j, the_graph_item) in graph_item.iter().enumerate().take(self.k) {
+                    if the_graph_item.idx() == self.nodes.len() {
                         // init value, pass
                         continue;
                     }
                     if self
                         .visited_id
-                        .contains(self.nodes.len() * i + graph_item[j].idx())
+                        .contains(self.nodes.len() * i + the_graph_item.idx())
                     {
                         nn_new_neighbors.push(j);
                     } else {
-                        nn_old_neighbors.push(graph_item[j].idx());
+                        nn_old_neighbors.push(the_graph_item.idx());
                     }
                 }
 

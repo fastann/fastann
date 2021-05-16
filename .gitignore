@@ -7,3 +7,5 @@
 *.idx
 *.txt
 *.zip
+.DS_Store
+*.hdf5

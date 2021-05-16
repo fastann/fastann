@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 #[cfg(feature = "without_std")]
 use hashbrown::HashMap;
 #[cfg(not(feature = "without_std"))]
@@ -15,6 +16,12 @@ pub enum ArgsBox {
 // TODO: make this optional
 pub struct Args {
     args: HashMap<String, ArgsBox>,
+}
+
+impl Default for Args {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Args {
