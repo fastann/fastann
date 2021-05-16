@@ -217,7 +217,6 @@ fn bench_calc<E: core::node::FloatElement, T: ANNIndex<E, usize> + ?Sized>(
 ) -> StatMetrics {
     let mut accuracy = 0;
     let mut cost = 0.0;
-
     for idx in 0..test.len() {
         let start = SystemTime::now();
         let result = ann_idx.search_k_ids(test[idx].as_slice(), K);

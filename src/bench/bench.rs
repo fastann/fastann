@@ -14,7 +14,7 @@ use hashbrown::HashMap;
 
 use prgrs::{Length, Prgrs};
 
-use rand::distributions::{Distribution, Normal};
+use rand::distributions::{Distribution, Normal}; 
 
 use rand::Rng;
 
@@ -328,6 +328,9 @@ pub fn run() {
     let _ssg_idx = Box::new(
         mrng::ssg::SatelliteSystemGraphIndex::<f32, usize>::load("ssg_idx.idx", &argument).unwrap(),
     );
+    // let _ssg_idx = Box::new(
+    //     mrng::ssg::SatelliteSystemGraphIndex::<f32, usize>::load("ssg_idx.idx", &argument).unwrap(),
+    // );
 
     let indices: Vec<Box<dyn ANNIndex<f32, usize>>> =
         // vec![bpforest_idx, pq_idx, ssg_idx, hnsw_idx];
