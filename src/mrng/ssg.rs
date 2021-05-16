@@ -484,8 +484,6 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
 
         // greedy BFS search
         let mut c = Vec::new();
-        let early_terminate = 10;
-        let mut early_terminate_counter = 0;
         while !search_queue.is_empty() {
             let id = search_queue.pop_front().unwrap();
 
@@ -504,12 +502,6 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
                 search_flags.insert(*iter);
                 calc += 1;
                 cnt += 1;
-            }
-            if !tmp.is_empty() && tmp.peek().unwrap().distance() > heap.peek().unwrap().distance() {
-                early_terminate_counter += 1;
-                if early_terminate_counter > early_terminate {
-                    break;
-                }
             }
             while !tmp.is_empty() {
                 let Reverse(item) = tmp.pop().unwrap();
