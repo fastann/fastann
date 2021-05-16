@@ -7,7 +7,7 @@ use crate::core::node;
 use metrics::metric;
 use rand::prelude::*;
 use serde::de::DeserializeOwned;
-use std::collections::BinaryHeap;
+use std::{collections::BinaryHeap, process::exit};
 
 use serde::{Deserialize, Serialize};
 
@@ -41,8 +41,15 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
     }
 
     pub fn get_distance_from_vec(&self, x: &node::Node<E, T>, y: &[E]) -> E {
+        // println!("demension: {:?}", self._dimension);
+        // println!("begin: {:?}, end: {:?}", self._data_range_begin, self._data_range_end);
+        let mut z = x.vectors()[self._data_range_begin..self._data_range_end].to_vec();
+        if self._has_residual {
+            (0..self._data_range_end-self._data_range_begin).for_each(|i| 
+                z[i] -= self._residual[i + self._data_range_begin]);
+        }
         return metric(
-            &x.vectors()[self._data_range_begin..self._data_range_end],
+            &z,
             y,
             self.mt,
         )
@@ -225,6 +232,44 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
     }
 }
 
+
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PQParams<E: node::FloatElement> {
+    n_sub: usize,
+    sub_bits: usize,
+    train_epoch: usize,
+    e_type: E,
+}
+
+impl<E: node::FloatElement> PQParams<E> {
+    pub fn n_sub(mut self, new_n_sub: usize) -> Self {
+        self.n_sub = new_n_sub;
+        self
+    }
+
+    pub fn sub_bits(mut self, new_sub_bits: usize) -> Self {
+        self.sub_bits = new_sub_bits;
+        self
+    }
+
+    pub fn train_epoch(mut self, new_train_epoch: usize) -> Self {
+        self.train_epoch = new_train_epoch;
+        self
+    }
+}
+
+impl<E: node::FloatElement> Default for PQParams<E> {
+    fn default() -> Self {
+        PQParams {
+            n_sub: 4,
+            sub_bits: 4,
+            train_epoch: 100,
+            e_type: E::from_f32(0.0).unwrap()
+        }
+    }
+}
+
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct PQIndex<E: node::FloatElement, T: node::IdxType> {
     _dimension: usize,     //dimension of data
@@ -253,10 +298,11 @@ pub struct PQIndex<E: node::FloatElement, T: node::IdxType> {
 impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
     pub fn new(
         dimension: usize,
-        n_sub: usize,
-        sub_bits: usize,
-        train_epoch: usize,
+        params: &PQParams<E>,
     ) -> PQIndex<E, T> {
+        let n_sub = params.n_sub;
+        let sub_bits = params.sub_bits;
+        let train_epoch = params.train_epoch;
         assert_eq!(dimension % n_sub, 0);
         let sub_dimension = dimension / n_sub;
         let sub_bytes = (sub_bits + 7) / 8;
@@ -276,7 +322,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
             _n_items: 0,
             _max_item: 100000,
             _has_residual: false,
-            mt: metrics::Metric::Unknown,
+            mt: metrics::Metric::Euclidean,
             ..Default::default()
         }
     }
@@ -343,7 +389,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
     ) -> E {
         let mut z = x.vectors()[begin..end].to_vec();
         if self._has_residual {
-            (begin..end).for_each(|i| z[i] -= self._residual[i + begin]);
+            (0..end-begin).for_each(|i| z[i] -= self._residual[i + begin]);
         }
         return metrics::metric(&z, y, self.mt).unwrap();
     }
@@ -457,6 +503,56 @@ impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwn
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct IVFPQParams<E: node::FloatElement> {
+    n_sub: usize,
+    sub_bits: usize,
+    n_kmeans_center: usize,
+    search_n_center: usize,
+    train_epoch: usize,
+    e_type: E,
+}
+
+impl<E: node::FloatElement> IVFPQParams<E> {
+    pub fn n_sub(mut self, new_n_sub: usize) -> Self {
+        self.n_sub = new_n_sub;
+        self
+    }
+
+    pub fn sub_bits(mut self, new_sub_bits: usize) -> Self {
+        self.sub_bits = new_sub_bits;
+        self
+    }
+
+    pub fn n_kmeans_center(mut self, new_n_kmeans_center: usize) -> Self {
+        self.n_kmeans_center = new_n_kmeans_center;
+        self
+    }
+
+    pub fn search_n_center(mut self, new_search_n_center: usize) -> Self {
+        self.search_n_center = new_search_n_center;
+        self
+    }
+
+    pub fn train_epoch(mut self, new_train_epoch: usize) -> Self {
+        self.train_epoch = new_train_epoch;
+        self
+    }
+}
+
+impl<E: node::FloatElement> Default for IVFPQParams<E> {
+    fn default() -> Self {
+        IVFPQParams {
+            n_sub: 25,
+            sub_bits: 4,
+            n_kmeans_center: 256,
+            search_n_center: 8,
+            train_epoch: 100,
+            e_type: E::from_f32(0.0).unwrap()
+        }
+    }
+}
+
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct IVFPQIndex<E: node::FloatElement, T: node::IdxType> {
     _dimension: usize,     //dimension of data
@@ -487,12 +583,14 @@ pub struct IVFPQIndex<E: node::FloatElement, T: node::IdxType> {
 impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
     pub fn new(
         dimension: usize,
-        n_sub: usize,
-        sub_bits: usize,
-        n_kmeans_center: usize,
-        search_n_center: usize,
-        train_epoch: usize,
+        params: &IVFPQParams<E>,
     ) -> IVFPQIndex<E, T> {
+        let n_sub = params.n_sub;
+        let sub_bits = params.sub_bits;
+        let n_kmeans_center = params.n_kmeans_center;
+        let search_n_center = params.search_n_center;
+        let train_epoch = params.train_epoch;
+
         assert_eq!(dimension % n_sub, 0);
         let sub_dimension = dimension / n_sub;
         let sub_bytes = (sub_bits + 7) / 8;
@@ -564,13 +662,15 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
             let center_id = assigned_center[i];
             self._ivflist[center_id].push(i);
         });
-
         for i in 0..n_center {
+            // println!("train center {:?}", i);
+            // println!("train center len {:?}", self._ivflist[i].len());
             let mut center_pq = PQIndex::<E, T>::new(
                 self._dimension,
-                self._n_sub,
-                self._sub_bits,
-                self._train_epoch,
+                &PQParams::default()
+                .n_sub(self._n_sub)
+                .sub_bits(self._sub_bits)
+                .train_epoch(self._train_epoch)
             );
 
             for j in 0..self._ivflist[i].len() {
@@ -578,7 +678,7 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
                     .add_item(&self._nodes[self._ivflist[i][j]].clone())
                     .unwrap();
             }
-
+            // println!("center: {:?}", self._centers[i].to_vec())
             center_pq.set_residual(self._centers[i].to_vec());
             center_pq.train_center();
             self._pq_list.push(center_pq);
@@ -601,7 +701,7 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
         &self,
         search_data: &node::Node<E, T>,
         k: usize,
-    ) -> BinaryHeap<Neighbor<E, usize>> {
+    ) -> Result<BinaryHeap<Neighbor<E, usize>>, &'static str> {
         let mut top_centers: BinaryHeap<Neighbor<E, usize>> = BinaryHeap::new();
         let n_kmeans_center = self._n_kmeans_center;
         let dimension = self._dimension;
@@ -613,20 +713,106 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
         }
 
         let mut top_candidate: BinaryHeap<Neighbor<E, usize>> = BinaryHeap::new();
-        for _i in 0..self._search_n_center {
+        for i in 0..self._search_n_center {
             let center = top_centers.pop().unwrap().idx();
+            // println!("{:?}", center);
             let mut ret = self._pq_list[center]
                 .search_knn_adc(search_data, k)
                 .unwrap();
             while !ret.is_empty() {
-                let ret_peek = ret.pop().unwrap();
+                let mut ret_peek = ret.pop().unwrap();
+                ret_peek._idx = self._ivflist[center][ret_peek._idx];
                 top_candidate.push(ret_peek);
                 if top_candidate.len() > k {
                     top_candidate.pop();
                 }
             }
         }
+        Ok(top_candidate)
+    }
+}
 
-        top_candidate
+impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for IVFPQIndex<E, T> {
+    fn construct(&mut self, _mt: metrics::Metric) -> Result<(), &'static str> {
+        self.mt = _mt;
+        self.train();
+        Result::Ok(())
+    }
+    fn add_node(&mut self, item: &node::Node<E, T>) -> Result<(), &'static str> {
+        match self.add_item(item) {
+            Err(err) => Err(err),
+            _ => Ok(()),
+        }
+    }
+    fn once_constructed(&self) -> bool {
+        true
+    }
+
+    fn node_search_k(
+        &self,
+        item: &node::Node<E, T>,
+        k: usize,
+        _args: &arguments::Args,
+    ) -> Vec<(node::Node<E, T>, E)> {
+        let mut ret: BinaryHeap<Neighbor<E, usize>> = self.search_knn_adc(item, k).unwrap();
+        let mut result: Vec<(node::Node<E, T>, E)> = Vec::new();
+        let mut result_idx: Vec<(usize, E)> = Vec::new();
+        while !ret.is_empty() {
+            let top = ret.peek().unwrap();
+            let top_idx = top.idx();
+            let top_distance = top.distance();
+            ret.pop();
+            result_idx.push((top_idx, top_distance))
+        }
+        for i in 0..result_idx.len() {
+            let cur_id = result_idx.len() - i - 1;
+            result.push((
+                *self._nodes[result_idx[cur_id].0].clone(),
+                result_idx[cur_id].1,
+            ));
+        }
+        result
+    }
+
+    fn reconstruct(&mut self, _mt: metrics::Metric) {}
+
+    fn name(&self) -> &'static str {
+        "IVFPQIndex"
+    }
+}
+
+impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwned>
+    ann_index::SerializableIndex<E, T> for IVFPQIndex<E, T>
+{
+    fn load(path: &str, _args: &arguments::Args) -> Result<Self, &'static str> {
+        let file = File::open(path).unwrap_or_else(|_| panic!("unable to open file {:?}", path));
+        let mut instance: IVFPQIndex<E, T> = bincode::deserialize_from(&file).unwrap();
+        instance._nodes = instance
+            ._nodes_tmp
+            .iter()
+            .map(|x| Box::new(x.clone()))
+            .collect();
+        instance._nodes_tmp.clear();
+        for i in 0..instance._n_kmeans_center{
+            instance._pq_list[i]._nodes = instance._pq_list[i]
+            ._nodes_tmp
+            .iter()
+            .map(|x| Box::new(x.clone()))
+            .collect();
+            instance._pq_list[i]._nodes_tmp.clear();
+        }
+        Ok(instance)
+    }
+
+    fn dump(&mut self, path: &str, _args: &arguments::Args) -> Result<(), &'static str> {
+        self._nodes_tmp = self._nodes.iter().map(|x| *x.clone()).collect();
+        for i in 0..self._n_kmeans_center {
+            self._pq_list[i]._nodes_tmp = self._pq_list[i]._nodes.iter().map(|x| *x.clone()).collect();
+        }
+        let encoded_bytes = bincode::serialize(&self).unwrap();
+        let mut file = File::create(path).unwrap();
+        file.write_all(&encoded_bytes)
+            .unwrap_or_else(|_| panic!("unable to write file {:?}", path));
+        Result::Ok(())
     }
 }
