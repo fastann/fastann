@@ -275,6 +275,7 @@ pub struct PQIndex<E: node::FloatElement, T: node::IdxType> {
     _dimension: usize,     //dimension of data
     _n_sub: usize,         //num of subdata
     _sub_dimension: usize, //dimension of subdata
+    _dimension_range: Vec<Vec<usize>>, //dimension preset
     _sub_bits: usize,      // size of subdata code
     _sub_bytes: usize,     //code save as byte: (_sub_bit + 7)//8
     _n_sub_center: usize,  //num of centers per subdata code
@@ -303,13 +304,13 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         let n_sub = params.n_sub;
         let sub_bits = params.sub_bits;
         let train_epoch = params.train_epoch;
-        assert_eq!(dimension % n_sub, 0);
         let sub_dimension = dimension / n_sub;
+
         let sub_bytes = (sub_bits + 7) / 8;
         assert!(sub_bits <= 32);
         let n_center_per_sub = (1 << sub_bits) as usize;
         let code_bytes = sub_bytes * n_sub;
-        PQIndex {
+        let mut new_pq = PQIndex::<E,T> {
             _dimension: dimension,
             _n_sub: n_sub,
             _sub_dimension: sub_dimension,
@@ -324,7 +325,24 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
             _has_residual: false,
             mt: metrics::Metric::Euclidean,
             ..Default::default()
+        };
+
+        for i in 0..n_sub {
+            let mut begin;
+            let mut end;
+            if i < dimension % sub_dimension {
+                begin = i * (sub_dimension + 1);
+                end = (i + 1) * (sub_dimension + 1);
+            }
+            else {
+                begin = (dimension % sub_dimension) * (sub_dimension + 1)
+                    + (i - dimension % sub_dimension) * sub_dimension;
+                end = (dimension % sub_dimension) * (sub_dimension + 1)
+                    + (i + 1 - dimension % sub_dimension) * sub_dimension;
+            };
+            new_pq._dimension_range.push(vec![begin, end]);
         }
+        new_pq
     }
 
     pub fn init_item(&mut self, data: &node::Node<E, T>) -> usize {
@@ -364,9 +382,10 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
             let dimension = self._sub_dimension;
             let n_center = self._n_sub_center;
             let n_epoch = self._train_epoch;
-            let begin = i * dimension;
-            let end = (i + 1) * dimension;
-            let mut cluster = KmeansIndexer::new(dimension, n_center, self.mt);
+            let begin = self._dimension_range[i][0];
+            let end = self._dimension_range[i][1];
+
+            let mut cluster = KmeansIndexer::new(end-begin, n_center, self.mt);
             cluster.set_range(begin, end);
             if self._has_residual {
                 cluster.set_residual(self._residual.to_vec());
@@ -402,12 +421,14 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         let mut dis2centers: Vec<Vec<E>> = Vec::with_capacity(self._n_sub);
         (0..self._n_sub).for_each(|i| {
             let mut sub_dis: Vec<E> = Vec::with_capacity(self._n_sub_center);
+            let begin = self._dimension_range[i][0];
+            let end = self._dimension_range[i][1];
             (0..self._n_sub_center).for_each(|j| {
                 sub_dis.push(self.get_distance_from_vec_range(
                     search_data,
                     &self._centers[i][j],
-                    i * self._sub_dimension,
-                    (i + 1) * self._sub_dimension,
+                    begin,
+                    end,
                 ));
             });
             dis2centers.push(sub_dis);
@@ -591,7 +612,6 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
         let search_n_center = params.search_n_center;
         let train_epoch = params.train_epoch;
 
-        assert_eq!(dimension % n_sub, 0);
         let sub_dimension = dimension / n_sub;
         let sub_bytes = (sub_bits + 7) / 8;
         assert!(sub_bits <= 32);
