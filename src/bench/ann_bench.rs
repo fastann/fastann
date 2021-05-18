@@ -91,19 +91,19 @@ fn bench_ssg<E: core::node::FloatElement>(
             .init_k(20)
             .index_size(20)
             .neighbor_neighbor_size(30)
-            .root_size(20),
-        // mrng::ssg::SatelliteSystemGraphParams::default()
-        //     .angle(60.0)
-        //     .init_k(50)
-        //     .index_size(50)
-        //     .neighbor_neighbor_size(50)
-        //     .root_size(20),
-        // mrng::ssg::SatelliteSystemGraphParams::default()
-        //     .angle(60.0)
-        //     .init_k(50)
-        //     .index_size(50)
-        //     .neighbor_neighbor_size(50)
-        //     .root_size(50),
+            .root_size(256),
+        mrng::ssg::SatelliteSystemGraphParams::default()
+            .angle(60.0)
+            .init_k(50)
+            .index_size(50)
+            .neighbor_neighbor_size(50)
+            .root_size(256),
+        mrng::ssg::SatelliteSystemGraphParams::default()
+            .angle(60.0)
+            .init_k(50)
+            .index_size(50)
+            .neighbor_neighbor_size(50)
+            .root_size(256),
     ];
 
     let mut metrics_stats: Vec<StatMetrics> = Vec::new();

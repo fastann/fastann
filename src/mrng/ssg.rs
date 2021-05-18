@@ -452,35 +452,26 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         k: usize,
         _args: &arguments::Args,
     ) -> Vec<(node::Node<E, T>, E)> {
-        let mut l = k;
-        if l < self.root_nodes.len() {
-            l = self.root_nodes.len();
-        }
-        let mut init_ids = vec![0; l];
         // let mut search_flags = HashSet::with_capacity(self.nodes.len());
         let mut search_flags = FixedBitSet::with_capacity(self.nodes.len());
         let mut heap: BinaryHeap<neighbor::Neighbor<E, usize>> = BinaryHeap::new(); // max-heap
         let mut search_queue: LinkedList<usize> = LinkedList::new();
 
-        (0..self.root_nodes.len()).for_each(|i| {
-            init_ids[i] = self.root_nodes[i];
+        let mut vec_tmp = Vec::with_capacity(self.root_nodes.len());
+        self.root_nodes.iter().for_each(|n| {
+            let dist = self.nodes[*n].metric(query, self.mt).unwrap();
+            vec_tmp.push(neighbor::Neighbor::new(*n, dist));
         });
-        self.get_random_nodes_idx_lite(&mut init_ids[self.root_nodes.len()..]);
+        vec_tmp.sort();
+        for iter in vec_tmp.iter() {
+            if heap.len() < k {
+                heap.push(iter.clone());
+                search_queue.push_back(iter.idx());
+            }
+            search_flags.insert(iter.idx());
+        }
 
         let mut cnt = 0;
-        init_ids.iter().for_each(|id| {
-            let dist = self.nodes[*id].metric(query, self.mt).unwrap();
-            heap.push(neighbor::Neighbor::new(*id, dist));
-            search_queue.push_back(*id);
-            search_flags.insert(*id);
-            cnt += 1;
-        });
-        println!(
-            "init_ids {:?} search_queue {:?} heap {:?}",
-            init_ids.len(),
-            search_queue.len(),
-            heap.len()
-        );
 
         // greedy BFS search
         let mut c = Vec::new();
