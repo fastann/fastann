@@ -403,7 +403,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         });
     }
 
-    fn build(&mut self) {
+    fn _build(&mut self) {
         self.build_knn_graph();
 
         let mut pruned_graph_tmp: Vec<neighbor::Neighbor<E, usize>> =
@@ -538,7 +538,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         flag
     }
 
-    pub fn connectivity_profile(&self) {
+    fn connectivity_profile(&self) {
         let mut visited = HashSet::with_capacity(self.nodes.len());
         let mut queue = VecDeque::new();
 
@@ -590,9 +590,9 @@ impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwn
 impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
     for SatelliteSystemGraphIndex<E, T>
 {
-    fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
+    fn build(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
         self.mt = mt;
-        self.build();
+        self._build();
 
         Result::Ok(())
     }
@@ -600,10 +600,9 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
         self.nodes.push(Box::new(item.clone()));
         Result::Ok(())
     }
-    fn once_constructed(&self) -> bool {
+    fn built(&self) -> bool {
         true
     }
-    fn reconstruct(&mut self, _mt: metrics::Metric) {}
     fn node_search_k(
         &self,
         item: &node::Node<E, T>,

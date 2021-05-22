@@ -219,7 +219,7 @@ fn bench_calc<E: core::node::FloatElement, T: ANNIndex<E, usize> + ?Sized>(
     let mut cost = 0.0;
     for idx in 0..test.len() {
         let start = SystemTime::now();
-        let result = ann_idx.search_k_ids(test[idx].as_slice(), K);
+        let result = ann_idx.search(test[idx].as_slice(), K);
         let since_start = SystemTime::now().duration_since(start).expect("error");
         cost += (since_start.as_micros() as f64) / 1000.0;
         let true_set = &neighbors[idx];
@@ -260,7 +260,7 @@ fn make_idx_baseline<E: core::node::FloatElement, T: ANNIndex<E, usize> + ?Sized
         ))
         .unwrap();
     }
-    idx.construct(core::metrics::Metric::Euclidean).unwrap();
+    idx.build(core::metrics::Metric::Euclidean).unwrap();
     let since_start = SystemTime::now()
         .duration_since(start)
         .expect("Time went backwards");

@@ -286,7 +286,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
     }
 
     #[allow(dead_code)]
-    pub fn delete_id(&mut self, id: usize) -> Result<(), &'static str> {
+    fn delete_id(&mut self, id: usize) -> Result<(), &'static str> {
         if id > self._n_constructed_items {
             return Err("Invalid delete id");
         }
@@ -297,19 +297,19 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         Ok(())
     }
 
-    pub fn is_deleted(&self, id: usize) -> bool {
+    fn is_deleted(&self, id: usize) -> bool {
         self._has_removed && self._delete_ids.contains(&id)
     }
 
-    pub fn get_data(&self, id: usize) -> &node::Node<E, T> {
+    fn get_data(&self, id: usize) -> &node::Node<E, T> {
         &self._nodes[id]
     }
 
-    pub fn get_distance_from_vec(&self, x: &node::Node<E, T>, y: &node::Node<E, T>) -> E {
+    fn get_distance_from_vec(&self, x: &node::Node<E, T>, y: &node::Node<E, T>) -> E {
         return metrics::metric(x.vectors(), y.vectors(), self.mt).unwrap();
     }
 
-    pub fn get_distance_from_id(&self, x: usize, y: usize) -> E {
+    fn get_distance_from_id(&self, x: usize, y: usize) -> E {
         return metrics::metric(
             self.get_data(x).vectors(),
             self.get_data(y).vectors(),
@@ -318,7 +318,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         .unwrap();
     }
 
-    pub fn search_layer_with_candidate(
+    fn search_layer_with_candidate(
         &self,
         search_data: &node::Node<E, T>,
         sorted_candidates: &[Neighbor<E, usize>],
@@ -451,7 +451,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
     //     return self.search_layer(root, search_data, level, self._ef_build, false);
     // }
 
-    pub fn search_knn(
+    fn search_knn(
         &self,
         search_data: &node::Node<E, T>,
         k: usize,
@@ -503,7 +503,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         Ok(top_candidate)
     }
 
-    pub fn init_item(&mut self, data: &node::Node<E, T>) -> usize {
+    fn init_item(&mut self, data: &node::Node<E, T>) -> usize {
         let cur_id = self._n_items;
         let mut cur_level = self.get_random_level();
         if cur_id == 0 {
@@ -546,10 +546,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         Ok(())
     }
 
-    pub fn add_item_not_constructed(
-        &mut self,
-        data: &node::Node<E, T>,
-    ) -> Result<(), &'static str> {
+    fn add_item_not_constructed(&mut self, data: &node::Node<E, T>) -> Result<(), &'static str> {
         if data.len() != self._dimension {
             return Err("dimension is different");
         }
@@ -569,7 +566,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         Ok(())
     }
 
-    pub fn add_single_item(&mut self, data: &node::Node<E, T>) -> Result<(), &'static str> {
+    fn add_single_item(&mut self, data: &node::Node<E, T>) -> Result<(), &'static str> {
         //not support asysn
         if data.len() != self._dimension {
             return Err("dimension is different");
@@ -594,7 +591,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         Ok(())
     }
 
-    pub fn construct_single_item(&self, insert_id: usize) -> Result<(), &'static str> {
+    fn construct_single_item(&self, insert_id: usize) -> Result<(), &'static str> {
         let insert_level = self._id2level[insert_id];
         // println!("insert id {} insert_level {}", insert_id, insert_level);
         // println!("self._cur_level {}", self._cur_level);
@@ -680,14 +677,14 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
 }
 
 impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for HNSWIndex<E, T> {
-    fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
+    fn build(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
         self.mt = mt;
         self.batch_construct(mt)
     }
     fn add_node(&mut self, item: &node::Node<E, T>) -> Result<(), &'static str> {
         self.add_item_not_constructed(item)
     }
-    fn once_constructed(&self) -> bool {
+    fn built(&self) -> bool {
         true
     }
 
@@ -716,8 +713,6 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for HNSW
         }
         result
     }
-
-    fn reconstruct(&mut self, _mt: metrics::Metric) {}
 
     fn name(&self) -> &'static str {
         "HNSWIndex"

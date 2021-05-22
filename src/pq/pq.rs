@@ -201,12 +201,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
         Ok(())
     }
 
-    pub fn train(
-        &mut self,
-        batch_size: usize,
-        batch_data: &[Box<node::Node<E, T>>],
-        n_epoch: usize,
-    ) {
+    fn train(&mut self, batch_size: usize, batch_data: &[Box<node::Node<E, T>>], n_epoch: usize) {
         self.init_center(batch_size, batch_data);
         (0..n_epoch).for_each(|epoch| {
             let mut assigned_center: Vec<usize> = Vec::with_capacity(batch_size);
@@ -220,7 +215,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
         });
     }
 
-    pub fn set_range(&mut self, begin: usize, end: usize) {
+    fn set_range(&mut self, begin: usize, end: usize) {
         assert!(end - begin == self._dimension);
         self._data_range_begin = begin;
         self._data_range_end = end;
@@ -317,7 +312,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         }
     }
 
-    pub fn init_item(&mut self, data: &node::Node<E, T>) -> usize {
+    fn init_item(&mut self, data: &node::Node<E, T>) -> usize {
         let cur_id = self._n_items;
         // self._item2id.insert(item, cur_id);
         self._nodes.push(Box::new(data.clone()));
@@ -325,7 +320,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         cur_id
     }
 
-    pub fn add_item(&mut self, data: &node::Node<E, T>) -> Result<usize, &'static str> {
+    fn add_item(&mut self, data: &node::Node<E, T>) -> Result<usize, &'static str> {
         if data.len() != self._dimension {
             return Err("dimension is different");
         }
@@ -342,12 +337,12 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         Ok(insert_id)
     }
 
-    pub fn set_residual(&mut self, residual: Vec<E>) {
+    fn set_residual(&mut self, residual: Vec<E>) {
         self._has_residual = true;
         self._residual = residual;
     }
 
-    pub fn train_center(&mut self) {
+    fn train_center(&mut self) {
         let n_item = self._n_items;
         let n_sub = self._n_sub;
         (0..n_sub).for_each(|i| {
@@ -370,7 +365,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         self._is_trained = true;
     }
 
-    pub fn get_distance_from_vec_range(
+    fn get_distance_from_vec_range(
         &self,
         x: &node::Node<E, T>,
         y: &[E],
@@ -384,7 +379,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         return metrics::metric(&z, y, self.mt).unwrap();
     }
 
-    pub fn search_knn_adc(
+    fn search_knn_adc(
         &self,
         search_data: &node::Node<E, T>,
         k: usize,
@@ -421,7 +416,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
 }
 
 impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIndex<E, T> {
-    fn construct(&mut self, _mt: metrics::Metric) -> Result<(), &'static str> {
+    fn build(&mut self, _mt: metrics::Metric) -> Result<(), &'static str> {
         self.mt = _mt;
         self.train_center();
         Result::Ok(())
@@ -432,7 +427,7 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIn
             _ => Ok(()),
         }
     }
-    fn once_constructed(&self) -> bool {
+    fn built(&self) -> bool {
         true
     }
 
@@ -461,8 +456,6 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIn
         }
         result
     }
-
-    fn reconstruct(&mut self, _mt: metrics::Metric) {}
 
     fn name(&self) -> &'static str {
         "PQIndex"
@@ -720,7 +713,7 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
 }
 
 impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for IVFPQIndex<E, T> {
-    fn construct(&mut self, _mt: metrics::Metric) -> Result<(), &'static str> {
+    fn build(&mut self, _mt: metrics::Metric) -> Result<(), &'static str> {
         self.mt = _mt;
         self.train();
         Result::Ok(())
@@ -731,7 +724,7 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for IVFP
             _ => Ok(()),
         }
     }
-    fn once_constructed(&self) -> bool {
+    fn built(&self) -> bool {
         true
     }
 
@@ -760,8 +753,6 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for IVFP
         }
         result
     }
-
-    fn reconstruct(&mut self, _mt: metrics::Metric) {}
 
     fn name(&self) -> &'static str {
         "IVFPQIndex"
