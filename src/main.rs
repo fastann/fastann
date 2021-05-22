@@ -1,4 +1,4 @@
-// mod bench;
+mod bench;
 mod bf;
 mod bpforest;
 mod core;
@@ -19,5 +19,5 @@ fn main() {
     //         report.flamegraph(file).unwrap();
     //     };
     //     println!("s {:?}", s);
-    // bench::ann_bench::ann_bench();
+    bench::ann_bench::ann_bench();
 }
