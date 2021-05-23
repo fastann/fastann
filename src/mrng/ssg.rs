@@ -145,7 +145,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
     fn get_random_nodes_idx_lite(&self, indices: &mut [usize]) {
         let mut rng = rand::thread_rng();
         (0..indices.len()).for_each(|i| {
-            indices[i] = rng.gen_range(0, self.nodes.len() - indices.len());
+            indices[i] = rng.gen_range(0..self.nodes.len() - indices.len());
         });
     }
 

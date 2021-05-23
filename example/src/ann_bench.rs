@@ -1,10 +1,10 @@
 #![deny(clippy::all)]
-use crate::core;
-use crate::core::ann_index::ANNIndex;
+use fastann::core;
+use fastann::core::ann_index::ANNIndex;
 
-use crate::hnsw;
-use crate::mrng;
-use crate::pq;
+use fastann::hnsw;
+use fastann::mrng;
+use fastann::pq;
 
 use std::collections::HashSet;
 use std::time::SystemTime;

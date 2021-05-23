@@ -128,14 +128,14 @@ impl<'a, E: FloatElement, T: IdxType> NNDescentHandler<'a, E, T> {
                 let mut nn_new_neighbors: Vec<usize> = Vec::with_capacity(self.s);
                 let nn_old_neighbors: Vec<usize> = Vec::with_capacity(self.s);
                 for _j in 0..self.s {
-                    let rand_val = rand::thread_rng().gen_range(0, self.nodes.len());
+                    let rand_val = rand::thread_rng().gen_range(0..self.nodes.len());
                     nn_new_neighbors.push(rand_val);
                 }
 
                 let mut reversed_new_neighbors: Vec<usize> = Vec::with_capacity(self.s);
                 let reversed_old_neighbors: Vec<usize> = Vec::with_capacity(self.s);
                 for _j in 0..self.s {
-                    let rand_val = rand::thread_rng().gen_range(0, self.nodes.len());
+                    let rand_val = rand::thread_rng().gen_range(0..self.nodes.len());
                     reversed_new_neighbors.push(rand_val);
                 }
                 (

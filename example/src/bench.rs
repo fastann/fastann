@@ -1,14 +1,14 @@
 // use crate::annoy;
 // use crate::annoy::annoy::AnnoyIndexer;
-use crate::bf;
-use crate::bpforest;
-use crate::core;
-use crate::core::ann_index::ANNIndex;
-use crate::core::ann_index::SerializableIndex;
-use crate::core::arguments;
-use crate::hnsw;
-use crate::mrng;
-use crate::pq;
+use fastann::bf;
+use fastann::bpforest;
+use fastann::core;
+use fastann::core::ann_index::ANNIndex;
+use fastann::core::ann_index::SerializableIndex;
+use fastann::core::arguments;
+use fastann::hnsw;
+use fastann::mrng;
+use fastann::pq;
 #[cfg(feature = "without_std")]
 use hashbrown::HashMap;
 

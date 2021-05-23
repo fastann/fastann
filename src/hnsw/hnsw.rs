@@ -143,7 +143,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         let mut rng = rand::thread_rng();
         let mut ret = 0;
         while ret < self._max_level {
-            if rng.gen_range(0.0, 1.0) > 0.5 {
+            if rng.gen_range(0.0..1.0) > 0.5 {
                 ret += 1;
             } else {
                 break;
