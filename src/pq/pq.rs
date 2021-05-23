@@ -7,7 +7,7 @@ use crate::core::node;
 use metrics::metric;
 use rand::prelude::*;
 use serde::de::DeserializeOwned;
-use std::{collections::BinaryHeap, process::exit};
+use std::collections::BinaryHeap;
 
 use serde::{Deserialize, Serialize};
 
@@ -45,15 +45,10 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
         // println!("begin: {:?}, end: {:?}", self._data_range_begin, self._data_range_end);
         let mut z = x.vectors()[self._data_range_begin..self._data_range_end].to_vec();
         if self._has_residual {
-            (0..self._data_range_end-self._data_range_begin).for_each(|i| 
-                z[i] -= self._residual[i + self._data_range_begin]);
+            (0..self._data_range_end - self._data_range_begin)
+                .for_each(|i| z[i] -= self._residual[i + self._data_range_begin]);
         }
-        return metric(
-            &z,
-            y,
-            self.mt,
-        )
-        .unwrap();
+        return metric(&z, y, self.mt).unwrap();
     }
 
     pub fn set_residual(&mut self, residual: Vec<E>) {
@@ -182,7 +177,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
                     let mut rng = rand::thread_rng();
                     let pick_percent =
                         n_assigned_per_center[split_center_id] as f64 / batch_size as f64;
-                    if rng.gen_range(0.0, 1.0) < pick_percent {
+                    if rng.gen_range(0.0..1.0) < pick_percent {
                         break;
                     }
                     split_center_id = (split_center_id + 1) % n_center;
@@ -206,12 +201,7 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
         Ok(())
     }
 
-    pub fn train(
-        &mut self,
-        batch_size: usize,
-        batch_data: &[Box<node::Node<E, T>>],
-        n_epoch: usize,
-    ) {
+    fn train(&mut self, batch_size: usize, batch_data: &[Box<node::Node<E, T>>], n_epoch: usize) {
         self.init_center(batch_size, batch_data);
         (0..n_epoch).for_each(|epoch| {
             let mut assigned_center: Vec<usize> = Vec::with_capacity(batch_size);
@@ -225,14 +215,12 @@ impl<E: node::FloatElement, T: node::IdxType> KmeansIndexer<E, T> {
         });
     }
 
-    pub fn set_range(&mut self, begin: usize, end: usize) {
+    fn set_range(&mut self, begin: usize, end: usize) {
         assert!(end - begin == self._dimension);
         self._data_range_begin = begin;
         self._data_range_end = end;
     }
 }
-
-
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PQParams<E: node::FloatElement> {
@@ -265,7 +253,7 @@ impl<E: node::FloatElement> Default for PQParams<E> {
             n_sub: 4,
             sub_bits: 4,
             train_epoch: 100,
-            e_type: E::from_f32(0.0).unwrap()
+            e_type: E::from_f32(0.0).unwrap(),
         }
     }
 }
@@ -296,10 +284,7 @@ pub struct PQIndex<E: node::FloatElement, T: node::IdxType> {
 }
 
 impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
-    pub fn new(
-        dimension: usize,
-        params: &PQParams<E>,
-    ) -> PQIndex<E, T> {
+    pub fn new(dimension: usize, params: &PQParams<E>) -> PQIndex<E, T> {
         let n_sub = params.n_sub;
         let sub_bits = params.sub_bits;
         let train_epoch = params.train_epoch;
@@ -327,7 +312,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         }
     }
 
-    pub fn init_item(&mut self, data: &node::Node<E, T>) -> usize {
+    fn init_item(&mut self, data: &node::Node<E, T>) -> usize {
         let cur_id = self._n_items;
         // self._item2id.insert(item, cur_id);
         self._nodes.push(Box::new(data.clone()));
@@ -335,7 +320,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         cur_id
     }
 
-    pub fn add_item(&mut self, data: &node::Node<E, T>) -> Result<usize, &'static str> {
+    fn add_item(&mut self, data: &node::Node<E, T>) -> Result<usize, &'static str> {
         if data.len() != self._dimension {
             return Err("dimension is different");
         }
@@ -352,12 +337,12 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         Ok(insert_id)
     }
 
-    pub fn set_residual(&mut self, residual: Vec<E>) {
+    fn set_residual(&mut self, residual: Vec<E>) {
         self._has_residual = true;
         self._residual = residual;
     }
 
-    pub fn train_center(&mut self) {
+    fn train_center(&mut self) {
         let n_item = self._n_items;
         let n_sub = self._n_sub;
         (0..n_sub).for_each(|i| {
@@ -380,7 +365,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         self._is_trained = true;
     }
 
-    pub fn get_distance_from_vec_range(
+    fn get_distance_from_vec_range(
         &self,
         x: &node::Node<E, T>,
         y: &[E],
@@ -389,12 +374,12 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
     ) -> E {
         let mut z = x.vectors()[begin..end].to_vec();
         if self._has_residual {
-            (0..end-begin).for_each(|i| z[i] -= self._residual[i + begin]);
+            (0..end - begin).for_each(|i| z[i] -= self._residual[i + begin]);
         }
         return metrics::metric(&z, y, self.mt).unwrap();
     }
 
-    pub fn search_knn_adc(
+    fn search_knn_adc(
         &self,
         search_data: &node::Node<E, T>,
         k: usize,
@@ -431,7 +416,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
 }
 
 impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIndex<E, T> {
-    fn construct(&mut self, _mt: metrics::Metric) -> Result<(), &'static str> {
+    fn build(&mut self, _mt: metrics::Metric) -> Result<(), &'static str> {
         self.mt = _mt;
         self.train_center();
         Result::Ok(())
@@ -442,7 +427,7 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIn
             _ => Ok(()),
         }
     }
-    fn once_constructed(&self) -> bool {
+    fn built(&self) -> bool {
         true
     }
 
@@ -471,8 +456,6 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIn
         }
         result
     }
-
-    fn reconstruct(&mut self, _mt: metrics::Metric) {}
 
     fn name(&self) -> &'static str {
         "PQIndex"
@@ -548,7 +531,7 @@ impl<E: node::FloatElement> Default for IVFPQParams<E> {
             n_kmeans_center: 256,
             search_n_center: 8,
             train_epoch: 100,
-            e_type: E::from_f32(0.0).unwrap()
+            e_type: E::from_f32(0.0).unwrap(),
         }
     }
 }
@@ -581,10 +564,7 @@ pub struct IVFPQIndex<E: node::FloatElement, T: node::IdxType> {
 }
 
 impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
-    pub fn new(
-        dimension: usize,
-        params: &IVFPQParams<E>,
-    ) -> IVFPQIndex<E, T> {
+    pub fn new(dimension: usize, params: &IVFPQParams<E>) -> IVFPQIndex<E, T> {
         let n_sub = params.n_sub;
         let sub_bits = params.sub_bits;
         let n_kmeans_center = params.n_kmeans_center;
@@ -668,9 +648,9 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
             let mut center_pq = PQIndex::<E, T>::new(
                 self._dimension,
                 &PQParams::default()
-                .n_sub(self._n_sub)
-                .sub_bits(self._sub_bits)
-                .train_epoch(self._train_epoch)
+                    .n_sub(self._n_sub)
+                    .sub_bits(self._sub_bits)
+                    .train_epoch(self._train_epoch),
             );
 
             for j in 0..self._ivflist[i].len() {
@@ -713,7 +693,7 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
         }
 
         let mut top_candidate: BinaryHeap<Neighbor<E, usize>> = BinaryHeap::new();
-        for i in 0..self._search_n_center {
+        for _i in 0..self._search_n_center {
             let center = top_centers.pop().unwrap().idx();
             // println!("{:?}", center);
             let mut ret = self._pq_list[center]
@@ -733,7 +713,7 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
 }
 
 impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for IVFPQIndex<E, T> {
-    fn construct(&mut self, _mt: metrics::Metric) -> Result<(), &'static str> {
+    fn build(&mut self, _mt: metrics::Metric) -> Result<(), &'static str> {
         self.mt = _mt;
         self.train();
         Result::Ok(())
@@ -744,7 +724,7 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for IVFP
             _ => Ok(()),
         }
     }
-    fn once_constructed(&self) -> bool {
+    fn built(&self) -> bool {
         true
     }
 
@@ -774,8 +754,6 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for IVFP
         result
     }
 
-    fn reconstruct(&mut self, _mt: metrics::Metric) {}
-
     fn name(&self) -> &'static str {
         "IVFPQIndex"
     }
@@ -793,12 +771,12 @@ impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwn
             .map(|x| Box::new(x.clone()))
             .collect();
         instance._nodes_tmp.clear();
-        for i in 0..instance._n_kmeans_center{
+        for i in 0..instance._n_kmeans_center {
             instance._pq_list[i]._nodes = instance._pq_list[i]
-            ._nodes_tmp
-            .iter()
-            .map(|x| Box::new(x.clone()))
-            .collect();
+                ._nodes_tmp
+                .iter()
+                .map(|x| Box::new(x.clone()))
+                .collect();
             instance._pq_list[i]._nodes_tmp.clear();
         }
         Ok(instance)
@@ -807,7 +785,8 @@ impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwn
     fn dump(&mut self, path: &str, _args: &arguments::Args) -> Result<(), &'static str> {
         self._nodes_tmp = self._nodes.iter().map(|x| *x.clone()).collect();
         for i in 0..self._n_kmeans_center {
-            self._pq_list[i]._nodes_tmp = self._pq_list[i]._nodes.iter().map(|x| *x.clone()).collect();
+            self._pq_list[i]._nodes_tmp =
+                self._pq_list[i]._nodes.iter().map(|x| *x.clone()).collect();
         }
         let encoded_bytes = bincode::serialize(&self).unwrap();
         let mut file = File::create(path).unwrap();

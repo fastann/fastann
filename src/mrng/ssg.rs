@@ -8,12 +8,12 @@ use fixedbitset::FixedBitSet;
 #[cfg(feature = "without_std")]
 use hashbrown::HashSet;
 use rand::prelude::*;
-use std::collections::BinaryHeap;
-use std::collections::LinkedList;
-
 use rayon::prelude::*;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use std::cmp::Reverse;
+use std::collections::BinaryHeap;
+use std::collections::LinkedList;
 
 #[cfg(not(feature = "without_std"))]
 use std::collections::HashSet;
@@ -145,7 +145,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
     fn get_random_nodes_idx_lite(&self, indices: &mut [usize]) {
         let mut rng = rand::thread_rng();
         (0..indices.len()).for_each(|i| {
-            indices[i] = rng.gen_range(0, self.nodes.len() - indices.len());
+            indices[i] = rng.gen_range(0..self.nodes.len() - indices.len());
         });
     }
 
@@ -403,7 +403,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         });
     }
 
-    fn build(&mut self) {
+    fn _build(&mut self) {
         self.build_knn_graph();
 
         let mut pruned_graph_tmp: Vec<neighbor::Neighbor<E, usize>> =
@@ -452,51 +452,72 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         k: usize,
         _args: &arguments::Args,
     ) -> Vec<(node::Node<E, T>, E)> {
-        let mut l = k;
-        if l < self.root_nodes.len() {
-            l = self.root_nodes.len();
-        }
-        let mut init_ids = vec![0; l];
         // let mut search_flags = HashSet::with_capacity(self.nodes.len());
         let mut search_flags = FixedBitSet::with_capacity(self.nodes.len());
         let mut heap: BinaryHeap<neighbor::Neighbor<E, usize>> = BinaryHeap::new(); // max-heap
-        let mut search_queue = LinkedList::new();
+        let mut search_queue: LinkedList<usize> = LinkedList::new();
 
-        (0..self.root_nodes.len()).for_each(|i| {
-            init_ids[i] = self.root_nodes[i];
+        let mut vec_tmp = Vec::with_capacity(self.root_nodes.len());
+        self.root_nodes.iter().for_each(|n| {
+            let dist = self.nodes[*n].metric(query, self.mt).unwrap();
+            vec_tmp.push(neighbor::Neighbor::new(*n, dist));
         });
-        self.get_random_nodes_idx_lite(&mut init_ids[self.root_nodes.len()..]);
+        vec_tmp.sort();
+        for iter in vec_tmp.iter() {
+            if heap.len() < k {
+                heap.push(iter.clone());
+                search_queue.push_back(iter.idx());
+            }
+            search_flags.insert(iter.idx());
+        }
 
         let mut cnt = 0;
-        init_ids.iter().for_each(|id| {
-            let dist = self.nodes[*id].metric(query, self.mt).unwrap();
-            heap.push(neighbor::Neighbor::new(*id, dist));
-            search_queue.push_back(id);
-            search_flags.insert(*id);
-            cnt += 1;
-        });
 
         // greedy BFS search
+        let mut c = Vec::new();
         while !search_queue.is_empty() {
             let id = search_queue.pop_front().unwrap();
 
-            for iter in self.graph[*id].iter() {
+            let mut contribute = 0;
+            let mut calc = 0;
+            let mut pass = 0;
+            let mut tmp = BinaryHeap::with_capacity(self.graph[id].len());
+            for iter in self.graph[id].iter() {
                 if search_flags.contains(*iter) {
+                    pass += 1;
                     continue;
                 }
 
                 let dist = self.nodes[*iter].metric(query, self.mt).unwrap();
-                if dist < heap.peek().unwrap().distance() {
-                    heap.pop();
-                    heap.push(neighbor::Neighbor::new(*iter, dist));
-                    search_queue.push_back(iter);
-                }
+                tmp.push(Reverse(neighbor::Neighbor::new(*iter, dist)));
                 search_flags.insert(*iter);
+                calc += 1;
                 cnt += 1;
             }
+            while !tmp.is_empty() {
+                let Reverse(item) = tmp.pop().unwrap();
+                // let item = tmp.pop().unwrap();
+                if item.distance() > heap.peek().unwrap().distance() {
+                    break;
+                }
+                heap.pop();
+                search_queue.push_back(item.idx());
+                heap.push(item);
+                contribute += 1;
+            }
+
+            c.push((
+                contribute,
+                calc,
+                self.graph[id].len(),
+                // (contribute as f32) / (calc as f32),
+                // (calc as f32) / (self.graph[*id].len() as f32),
+                // (contribute as f32) / (self.graph[*id].len() as f32),
+                // (pass as f32) / (self.graph[*id].len() as f32),
+            ));
         }
 
-        // println!("stat_here cnt {:?}", cnt);
+        println!("stat_here cnt {:?} {:?}", cnt, c);
         let mut result = Vec::new();
 
         while !heap.is_empty() {
@@ -517,7 +538,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         flag
     }
 
-    pub fn connectivity_profile(&self) {
+    fn connectivity_profile(&self) {
         let mut visited = HashSet::with_capacity(self.nodes.len());
         let mut queue = VecDeque::new();
 
@@ -569,9 +590,9 @@ impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwn
 impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
     for SatelliteSystemGraphIndex<E, T>
 {
-    fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
+    fn build(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
         self.mt = mt;
-        self.build();
+        self._build();
 
         Result::Ok(())
     }
@@ -579,10 +600,9 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
         self.nodes.push(Box::new(item.clone()));
         Result::Ok(())
     }
-    fn once_constructed(&self) -> bool {
+    fn built(&self) -> bool {
         true
     }
-    fn reconstruct(&mut self, _mt: metrics::Metric) {}
     fn node_search_k(
         &self,
         item: &node::Node<E, T>,
