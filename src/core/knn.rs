@@ -427,7 +427,7 @@ mod tests {
     use super::*;
 
     use crate::core::node;
-    use rand::distributions::{Distribution, Normal};
+    use rand::distributions::Distribution;
     use rand::Rng;
     use std::collections::HashMap;
     use std::collections::HashSet;

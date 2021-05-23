@@ -67,7 +67,7 @@ pub trait ANNIndex<E: node::FloatElement, T: node::IdxType>: Send + Sync {
     /// to rebuild the index with all nodes inside
     ///
     /// /// return `Err(&'static str)` if there is something wrong with the rebuilding process, and the `static str` is the debug reason
-    fn rebuild(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
+    fn rebuild(&mut self, _mt: metrics::Metric) -> Result<(), &'static str> {
         Err("not implement")
     }
 

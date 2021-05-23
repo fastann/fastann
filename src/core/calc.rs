@@ -44,7 +44,7 @@ mod tests {
     use super::*;
     use crate::core::simd_metrics::SIMDOptmized;
 
-    use rand::distributions::{Distribution, Normal};
+    use rand::distributions::Distribution;
 
     use rand::Rng;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
