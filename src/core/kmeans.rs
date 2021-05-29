@@ -32,7 +32,7 @@ impl<E: node::FloatElement> Kmeans<E> {
         &self._centers
     }
 
-    pub fn get_distance_from_vec(&self, x: &Vec<E>, y: &[E]) -> E {
+    pub fn get_distance_from_vec(&self, x: &[E], y: &[E]) -> E {
         // println!("demension: {:?}", self._dimension);
         // println!("begin: {:?}, end: {:?}", self._data_range_begin, self._data_range_end);
         let mut z = x[self._data_range_begin..self._data_range_end].to_vec();
@@ -48,7 +48,7 @@ impl<E: node::FloatElement> Kmeans<E> {
         self._residual = residual;
     }
 
-    pub fn init_center(&mut self, batch_size: usize, batch_data: &Vec<Vec<E>>) {
+    pub fn init_center(&mut self, batch_size: usize, batch_data: &[Vec<E>]) {
         let dimension = self._dimension;
         let n_center = self._n_center;
         let begin = self._data_range_begin;
@@ -90,7 +90,7 @@ impl<E: node::FloatElement> Kmeans<E> {
     pub fn update_center(
         &mut self,
         batch_size: usize,
-        batch_data: &Vec<Vec<E>>,
+        batch_data: &[Vec<E>],
         assigned_center: &[usize],
     ) -> Vec<usize> {
         let dimension = self._dimension;
