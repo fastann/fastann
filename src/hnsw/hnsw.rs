@@ -1,4 +1,3 @@
-
 #![allow(dead_code)]
 use crate::core::ann_index;
 use crate::core::arguments;
@@ -80,7 +79,7 @@ impl<E: node::FloatElement> Default for HNSWParams<E> {
             ef_build: 500,
             ef_search: 16,
             has_deletion: false,
-            e_type: E::from_f32(0.0).unwrap()
+            e_type: E::from_f32(0.0).unwrap(),
         }
     }
 }
@@ -106,7 +105,7 @@ pub struct HNSWIndex<E: node::FloatElement, T: node::IdxType> {
     _root_id: usize,     //root of hnsw
     _id2level: Vec<usize>,
     _has_removed: bool,
-    _ef_build: usize, // num of max candidates when building
+    _ef_build: usize,  // num of max candidates when building
     _ef_search: usize, // num of max candidates when searching
     #[serde(skip_serializing, skip_deserializing)]
     _delete_ids: HashSet<usize>, //save deleted ids
@@ -121,10 +120,7 @@ pub struct HNSWIndex<E: node::FloatElement, T: node::IdxType> {
 }
 
 impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
-    pub fn new(
-        dimension: usize,
-        params: &HNSWParams<E>,
-    ) -> HNSWIndex<E, T> {
+    pub fn new(dimension: usize, params: &HNSWParams<E>) -> HNSWIndex<E, T> {
         HNSWIndex {
             _dimension: dimension,
             _n_items: 0,

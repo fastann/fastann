@@ -28,7 +28,7 @@ impl<E: node::FloatElement> Kmeans<E> {
         }
     }
 
-    pub fn centers(&self) -> &Vec<Vec<E>>{
+    pub fn centers(&self) -> &Vec<Vec<E>> {
         &self._centers
     }
 
@@ -37,15 +37,10 @@ impl<E: node::FloatElement> Kmeans<E> {
         // println!("begin: {:?}, end: {:?}", self._data_range_begin, self._data_range_end);
         let mut z = x[self._data_range_begin..self._data_range_end].to_vec();
         if self._has_residual {
-            (0..self._data_range_end-self._data_range_begin).for_each(|i| 
-                z[i] -= self._residual[i + self._data_range_begin]);
+            (0..self._data_range_end - self._data_range_begin)
+                .for_each(|i| z[i] -= self._residual[i + self._data_range_begin]);
         }
-        return metric(
-            &z,
-            y,
-            self.mt,
-        )
-        .unwrap();
+        return metric(&z, y, self.mt).unwrap();
     }
 
     pub fn set_residual(&mut self, residual: Vec<E>) {
@@ -198,12 +193,7 @@ impl<E: node::FloatElement> Kmeans<E> {
         Ok(())
     }
 
-    pub fn train(
-        &mut self,
-        batch_size: usize,
-        batch_data: &Vec<Vec<E>>,
-        n_epoch: usize,
-    ) {
+    pub fn train(&mut self, batch_size: usize, batch_data: &Vec<Vec<E>>, n_epoch: usize) {
         self.init_center(batch_size, batch_data);
         (0..n_epoch).for_each(|epoch| {
             let mut assigned_center: Vec<usize> = Vec::with_capacity(batch_size);
