@@ -272,6 +272,10 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIn
     fn name(&self) -> &'static str {
         "PQIndex"
     }
+
+    fn dimension(&self) -> usize {
+        self._dimension
+    }
 }
 
 impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwned>
@@ -571,6 +575,10 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for IVFP
 
     fn name(&self) -> &'static str {
         "IVFPQIndex"
+    }
+
+    fn dimension(&self) -> usize {
+        self._dimension
     }
 }
 
