@@ -27,7 +27,7 @@ impl<E: node::FloatElement, T: node::IdxType> BruteForceIndex<E, T> {
             nodes: Vec::new(),
             mt: metrics::Metric::Unknown,
             tmp_nodes: Vec::new(),
-            dimension: dimension,
+            dimension,
         }
     }
 }

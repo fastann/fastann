@@ -427,7 +427,7 @@ mod tests {
     use super::*;
 
     use crate::core::node;
-    use rand::distributions::Distribution;
+    use rand::distributions::{Distribution,Standard};
     use rand::Rng;
     use std::collections::HashMap;
     use std::collections::HashSet;
@@ -447,7 +447,6 @@ mod tests {
 
         let mut bases: Vec<Vec<f64>> = Vec::new();
         let mut ns: Vec<Vec<f64>> = Vec::new();
-        let normal = Normal::new(0.0, range / 50.0);
         for _i in 0..clustering_n {
             let mut base: Vec<f64> = Vec::with_capacity(dimension);
             for _i in 0..dimension {
@@ -456,7 +455,7 @@ mod tests {
             }
 
             for _i in 0..node_n {
-                let v_iter: Vec<f64> = rng.sample_iter(&normal).take(dimension).collect();
+                let v_iter: Vec<f64> = rng.sample_iter(&Standard).take(dimension).collect();
                 let mut vec_item = Vec::with_capacity(dimension);
                 for i in 0..dimension {
                     let vv = v_iter[i] + base[i]; // add normal distribution noise
