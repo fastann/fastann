@@ -46,7 +46,7 @@ mod tests {
 
     use rand::distributions::{Distribution, Standard};
 
-    use rand::prelude::*;
+    
     use rand::Rng;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
     fn make_normal_distribution_clustering(
@@ -58,7 +58,7 @@ mod tests {
         Vec<Vec<f64>>, // center of cluster
         Vec<Vec<f64>>, // cluster data
     ) {
-        let mut rng = rand::thread_rng();
+        let _rng = rand::thread_rng();
 
         let mut bases: Vec<Vec<f64>> = Vec::new();
         let mut ns: Vec<Vec<f64>> = Vec::new();
