@@ -17,8 +17,7 @@ struct StatMetrics {
     TestSize: usize,
 }
 
-const data_path: &str =
-    "fashion-mnist-784-euclidean.hdf5";
+const data_path: &str = "fashion-mnist-784-euclidean.hdf5";
 const dimension: usize = 784;
 const K: usize = 10;
 
@@ -73,8 +72,8 @@ pub fn ann_bench() {
     // make_idx_baseline(train.clone(), &mut hnsw_idx);
     // make_idx_baseline(train.clone(), &mut pq_idx);
     // make_idx_baseline(train, &mut ssg_idx);
-    println!("train len: {:?}", train.len() );
-    println!("test len: {:?}", test.len() );
+    println!("train len: {:?}", train.len());
+    println!("test len: {:?}", test.len());
     // bench_hnsw(&train, &test, &neighbors);
     // bench_ssg(&train, &test, &neighbors);
     bench_ivfpq(&train, &test, &neighbors);
@@ -136,33 +135,31 @@ fn bench_hnsw<E: core::node::FloatElement>(
 ) {
     let params_set = vec![
         hnsw::hnsw::HNSWParams::<E>::default()
-        .max_item(100000)
-        .n_neighbor(16)
-        .n_neighbor0(32)
-        .ef_build(500)
-        .ef_search(16)
-        .has_deletion(false),
+            .max_item(100000)
+            .n_neighbor(16)
+            .n_neighbor0(32)
+            .ef_build(500)
+            .ef_search(16)
+            .has_deletion(false),
         hnsw::hnsw::HNSWParams::<E>::default()
-        .max_item(100000)
-        .n_neighbor(8)
-        .n_neighbor0(16)
-        .ef_build(500)
-        .ef_search(16)
-        .has_deletion(false),
+            .max_item(100000)
+            .n_neighbor(8)
+            .n_neighbor0(16)
+            .ef_build(500)
+            .ef_search(16)
+            .has_deletion(false),
         hnsw::hnsw::HNSWParams::<E>::default()
-        .max_item(100000)
-        .n_neighbor(16)
-        .n_neighbor0(32)
-        .ef_build(500)
-        .ef_search(16)
-        .has_deletion(false),
+            .max_item(100000)
+            .n_neighbor(16)
+            .n_neighbor0(32)
+            .ef_build(500)
+            .ef_search(16)
+            .has_deletion(false),
     ];
 
     let mut metrics_stats: Vec<StatMetrics> = Vec::new();
     for params in params_set.iter() {
-        let mut hnsw_idx = Box::new(hnsw::hnsw::HNSWIndex::<E, usize>::new(
-            dimension, params,
-        ));
+        let mut hnsw_idx = Box::new(hnsw::hnsw::HNSWIndex::<E, usize>::new(dimension, params));
         make_idx_baseline(train, &mut hnsw_idx);
         metrics_stats.push(bench_calc(hnsw_idx, test, neighbors));
         println!("finish params {:?}", params);
@@ -185,20 +182,16 @@ fn bench_ivfpq<E: core::node::FloatElement>(
     test: &Vec<Vec<E>>,
     neighbors: &Vec<HashSet<usize>>,
 ) {
-    let params_set = vec![
-        pq::pq::IVFPQParams::<E>::default()
+    let params_set = vec![pq::pq::IVFPQParams::<E>::default()
         .n_sub(16)
         .sub_bits(4)
         .n_kmeans_center(256)
         .search_n_center(4)
-        .train_epoch(100)
-    ];
+        .train_epoch(100)];
 
     let mut metrics_stats: Vec<StatMetrics> = Vec::new();
     for params in params_set.iter() {
-        let mut ivfpq_idx = Box::new(pq::pq::IVFPQIndex::<E, usize>::new(
-            dimension, params,
-        ));
+        let mut ivfpq_idx = Box::new(pq::pq::IVFPQIndex::<E, usize>::new(dimension, params));
         make_idx_baseline(train, &mut ivfpq_idx);
         metrics_stats.push(bench_calc(ivfpq_idx, test, neighbors));
         println!("finish params {:?}", params);
@@ -223,12 +216,12 @@ fn bench_calc<E: core::node::FloatElement, T: ANNIndex<E, usize> + ?Sized>(
 ) -> StatMetrics {
     let mut accuracy = 0;
     let mut cost = 0.0;
-    
+
     for idx in 0..test.len() {
         let start = SystemTime::now();
         let result = ann_idx.search(test[idx].as_slice(), K);
         let since_start = SystemTime::now().duration_since(start).expect("error");
-        cost += (since_start.as_micros() as f64)/1000.0;
+        cost += (since_start.as_micros() as f64) / 1000.0;
         let true_set = &neighbors[idx];
         result.iter().for_each(|candidate| {
             if true_set.contains(candidate) {
@@ -237,10 +230,7 @@ fn bench_calc<E: core::node::FloatElement, T: ANNIndex<E, usize> + ?Sized>(
         });
     }
     println!("cost: {:?}", cost);
-    println!(
-        "cost: {:?}",
-        cost
-    );
+    println!("cost: {:?}", cost);
     println!(
         "{:?} result {:?}/{:?} {:?}ms qps {:?}",
         ann_idx.name(),

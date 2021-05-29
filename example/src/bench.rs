@@ -14,7 +14,7 @@ use hashbrown::HashMap;
 
 use prgrs::{Length, Prgrs};
 
-use rand::distributions::{Distribution, Normal}; 
+use rand::distributions::{Distribution, Normal};
 
 use rand::Rng;
 
@@ -90,9 +90,9 @@ pub fn run_similarity_profile(test_time: usize) {
     let _pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(
         dimension,
         &pq::pq::PQParams::<f64>::default()
-        .n_sub(DIMENSION/2)
-        .sub_bits(4)
-        .train_epoch(100)
+            .n_sub(DIMENSION / 2)
+            .sub_bits(4)
+            .train_epoch(100),
     ));
     let _ssg_idx = Box::new(mrng::ssg::SatelliteSystemGraphIndex::<f64, usize>::new(
         dimension,
@@ -231,29 +231,27 @@ pub fn run_word_emb_demo() {
         bpforest::bpforest::BinaryProjectionForestIndex::<f32, usize>::new(DIMENSION, 6, -1),
     );
     let mut hnsw_idx = Box::new(hnsw::hnsw::HNSWIndex::<f32, usize>::new(
-        DIMENSION, 
-        &hnsw::hnsw::HNSWParams::default()
+        DIMENSION,
+        &hnsw::hnsw::HNSWParams::default(),
     ));
 
     let _ivfpq_idx = Box::new(pq::pq::IVFPQIndex::<f32, usize>::new(
         DIMENSION,
         &pq::pq::IVFPQParams::<f32>::default()
-        .n_sub(DIMENSION/2)
-        .sub_bits(4)
-        .train_epoch(100)
+            .n_sub(DIMENSION / 2)
+            .sub_bits(4)
+            .train_epoch(100),
     ));
 
-    let mut ivfpq_idx = Box::new(
-        pq::pq::IVFPQIndex::<f32, usize>::new(
-            DIMENSION,
-            &pq::pq::IVFPQParams::<f32>::default()
-            .n_sub(DIMENSION/2)
+    let mut ivfpq_idx = Box::new(pq::pq::IVFPQIndex::<f32, usize>::new(
+        DIMENSION,
+        &pq::pq::IVFPQParams::<f32>::default()
+            .n_sub(DIMENSION / 2)
             .sub_bits(4)
             .n_kmeans_center(256)
             .search_n_center(4)
-            .train_epoch(100)
-        )
-    );
+            .train_epoch(100),
+    ));
 
     let mut ssg_idx = Box::new(mrng::ssg::SatelliteSystemGraphIndex::<f32, usize>::new(
         DIMENSION,
@@ -272,7 +270,7 @@ pub fn run_word_emb_demo() {
     // bpforest_idx.dump("bpforest_idx.idx", &argument);
     // hnsw_idx.dump("hnsw_idx.idx", &argument);
     // pq_idx.dump("pq_idx.idx", &argument);
-    ivfpq_idx.dump("ivfpq_idx.idx", &argument);    
+    ivfpq_idx.dump("ivfpq_idx.idx", &argument);
     // ssg_idx.dump("ssg_idx.idx", &argument);
 }
 
@@ -324,9 +322,8 @@ pub fn run() {
 
     // let _pq_idx = Box::new(pq::pq::PQIndex::<f32, usize>::load("pq_idx.idx", &argument).unwrap());
     let _pq_idx = Box::new(pq::pq::PQIndex::<f32, usize>::load("pq_idx.idx", &argument).unwrap());
-    let _ivfpq_idx = Box::new(
-        pq::pq::IVFPQIndex::<f32, usize>::load("ivfpq_idx.idx", &argument).unwrap()
-    );
+    let _ivfpq_idx =
+        Box::new(pq::pq::IVFPQIndex::<f32, usize>::load("ivfpq_idx.idx", &argument).unwrap());
     // let _ssg_idx = Box::new(
     //     mrng::ssg::SatelliteSystemGraphIndex::<f32, usize>::load("ssg_idx.idx", &argument).unwrap(),
     // );
