@@ -5,8 +5,8 @@ use fastann::core::ann_index::ANNIndex;
 use fastann::hnsw;
 use fastann::mrng;
 use fastann::pq;
-
 use std::collections::HashSet;
+
 use std::time::SystemTime;
 
 struct StatMetrics {
@@ -17,8 +17,7 @@ struct StatMetrics {
     TestSize: usize,
 }
 
-const data_path: &str =
-    "/Users/chenyangyang/rust/fastann/src/bench/fashion-mnist-784-euclidean.hdf5";
+const data_path: &str = "fashion-mnist-784-euclidean.hdf5";
 const dimension: usize = 784;
 const K: usize = 10;
 
@@ -76,8 +75,8 @@ pub fn ann_bench() {
     println!("train len: {:?}", train.len());
     println!("test len: {:?}", test.len());
     // bench_hnsw(&train, &test, &neighbors);
-    bench_ssg(&train, &test, &neighbors);
-    // bench_ivfpq(&train, &test, &neighbors);
+    // bench_ssg(&train, &test, &neighbors);
+    bench_ivfpq(&train, &test, &neighbors);
 }
 
 fn bench_ssg<E: core::node::FloatElement>(
@@ -217,6 +216,7 @@ fn bench_calc<E: core::node::FloatElement, T: ANNIndex<E, usize> + ?Sized>(
 ) -> StatMetrics {
     let mut accuracy = 0;
     let mut cost = 0.0;
+
     for idx in 0..test.len() {
         let start = SystemTime::now();
         let result = ann_idx.search(test[idx].as_slice(), K);
@@ -229,6 +229,7 @@ fn bench_calc<E: core::node::FloatElement, T: ANNIndex<E, usize> + ?Sized>(
             }
         });
     }
+    println!("cost: {:?}", cost);
     println!("cost: {:?}", cost);
     println!(
         "{:?} result {:?}/{:?} {:?}ms qps {:?}",

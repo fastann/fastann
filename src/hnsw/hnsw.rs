@@ -382,7 +382,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         top_candidates
     }
     //find ef nearist nodes to search data from root at level
-    pub fn search_layer(
+    fn search_layer(
         &self,
         root: usize,
         search_data: &node::Node<E, T>,
@@ -442,7 +442,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         top_candidates
     }
 
-    // pub fn search_layer_default(
+    // fn search_layer_default(
     //     &self,
     //     root: usize,
     //     search_data: &node::Node<E, T>,

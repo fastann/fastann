@@ -517,7 +517,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
             ));
         }
 
-        println!("stat_here cnt {:?} {:?}", cnt, c);
+        // println!("stat_here cnt {:?}", cnt);
         let mut result = Vec::new();
 
         while !heap.is_empty() {

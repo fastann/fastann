@@ -50,7 +50,7 @@ fn make_normal_distribution_clustering(
     for _i in 0..clustering_n {
         let mut base: Vec<f64> = Vec::with_capacity(dimension);
         for _i in 0..dimension {
-            let n: f64 = rng.gen_range(-range, range); // base number
+            let n: f64 = rng.gen_range(-range..range); // base number
             base.push(n);
         }
 
@@ -99,7 +99,7 @@ pub fn run_similarity_profile(test_time: usize) {
         &mrng::ssg::SatelliteSystemGraphParams::default(),
     ));
 
-    let mut indices: Vec<Box<dyn ANNIndex<f64, usize>>> = vec![hnsw_idx];
+    let mut indices: Vec<Box<ANNIndex<f64, usize>>> = vec![hnsw_idx];
     // let mut indices: Vec<Box<dyn ANNIndex<f64, usize>>> =
     //     vec![ssg_idx, bpforest_idx, pq_idx, hnsw_idx];
     let accuracy = Arc::new(Mutex::new(Vec::new()));
@@ -230,20 +230,20 @@ pub fn run_word_emb_demo() {
     let _bpforest_idx = Box::new(
         bpforest::bpforest::BinaryProjectionForestIndex::<f32, usize>::new(DIMENSION, 6, -1),
     );
-    let _hnsw_idx = Box::new(hnsw::hnsw::HNSWIndex::<f32, usize>::new(
+    let mut hnsw_idx = Box::new(hnsw::hnsw::HNSWIndex::<f32, usize>::new(
         DIMENSION,
         &hnsw::hnsw::HNSWParams::default(),
     ));
 
-    let _pq_idx = Box::new(pq::pq::PQIndex::<f32, usize>::new(
+    let _ivfpq_idx = Box::new(pq::pq::IVFPQIndex::<f32, usize>::new(
         DIMENSION,
-        &pq::pq::PQParams::<f32>::default()
+        &pq::pq::IVFPQParams::<f32>::default()
             .n_sub(DIMENSION / 2)
             .sub_bits(4)
             .train_epoch(100),
     ));
 
-    let _ivfpq_idx = Box::new(pq::pq::IVFPQIndex::<f32, usize>::new(
+    let mut ivfpq_idx = Box::new(pq::pq::IVFPQIndex::<f32, usize>::new(
         DIMENSION,
         &pq::pq::IVFPQParams::<f32>::default()
             .n_sub(DIMENSION / 2)
@@ -262,16 +262,16 @@ pub fn run_word_emb_demo() {
     // make_idx_baseline(train_data.clone(), &mut bpforest_idx);
     // make_idx_baseline(train_data.clone(), &mut hnsw_idx);
     // make_idx_baseline(train_data.clone(), &mut pq_idx);
-    // make_idx_baseline(train_data.clone(), &mut ivfpq_idx);
-    make_idx_baseline(train_data, &mut ssg_idx);
+    make_idx_baseline(train_data.clone(), &mut ivfpq_idx);
+    // make_idx_baseline(train_data, &mut ssg_idx);
 
     let argument = arguments::Args::new();
     bf_idx.dump("bf_idx.idx", &argument);
     // bpforest_idx.dump("bpforest_idx.idx", &argument);
     // hnsw_idx.dump("hnsw_idx.idx", &argument);
     // pq_idx.dump("pq_idx.idx", &argument);
-    // ivfpq_idx.dump("ivfpq_idx.idx", &argument);
-    ssg_idx.dump("ssg_idx.idx", &argument);
+    ivfpq_idx.dump("ivfpq_idx.idx", &argument);
+    // ssg_idx.dump("ssg_idx.idx", &argument);
 }
 
 pub fn run() {
@@ -321,13 +321,9 @@ pub fn run() {
     //     Box::new(hnsw::hnsw::HNSWIndex::<f32, usize>::load("hnsw_idx.idx", &argument).unwrap());
 
     // let _pq_idx = Box::new(pq::pq::PQIndex::<f32, usize>::load("pq_idx.idx", &argument).unwrap());
-    // let _pq_idx = Box::new(pq::pq::PQIndex::<f32, usize>::load("pq_idx.idx", &argument).unwrap());
-    // let _ivfpq_idx = Box::new(
-    //     pq::pq::IVFPQIndex::<f32, usize>::load("ivfpq_idx.idx", &argument).unwrap()
-    // );
-    let _ssg_idx = Box::new(
-        mrng::ssg::SatelliteSystemGraphIndex::<f32, usize>::load("ssg_idx.idx", &argument).unwrap(),
-    );
+    let _pq_idx = Box::new(pq::pq::PQIndex::<f32, usize>::load("pq_idx.idx", &argument).unwrap());
+    let _ivfpq_idx =
+        Box::new(pq::pq::IVFPQIndex::<f32, usize>::load("ivfpq_idx.idx", &argument).unwrap());
     // let _ssg_idx = Box::new(
     //     mrng::ssg::SatelliteSystemGraphIndex::<f32, usize>::load("ssg_idx.idx", &argument).unwrap(),
     // );
@@ -336,7 +332,7 @@ pub fn run() {
         // vec![bpforest_idx, pq_idx, ssg_idx, hnsw_idx];
         // vec![_hnsw_idx];
         // vec![_pq_idx];
-        vec![_ssg_idx];
+        vec![_ivfpq_idx];
 
     const K: i32 = 1000;
     let words: Vec<usize> = (0..K)
@@ -367,10 +363,10 @@ pub fn run() {
         let mut accuracy = 0;
         words.iter().zip(0..words.len()).for_each(|(w, i)| {
             // println!("hioyo {:?} {:?}", i, words.len());
-            let result = idx.search_full(&train_data[*w as usize], 10);
+            let result = idx.search(&train_data[*w as usize], 10);
             // println!("hio {:?} {:?}", i, words.len());
-            for (n, _d) in result.iter() {
-                if results[i].contains(&n.idx().unwrap()) {
+            for n in result.iter() {
+                if results[i].contains(n) {
                     accuracy += 1;
                 }
             }
