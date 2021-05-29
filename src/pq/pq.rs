@@ -5,11 +5,11 @@ use crate::core::metrics;
 use crate::core::neighbor::Neighbor;
 use crate::core::kmeans;
 use crate::core::node;
-use metrics::metric;
-use rand::prelude::*;
-use rayon::{iter::IntoParallelIterator, prelude::*};
+
+
+use rayon::{prelude::*};
 use serde::de::DeserializeOwned;
-use std::{collections::BinaryHeap, process::exit};
+use std::{collections::BinaryHeap};
 
 use serde::{Deserialize, Serialize};
 
@@ -111,8 +111,8 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         };
 
         for i in 0..n_sub {
-            let mut begin;
-            let mut end;
+            let begin;
+            let end;
             if i < dimension % sub_dimension {
                 begin = i * (sub_dimension + 1);
                 end = (i + 1) * (sub_dimension + 1);
@@ -162,7 +162,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         let n_item = self._n_items;
         let n_sub = self._n_sub;
         (0..n_sub).for_each(|i| {
-            let dimension = self._sub_dimension;
+            let _dimension = self._sub_dimension;
             let n_center = self._n_sub_center;
             let n_epoch = self._train_epoch;
             let begin = self._dimension_range[i][0];
@@ -522,7 +522,7 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
         }
 
         let mut top_candidate: BinaryHeap<Neighbor<E, usize>> = BinaryHeap::new();
-        for i in 0..self._search_n_center {
+        for _i in 0..self._search_n_center {
             let center = top_centers.pop().unwrap().idx();
             // println!("{:?}", center);
             let mut ret = self._pq_list[center]

@@ -451,7 +451,7 @@ mod tests {
         for _i in 0..clustering_n {
             let mut base: Vec<f64> = Vec::with_capacity(dimension);
             for _i in 0..dimension {
-                let n: f64 = rng.gen_range(-range, range); // base number
+                let n: f64 = rng.gen_range(-range..range); // base number
                 base.push(n);
             }
 
