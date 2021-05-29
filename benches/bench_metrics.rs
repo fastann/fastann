@@ -10,19 +10,19 @@ fn make_normal_distribution_clustering(
     dimension: usize,
     range: f64,
 ) -> (
-    Vec<Vec<f64>>, // center of cluster
-    Vec<Vec<f64>>, // cluster data
+    Vec<Vec<f32>>, // center of cluster
+    Vec<Vec<f32>>, // cluster data
 ) {
     let _rng = rand::thread_rng();
 
-    let mut bases: Vec<Vec<f64>> = Vec::new();
-    let mut ns: Vec<Vec<f64>> = Vec::new();
+    let mut bases: Vec<Vec<f32>> = Vec::new();
+    let mut ns: Vec<Vec<f32>> = Vec::new();
     for _i in 0..clustering_n {
         let mut rng = rand::thread_rng();
-        let mut base: Vec<f64> = Vec::with_capacity(dimension);
+        let mut base: Vec<f32> = Vec::with_capacity(dimension);
         for _i in 0..dimension {
             let n: f64 = rng.gen::<f64>() * range; // base number
-            base.push(n);
+            base.push((n as f32).into());
         }
 
         let v_iter: Vec<f64> = rng
@@ -33,7 +33,7 @@ fn make_normal_distribution_clustering(
         for _i in 0..node_n {
             let mut vec_item = Vec::with_capacity(dimension);
             for i in 0..dimension {
-                let vv = v_iter[_i * dimension..(_i + 1) * dimension][i] + base[i]; // add normal distribution noise
+                let vv = (v_iter[_i * dimension..(_i + 1) * dimension][i] as f32) + base[i]; // add normal distribution noise
                 vec_item.push(vv);
             }
             ns.push(vec_item);
@@ -44,7 +44,7 @@ fn make_normal_distribution_clustering(
     (bases, ns)
 }
 
-fn metrics_dot_product_wrapper(nso: &[Vec<f64>]) {
+fn metrics_dot_product_wrapper(nso: &[Vec<f32>]) {
     nso.iter().for_each(|n| {
         nso.iter().for_each(|m| {
             metrics::dot_product(n, m).unwrap();
@@ -52,7 +52,7 @@ fn metrics_dot_product_wrapper(nso: &[Vec<f64>]) {
     })
 }
 
-fn metrics_euclidean_distance_wrapper(nso: &[Vec<f64>]) {
+fn metrics_euclidean_distance_wrapper(nso: &[Vec<f32>]) {
     nso.iter().for_each(|n| {
         nso.iter().for_each(|m| {
             metrics::euclidean_distance(n, m).unwrap();
@@ -60,7 +60,7 @@ fn metrics_euclidean_distance_wrapper(nso: &[Vec<f64>]) {
     })
 }
 
-fn metrics_manhattan_distance_wrapper(nso: &[Vec<f64>]) {
+fn metrics_manhattan_distance_wrapper(nso: &[Vec<f32>]) {
     nso.iter().for_each(|n| {
         nso.iter().for_each(|m| {
             metrics::manhattan_distance(n, m).unwrap();
@@ -72,7 +72,7 @@ fn metrics_benchmark(c: &mut Criterion) {
     let dimension = 64;
     let nodes_every_cluster = 10;
     let node_n = 50;
-    let range  = 100000.0;
+    let range = 100000.0;
     let (_, nso) =
         make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, range);
 
