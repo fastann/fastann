@@ -123,7 +123,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         new_pq
     }
 
-    pub fn init_item(&mut self, data: &node::Node<E, T>) -> usize {
+    fn init_item(&mut self, data: &node::Node<E, T>) -> usize {
         let cur_id = self._n_items;
         // self._item2id.insert(item, cur_id);
         self._nodes.push(Box::new(data.clone()));
@@ -131,7 +131,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         cur_id
     }
 
-    pub fn add_item(&mut self, data: &node::Node<E, T>) -> Result<usize, &'static str> {
+    fn add_item(&mut self, data: &node::Node<E, T>) -> Result<usize, &'static str> {
         if data.len() != self._dimension {
             return Err("dimension is different");
         }
@@ -148,12 +148,12 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         Ok(insert_id)
     }
 
-    pub fn set_residual(&mut self, residual: Vec<E>) {
+    fn set_residual(&mut self, residual: Vec<E>) {
         self._has_residual = true;
         self._residual = residual;
     }
 
-    pub fn train_center(&mut self) {
+    fn train_center(&mut self) {
         let n_item = self._n_items;
         let n_sub = self._n_sub;
         (0..n_sub).for_each(|i| {
@@ -182,7 +182,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         self._is_trained = true;
     }
 
-    pub fn get_distance_from_vec_range(
+    fn get_distance_from_vec_range(
         &self,
         x: &node::Node<E, T>,
         y: &[E],
@@ -196,7 +196,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         return metrics::metric(&z, y, self.mt).unwrap();
     }
 
-    pub fn search_knn_adc(
+    fn search_knn_adc(
         &self,
         search_data: &node::Node<E, T>,
         k: usize,
