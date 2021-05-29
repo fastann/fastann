@@ -309,27 +309,27 @@ pub struct IVFPQParams<E: node::FloatElement> {
 }
 
 impl<E: node::FloatElement> IVFPQParams<E> {
-    fn n_sub(mut self, new_n_sub: usize) -> Self {
+    pub fn n_sub(mut self, new_n_sub: usize) -> Self {
         self.n_sub = new_n_sub;
         self
     }
 
-    fn sub_bits(mut self, new_sub_bits: usize) -> Self {
+    pub fn sub_bits(mut self, new_sub_bits: usize) -> Self {
         self.sub_bits = new_sub_bits;
         self
     }
 
-    fn n_kmeans_center(mut self, new_n_kmeans_center: usize) -> Self {
+    pub fn n_kmeans_center(mut self, new_n_kmeans_center: usize) -> Self {
         self.n_kmeans_center = new_n_kmeans_center;
         self
     }
 
-    fn search_n_center(mut self, new_search_n_center: usize) -> Self {
+    pub fn search_n_center(mut self, new_search_n_center: usize) -> Self {
         self.search_n_center = new_search_n_center;
         self
     }
 
-    fn train_epoch(mut self, new_train_epoch: usize) -> Self {
+    pub fn train_epoch(mut self, new_train_epoch: usize) -> Self {
         self.train_epoch = new_train_epoch;
         self
     }
