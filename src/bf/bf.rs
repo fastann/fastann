@@ -18,14 +18,16 @@ pub struct BruteForceIndex<E: node::FloatElement, T: node::IdxType> {
     nodes: Vec<Box<node::Node<E, T>>>,
     tmp_nodes: Vec<node::Node<E, T>>, // only use for serialization scene
     mt: metrics::Metric,
+    dimension: usize,
 }
 
 impl<E: node::FloatElement, T: node::IdxType> BruteForceIndex<E, T> {
-    pub fn new() -> BruteForceIndex<E, T> {
+    pub fn new(dimension: usize) -> BruteForceIndex<E, T> {
         BruteForceIndex::<E, T> {
             nodes: Vec::new(),
             mt: metrics::Metric::Unknown,
             tmp_nodes: Vec::new(),
+            dimension: dimension,
         }
     }
 }
@@ -77,6 +79,10 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Brut
 
     fn name(&self) -> &'static str {
         "BruteForceIndex"
+    }
+
+    fn dimension(&self) -> usize {
+        self.dimension
     }
 }
 

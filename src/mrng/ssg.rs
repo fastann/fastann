@@ -119,18 +119,21 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         (0..self.nodes.len()).into_par_iter().for_each(|n| {
             let item = &self.nodes[n];
             let mut heap = BinaryHeap::with_capacity(self.init_k);
-            for i in 0..self.nodes.len() {
-                if i == n {
-                    continue;
-                }
-                heap.push(neighbor::Neighbor::new(
-                    i,
-                    item.metric(&self.nodes[i], self.mt).unwrap(),
-                ));
-                if heap.len() > self.init_k {
-                    heap.pop();
-                }
-            }
+            self.nodes
+                .iter()
+                .zip(0..self.nodes.len())
+                .for_each(|(node, i)| {
+                    if i == n {
+                        return;
+                    }
+                    heap.push(neighbor::Neighbor::new(
+                        i,
+                        item.metric(&node, self.mt).unwrap(),
+                    ));
+                    if heap.len() > self.init_k {
+                        heap.pop();
+                    }
+                });
             let mut tmp = Vec::with_capacity(heap.len());
             while !heap.is_empty() {
                 tmp.push(heap.pop().unwrap().idx());
@@ -618,5 +621,9 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
 
     fn nodes_size(&self) -> usize {
         self.nodes.len()
+    }
+
+    fn dimension(&self) -> usize {
+        self.dimension
     }
 }

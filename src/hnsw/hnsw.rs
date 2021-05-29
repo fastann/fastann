@@ -717,6 +717,10 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for HNSW
     fn name(&self) -> &'static str {
         "HNSWIndex"
     }
+
+    fn dimension(&self) -> usize {
+        self._dimension
+    }
 }
 
 impl<E: node::FloatElement + DeserializeOwned, T: node::IdxType + DeserializeOwned>
