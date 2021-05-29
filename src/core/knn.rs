@@ -427,7 +427,7 @@ mod tests {
     use super::*;
 
     use crate::core::node;
-    use rand::distributions::{Distribution,Standard};
+    use rand::distributions::{Distribution, Standard};
     use rand::Rng;
     use std::collections::HashMap;
     use std::collections::HashSet;
@@ -443,22 +443,25 @@ mod tests {
         Vec<Vec<f64>>, // center of cluster
         Vec<Vec<f64>>, // cluster data
     ) {
-        let mut rng = rand::thread_rng();
-
         let mut bases: Vec<Vec<f64>> = Vec::new();
         let mut ns: Vec<Vec<f64>> = Vec::new();
         for _i in 0..clustering_n {
+            let mut rng = rand::thread_rng();
             let mut base: Vec<f64> = Vec::with_capacity(dimension);
             for _i in 0..dimension {
-                let n: f64 = rng.gen_range(-range..range); // base number
+                let n: f64 = rng.gen::<f64>() * range; // base number
                 base.push(n);
             }
 
+            let v_iter: Vec<f64> = rng
+                .sample_iter(&Standard)
+                .take(dimension * node_n)
+                .collect::<Vec<f64>>()
+                .clone();
             for _i in 0..node_n {
-                let v_iter: Vec<f64> = rng.sample_iter(&Standard).take(dimension).collect();
                 let mut vec_item = Vec::with_capacity(dimension);
                 for i in 0..dimension {
-                    let vv = v_iter[i] + base[i]; // add normal distribution noise
+                    let vv = v_iter[_i * dimension..(_i + 1) * dimension][i] + base[i]; // add normal distribution noise
                     vec_item.push(vv);
                 }
                 ns.push(vec_item);
