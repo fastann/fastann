@@ -1,10 +1,13 @@
 /target
 .vscode
-/src/bench/*.txt
-/src/bench/*.zip
-/src/bench/*.tar.gz
+/example/src/*.txt
+/example/src/*.zip
+/example/src/*.tar.gz
 *.svg
 *.idx
 *.txt
 *.zip
+*.tar.gz
 .DS_Store
+*.hdf5
+example/target

@@ -255,11 +255,11 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         self._roots.len() as i32
     }
 
-    pub fn get_dimension(&self) -> usize {
+    fn get_dimension(&self) -> usize {
         self._dimension
     }
 
-    pub fn get_k(&self) -> i32 {
+    fn get_k(&self) -> i32 {
         self._leaf_max_items
     }
 
@@ -436,7 +436,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         Ok((self._tot_leaves_cnt) as i32)
     }
 
-    pub fn _search_k(
+    fn _search_k(
         &self,
         vectors: &[E],
         n: usize,
@@ -521,7 +521,7 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
         Ok(result)
     }
 
-    pub fn show_trees(&self) {
+    fn show_trees(&self) {
         let mut v = self._roots.clone();
         while !v.is_empty() {
             let i = v.pop().unwrap();
@@ -595,13 +595,13 @@ impl<E: node::FloatElement, T: node::IdxType> BinaryProjectionForestIndex<E, T> 
 impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
     for BinaryProjectionForestIndex<E, T>
 {
-    fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
+    fn build(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
         self.build(mt)
     }
     fn add_node(&mut self, item: &node::Node<E, T>) -> Result<(), &'static str> {
         self._add_item(item)
     }
-    fn once_constructed(&self) -> bool {
+    fn built(&self) -> bool {
         self._built
     }
 
@@ -613,8 +613,6 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T>
     ) -> Vec<(node::Node<E, T>, E)> {
         self._search_k(item.vectors(), k).unwrap()
     }
-
-    fn reconstruct(&mut self, _mt: metrics::Metric) {}
 
     fn name(&self) -> &'static str {
         "BPForestIndex"

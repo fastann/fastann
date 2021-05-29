@@ -31,7 +31,7 @@ impl<E: node::FloatElement, T: node::IdxType> BruteForceIndex<E, T> {
 }
 
 impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for BruteForceIndex<E, T> {
-    fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
+    fn build(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
         self.mt = mt;
         Result::Ok(())
     }
@@ -39,10 +39,9 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for Brut
         self.nodes.push(Box::new(item.clone()));
         Result::Ok(())
     }
-    fn once_constructed(&self) -> bool {
+    fn built(&self) -> bool {
         true
     }
-    fn reconstruct(&mut self, _mt: metrics::Metric) {}
     fn node_search_k(
         &self,
         item: &node::Node<E, T>,

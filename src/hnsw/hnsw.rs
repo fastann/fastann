@@ -79,7 +79,7 @@ impl<E: node::FloatElement> Default for HNSWParams<E> {
             ef_build: 500,
             ef_search: 16,
             has_deletion: false,
-            e_type: E::from_f32(0.0).unwrap()
+            e_type: E::from_f32(0.0).unwrap(),
         }
     }
 }
@@ -105,7 +105,7 @@ pub struct HNSWIndex<E: node::FloatElement, T: node::IdxType> {
     _root_id: usize,     //root of hnsw
     _id2level: Vec<usize>,
     _has_removed: bool,
-    _ef_build: usize, // num of max candidates when building
+    _ef_build: usize,  // num of max candidates when building
     _ef_search: usize, // num of max candidates when searching
     #[serde(skip_serializing, skip_deserializing)]
     _delete_ids: HashSet<usize>, //save deleted ids
@@ -120,10 +120,7 @@ pub struct HNSWIndex<E: node::FloatElement, T: node::IdxType> {
 }
 
 impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
-    pub fn new(
-        dimension: usize,
-        params: &HNSWParams<E>,
-    ) -> HNSWIndex<E, T> {
+    pub fn new(dimension: usize, params: &HNSWParams<E>) -> HNSWIndex<E, T> {
         HNSWIndex {
             _dimension: dimension,
             _n_items: 0,
@@ -146,7 +143,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         let mut rng = rand::thread_rng();
         let mut ret = 0;
         while ret < self._max_level {
-            if rng.gen_range(0.0, 1.0) > 0.5 {
+            if rng.gen_range(0.0..1.0) > 0.5 {
                 ret += 1;
             } else {
                 break;
@@ -289,7 +286,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
     }
 
     #[allow(dead_code)]
-    pub fn delete_id(&mut self, id: usize) -> Result<(), &'static str> {
+    fn delete_id(&mut self, id: usize) -> Result<(), &'static str> {
         if id > self._n_constructed_items {
             return Err("Invalid delete id");
         }
@@ -300,19 +297,19 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         Ok(())
     }
 
-    pub fn is_deleted(&self, id: usize) -> bool {
+    fn is_deleted(&self, id: usize) -> bool {
         self._has_removed && self._delete_ids.contains(&id)
     }
 
-    pub fn get_data(&self, id: usize) -> &node::Node<E, T> {
+    fn get_data(&self, id: usize) -> &node::Node<E, T> {
         &self._nodes[id]
     }
 
-    pub fn get_distance_from_vec(&self, x: &node::Node<E, T>, y: &node::Node<E, T>) -> E {
+    fn get_distance_from_vec(&self, x: &node::Node<E, T>, y: &node::Node<E, T>) -> E {
         return metrics::metric(x.vectors(), y.vectors(), self.mt).unwrap();
     }
 
-    pub fn get_distance_from_id(&self, x: usize, y: usize) -> E {
+    fn get_distance_from_id(&self, x: usize, y: usize) -> E {
         return metrics::metric(
             self.get_data(x).vectors(),
             self.get_data(y).vectors(),
@@ -321,7 +318,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         .unwrap();
     }
 
-    pub fn search_layer_with_candidate(
+    fn search_layer_with_candidate(
         &self,
         search_data: &node::Node<E, T>,
         sorted_candidates: &[Neighbor<E, usize>],
@@ -454,7 +451,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
     //     return self.search_layer(root, search_data, level, self._ef_build, false);
     // }
 
-    pub fn search_knn(
+    fn search_knn(
         &self,
         search_data: &node::Node<E, T>,
         k: usize,
@@ -506,7 +503,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         Ok(top_candidate)
     }
 
-    pub fn init_item(&mut self, data: &node::Node<E, T>) -> usize {
+    fn init_item(&mut self, data: &node::Node<E, T>) -> usize {
         let cur_id = self._n_items;
         let mut cur_level = self.get_random_level();
         if cur_id == 0 {
@@ -549,10 +546,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         Ok(())
     }
 
-    pub fn add_item_not_constructed(
-        &mut self,
-        data: &node::Node<E, T>,
-    ) -> Result<(), &'static str> {
+    fn add_item_not_constructed(&mut self, data: &node::Node<E, T>) -> Result<(), &'static str> {
         if data.len() != self._dimension {
             return Err("dimension is different");
         }
@@ -572,7 +566,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         Ok(())
     }
 
-    pub fn add_single_item(&mut self, data: &node::Node<E, T>) -> Result<(), &'static str> {
+    fn add_single_item(&mut self, data: &node::Node<E, T>) -> Result<(), &'static str> {
         //not support asysn
         if data.len() != self._dimension {
             return Err("dimension is different");
@@ -597,7 +591,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         Ok(())
     }
 
-    pub fn construct_single_item(&self, insert_id: usize) -> Result<(), &'static str> {
+    fn construct_single_item(&self, insert_id: usize) -> Result<(), &'static str> {
         let insert_level = self._id2level[insert_id];
         // println!("insert id {} insert_level {}", insert_id, insert_level);
         // println!("self._cur_level {}", self._cur_level);
@@ -683,14 +677,14 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
 }
 
 impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for HNSWIndex<E, T> {
-    fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
+    fn build(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
         self.mt = mt;
         self.batch_construct(mt)
     }
     fn add_node(&mut self, item: &node::Node<E, T>) -> Result<(), &'static str> {
         self.add_item_not_constructed(item)
     }
-    fn once_constructed(&self) -> bool {
+    fn built(&self) -> bool {
         true
     }
 
@@ -719,8 +713,6 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for HNSW
         }
         result
     }
-
-    fn reconstruct(&mut self, _mt: metrics::Metric) {}
 
     fn name(&self) -> &'static str {
         "HNSWIndex"

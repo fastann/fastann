@@ -1,11 +1,4 @@
-  
-mod bench;
-mod bf;
-mod bpforest;
-mod core;
-mod hnsw;
-mod mrng;
-mod pq;
+mod ann_bench;
 
 fn main() {
     // bench::bench::run_word_emb_demo();
@@ -20,5 +13,5 @@ fn main() {
     //         report.flamegraph(file).unwrap();
     //     };
     //     println!("s {:?}", s);
-    bench::ann_bench::ann_bench();
+    ann_bench::ann_bench();
 }

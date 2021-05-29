@@ -53,6 +53,42 @@ impl<E: node::FloatElement> Default for PQParams<E> {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PQParams<E: node::FloatElement> {
+    n_sub: usize,
+    sub_bits: usize,
+    train_epoch: usize,
+    e_type: E,
+}
+
+impl<E: node::FloatElement> PQParams<E> {
+    pub fn n_sub(mut self, new_n_sub: usize) -> Self {
+        self.n_sub = new_n_sub;
+        self
+    }
+
+    pub fn sub_bits(mut self, new_sub_bits: usize) -> Self {
+        self.sub_bits = new_sub_bits;
+        self
+    }
+
+    pub fn train_epoch(mut self, new_train_epoch: usize) -> Self {
+        self.train_epoch = new_train_epoch;
+        self
+    }
+}
+
+impl<E: node::FloatElement> Default for PQParams<E> {
+    fn default() -> Self {
+        PQParams {
+            n_sub: 4,
+            sub_bits: 4,
+            train_epoch: 100,
+            e_type: E::from_f32(0.0).unwrap(),
+        }
+    }
+}
+
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct PQIndex<E: node::FloatElement, T: node::IdxType> {
     _dimension: usize,     //dimension of data
@@ -128,7 +164,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         new_pq
     }
 
-    pub fn init_item(&mut self, data: &node::Node<E, T>) -> usize {
+    fn init_item(&mut self, data: &node::Node<E, T>) -> usize {
         let cur_id = self._n_items;
         // self._item2id.insert(item, cur_id);
         self._nodes.push(Box::new(data.clone()));
@@ -136,7 +172,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         cur_id
     }
 
-    pub fn add_item(&mut self, data: &node::Node<E, T>) -> Result<usize, &'static str> {
+    fn add_item(&mut self, data: &node::Node<E, T>) -> Result<usize, &'static str> {
         if data.len() != self._dimension {
             return Err("dimension is different");
         }
@@ -153,12 +189,12 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         Ok(insert_id)
     }
 
-    pub fn set_residual(&mut self, residual: Vec<E>) {
+    fn set_residual(&mut self, residual: Vec<E>) {
         self._has_residual = true;
         self._residual = residual;
     }
 
-    pub fn train_center(&mut self) {
+    fn train_center(&mut self) {
         let n_item = self._n_items;
         let n_sub = self._n_sub;
         (0..n_sub).for_each(|i| {
@@ -187,7 +223,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         self._is_trained = true;
     }
 
-    pub fn get_distance_from_vec_range(
+    fn get_distance_from_vec_range(
         &self,
         x: &node::Node<E, T>,
         y: &[E],
@@ -201,7 +237,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
         return metrics::metric(&z, y, self.mt).unwrap();
     }
 
-    pub fn search_knn_adc(
+    fn search_knn_adc(
         &self,
         search_data: &node::Node<E, T>,
         k: usize,
@@ -238,7 +274,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
 }
 
 impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIndex<E, T> {
-    fn construct(&mut self, _mt: metrics::Metric) -> Result<(), &'static str> {
+    fn build(&mut self, _mt: metrics::Metric) -> Result<(), &'static str> {
         self.mt = _mt;
         self.train_center();
         Result::Ok(())
@@ -249,7 +285,7 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIn
             _ => Ok(()),
         }
     }
-    fn once_constructed(&self) -> bool {
+    fn built(&self) -> bool {
         true
     }
 
@@ -278,8 +314,6 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIn
         }
         result
     }
-
-    fn reconstruct(&mut self, _mt: metrics::Metric) {}
 
     fn name(&self) -> &'static str {
         "PQIndex"
@@ -355,7 +389,7 @@ impl<E: node::FloatElement> Default for IVFPQParams<E> {
             n_kmeans_center: 256,
             search_n_center: 8,
             train_epoch: 100,
-            e_type: E::from_f32(0.0).unwrap()
+            e_type: E::from_f32(0.0).unwrap(),
         }
     }
 }
