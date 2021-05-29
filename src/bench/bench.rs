@@ -238,7 +238,7 @@ pub fn run_word_emb_demo() {
     let mut pq_idx = Box::new(pq::pq::PQIndex::<f32, usize>::new(
         DIMENSION,
         &pq::pq::PQParams::<f32>::default()
-        .n_sub(DIMENSION/2)
+        .n_sub(32)
         .sub_bits(4)
         .train_epoch(100)
     ));
@@ -247,7 +247,7 @@ pub fn run_word_emb_demo() {
         pq::pq::IVFPQIndex::<f32, usize>::new(
             DIMENSION,
             &pq::pq::IVFPQParams::<f32>::default()
-            .n_sub(DIMENSION/2)
+            .n_sub(32)
             .sub_bits(4)
             .n_kmeans_center(256)
             .search_n_center(4)
@@ -323,7 +323,6 @@ pub fn run() {
     //     Box::new(hnsw::hnsw::HNSWIndex::<f32, usize>::load("hnsw_idx.idx", &argument).unwrap());
 
     // let _pq_idx = Box::new(pq::pq::PQIndex::<f32, usize>::load("pq_idx.idx", &argument).unwrap());
-    let _pq_idx = Box::new(pq::pq::PQIndex::<f32, usize>::load("pq_idx.idx", &argument).unwrap());
     let _ivfpq_idx = Box::new(
         pq::pq::IVFPQIndex::<f32, usize>::load("ivfpq_idx.idx", &argument).unwrap()
     );

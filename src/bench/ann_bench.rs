@@ -187,11 +187,11 @@ fn bench_ivfpq<E: core::node::FloatElement>(
 ) {
     let params_set = vec![
         pq::pq::IVFPQParams::<E>::default()
-        .n_sub(16)
-        .sub_bits(4)
+        .n_sub(32)
+        .sub_bits(6)
         .n_kmeans_center(256)
-        .search_n_center(4)
-        .train_epoch(100)
+        .search_n_center(2)
+        .train_epoch(20)
     ];
 
     let mut metrics_stats: Vec<StatMetrics> = Vec::new();
