@@ -1,14 +1,14 @@
 // use crate::annoy;
 // use crate::annoy::annoy::AnnoyIndexer;
-use crate::bf;
-use crate::bpforest;
-use crate::core;
-use crate::core::ann_index::ANNIndex;
-use crate::core::ann_index::SerializableIndex;
-use crate::core::arguments;
-use crate::hnsw;
-use crate::mrng;
-use crate::pq;
+use fastann::bf;
+use fastann::bpforest;
+use fastann::core;
+use fastann::core::ann_index::ANNIndex;
+use fastann::core::ann_index::SerializableIndex;
+use fastann::core::arguments;
+use fastann::hnsw;
+use fastann::mrng;
+use fastann::pq;
 #[cfg(feature = "without_std")]
 use hashbrown::HashMap;
 
@@ -79,7 +79,7 @@ pub fn run_similarity_profile(test_time: usize) {
     let (_, ns) =
         make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 100.0);
     let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new());
-    let bpforest_idx = Box::new(
+    let _bpforest_idx = Box::new(
         bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(dimension, 6, -1),
     );
     let hnsw_idx = Box::new(hnsw::hnsw::HNSWIndex::<f64, usize>::new(
@@ -87,14 +87,14 @@ pub fn run_similarity_profile(test_time: usize) {
         &hnsw::hnsw::HNSWParams::default(),
     ));
 
-    let pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(
+    let _pq_idx = Box::new(pq::pq::PQIndex::<f64, usize>::new(
         dimension,
         &pq::pq::PQParams::<f64>::default()
         .n_sub(DIMENSION/2)
         .sub_bits(4)
         .train_epoch(100)
     ));
-    let ssg_idx = Box::new(mrng::ssg::SatelliteSystemGraphIndex::<f64, usize>::new(
+    let _ssg_idx = Box::new(mrng::ssg::SatelliteSystemGraphIndex::<f64, usize>::new(
         dimension,
         &mrng::ssg::SatelliteSystemGraphParams::default(),
     ));
@@ -122,7 +122,7 @@ pub fn run_similarity_profile(test_time: usize) {
         let w = ns.get(target).unwrap();
 
         let base_start = SystemTime::now();
-        let base_result = bf_idx.search_k(&w, 100);
+        let base_result = bf_idx.search_full(&w, 100);
         let mut base_set = HashSet::new();
         for (n, _dist) in base_result.iter() {
             base_set.insert(n.idx().unwrap());
@@ -135,7 +135,7 @@ pub fn run_similarity_profile(test_time: usize) {
 
         for j in 0..indices.len() {
             let start = SystemTime::now();
-            let result = indices[j].search_k(&w, 100);
+            let result = indices[j].search_full(&w, 100);
             for (n, _dist) in result.iter() {
                 if base_set.contains(&n.idx().unwrap()) {
                     accuracy.lock().unwrap()[j] += 1.0;
@@ -199,7 +199,7 @@ pub fn run_word_emb_demo() {
     let mut words_vec = Vec::new();
     let mut train_data = Vec::new();
     let mut words_train_data = HashMap::new();
-    let file = File::open("glove.6B.50d.txt").unwrap();
+    let file = File::open("/Users/chenyangyang/rust/fastann/src/bench/glove.6B.50d.txt").unwrap();
     let reader = BufReader::new(file);
 
     let mut idx = 0;
@@ -227,7 +227,7 @@ pub fn run_word_emb_demo() {
     }
 
     let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f32, usize>::new());
-    let mut bpforest_idx = Box::new(
+    let _bpforest_idx = Box::new(
         bpforest::bpforest::BinaryProjectionForestIndex::<f32, usize>::new(DIMENSION, 6, -1),
     );
     let mut hnsw_idx = Box::new(hnsw::hnsw::HNSWIndex::<f32, usize>::new(
@@ -235,9 +235,9 @@ pub fn run_word_emb_demo() {
         &hnsw::hnsw::HNSWParams::default()
     ));
 
-    let mut pq_idx = Box::new(pq::pq::PQIndex::<f32, usize>::new(
+    let _ivfpq_idx = Box::new(pq::pq::IVFPQIndex::<f32, usize>::new(
         DIMENSION,
-        &pq::pq::PQParams::<f32>::default()
+        &pq::pq::IVFPQParams::<f32>::default()
         .n_sub(DIMENSION/2)
         .sub_bits(4)
         .train_epoch(100)
@@ -282,7 +282,7 @@ pub fn run() {
     let mut words_vec = Vec::new();
     let mut train_data = Vec::new();
     let mut words_train_data = HashMap::new();
-    let file = File::open("glove.6B.50d.txt").unwrap();
+    let file = File::open("/Users/chenyangyang/rust/fastann/src/bench/glove.6B.50d.txt").unwrap();
     let reader = BufReader::new(file);
 
     let mut idx = 0;
@@ -351,7 +351,7 @@ pub fn run() {
         .iter()
         .map(|w| {
             bf_idx
-                .search_k(&train_data[*w as usize], 100)
+                .search_full(&train_data[*w as usize], 100)
                 .into_iter()
                 .map(|x| x.0.idx().unwrap())
                 .collect()
@@ -366,10 +366,10 @@ pub fn run() {
         let mut accuracy = 0;
         words.iter().zip(0..words.len()).for_each(|(w, i)| {
             // println!("hioyo {:?} {:?}", i, words.len());
-            let result = idx.search_k(&train_data[*w as usize], 10);
+            let result = idx.search(&train_data[*w as usize], 10);
             // println!("hio {:?} {:?}", i, words.len());
-            for (n, _d) in result.iter() {
-                if results[i].contains(&n.idx().unwrap()) {
+            for n in result.iter() {
+                if results[i].contains(n) {
                     accuracy += 1;
                 }
             }
@@ -399,7 +399,7 @@ fn make_idx_baseline<E: core::node::FloatElement, T: ANNIndex<E, usize> + ?Sized
     for i in 0..embs.len() {
         idx.add_node(&core::node::Node::<E, usize>::new_with_idx(&embs[i], i));
     }
-    idx.construct(core::metrics::Metric::Euclidean).unwrap();
+    idx.build(core::metrics::Metric::Euclidean).unwrap();
     let since_start = SystemTime::now()
         .duration_since(start)
         .expect("Time went backwards");

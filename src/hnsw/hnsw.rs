@@ -1,3 +1,4 @@
+
 #![allow(dead_code)]
 use crate::core::ann_index;
 use crate::core::arguments;
@@ -146,7 +147,7 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
         let mut rng = rand::thread_rng();
         let mut ret = 0;
         while ret < self._max_level {
-            if rng.gen_range(0.0, 1.0) > 0.5 {
+            if rng.gen_range(0.0..1.0) > 0.5 {
                 ret += 1;
             } else {
                 break;
@@ -683,14 +684,14 @@ impl<E: node::FloatElement, T: node::IdxType> HNSWIndex<E, T> {
 }
 
 impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for HNSWIndex<E, T> {
-    fn construct(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
+    fn build(&mut self, mt: metrics::Metric) -> Result<(), &'static str> {
         self.mt = mt;
         self.batch_construct(mt)
     }
     fn add_node(&mut self, item: &node::Node<E, T>) -> Result<(), &'static str> {
         self.add_item_not_constructed(item)
     }
-    fn once_constructed(&self) -> bool {
+    fn built(&self) -> bool {
         true
     }
 
@@ -719,8 +720,6 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for HNSW
         }
         result
     }
-
-    fn reconstruct(&mut self, _mt: metrics::Metric) {}
 
     fn name(&self) -> &'static str {
         "HNSWIndex"

@@ -1,14 +1,13 @@
 #![deny(clippy::all)]
-use crate::core;
-use crate::core::ann_index::ANNIndex;
+use fastann::core;
+use fastann::core::ann_index::ANNIndex;
 
-
-use crate::mrng;
-use crate::hnsw;
-use crate::pq;
+use fastann::hnsw;
+use fastann::mrng;
+use fastann::pq;
+use std::collections::HashSet;
 
 use std::time::SystemTime;
-use std::{collections::HashSet, u128};
 
 struct StatMetrics {
     QPS: f64,
@@ -89,26 +88,27 @@ fn bench_ssg<E: core::node::FloatElement>(
     let params_set = vec![
         mrng::ssg::SatelliteSystemGraphParams::<E>::default()
             .angle(60.0)
-            .init_k(50)
+            .init_k(20)
             .index_size(20)
             .neighbor_neighbor_size(30)
-            .root_size(20),
+            .root_size(256),
         mrng::ssg::SatelliteSystemGraphParams::default()
             .angle(60.0)
             .init_k(50)
             .index_size(50)
             .neighbor_neighbor_size(50)
-            .root_size(20),
+            .root_size(256),
         mrng::ssg::SatelliteSystemGraphParams::default()
             .angle(60.0)
             .init_k(50)
             .index_size(50)
             .neighbor_neighbor_size(50)
-            .root_size(50),
+            .root_size(256),
     ];
 
     let mut metrics_stats: Vec<StatMetrics> = Vec::new();
     for params in params_set.iter() {
+        println!("start params {:?}", params);
         let mut ssg_idx = Box::new(mrng::ssg::SatelliteSystemGraphIndex::<E, usize>::new(
             dimension, params,
         ));
@@ -216,7 +216,6 @@ fn bench_ivfpq<E: core::node::FloatElement>(
     }
 }
 
-
 fn bench_calc<E: core::node::FloatElement, T: ANNIndex<E, usize> + ?Sized>(
     ann_idx: Box<T>,
     test: &Vec<Vec<E>>,
@@ -227,7 +226,7 @@ fn bench_calc<E: core::node::FloatElement, T: ANNIndex<E, usize> + ?Sized>(
     
     for idx in 0..test.len() {
         let start = SystemTime::now();
-        let result = ann_idx.search_k_ids(test[idx].as_slice(), K);
+        let result = ann_idx.search(test[idx].as_slice(), K);
         let since_start = SystemTime::now().duration_since(start).expect("error");
         cost += (since_start.as_micros() as f64)/1000.0;
         let true_set = &neighbors[idx];
@@ -237,6 +236,7 @@ fn bench_calc<E: core::node::FloatElement, T: ANNIndex<E, usize> + ?Sized>(
             }
         });
     }
+    println!("cost: {:?}", cost);
     println!(
         "cost: {:?}",
         cost
@@ -271,7 +271,7 @@ fn make_idx_baseline<E: core::node::FloatElement, T: ANNIndex<E, usize> + ?Sized
         ))
         .unwrap();
     }
-    idx.construct(core::metrics::Metric::Euclidean).unwrap();
+    idx.build(core::metrics::Metric::Euclidean).unwrap();
     let since_start = SystemTime::now()
         .duration_since(start)
         .expect("Time went backwards");

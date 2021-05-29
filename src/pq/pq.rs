@@ -238,7 +238,7 @@ impl<E: node::FloatElement, T: node::IdxType> PQIndex<E, T> {
 }
 
 impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIndex<E, T> {
-    fn construct(&mut self, _mt: metrics::Metric) -> Result<(), &'static str> {
+    fn build(&mut self, _mt: metrics::Metric) -> Result<(), &'static str> {
         self.mt = _mt;
         self.train_center();
         Result::Ok(())
@@ -249,7 +249,7 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIn
             _ => Ok(()),
         }
     }
-    fn once_constructed(&self) -> bool {
+    fn built(&self) -> bool {
         true
     }
 
@@ -279,7 +279,6 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for PQIn
         result
     }
 
-    fn reconstruct(&mut self, _mt: metrics::Metric) {}
 
     fn name(&self) -> &'static str {
         "PQIndex"
@@ -543,7 +542,7 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
 }
 
 impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for IVFPQIndex<E, T> {
-    fn construct(&mut self, _mt: metrics::Metric) -> Result<(), &'static str> {
+    fn build(&mut self, _mt: metrics::Metric) -> Result<(), &'static str> {
         self.mt = _mt;
         self.train();
         Result::Ok(())
@@ -554,7 +553,7 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for IVFP
             _ => Ok(()),
         }
     }
-    fn once_constructed(&self) -> bool {
+    fn built(&self) -> bool {
         true
     }
 
@@ -583,8 +582,6 @@ impl<E: node::FloatElement, T: node::IdxType> ann_index::ANNIndex<E, T> for IVFP
         }
         result
     }
-
-    fn reconstruct(&mut self, _mt: metrics::Metric) {}
 
     fn name(&self) -> &'static str {
         "IVFPQIndex"

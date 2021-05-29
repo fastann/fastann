@@ -174,7 +174,7 @@ impl<E: node::FloatElement> Kmeans<E> {
                     let mut rng = rand::thread_rng();
                     let pick_percent =
                         n_assigned_per_center[split_center_id] as f64 / batch_size as f64;
-                    if rng.gen_range(0.0, 1.0) < pick_percent {
+                    if rng.gen_range(0.0..1.0) < pick_percent {
                         break;
                     }
                     split_center_id = (split_center_id + 1) % n_center;
