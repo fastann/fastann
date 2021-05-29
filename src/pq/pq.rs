@@ -309,27 +309,27 @@ pub struct IVFPQParams<E: node::FloatElement> {
 }
 
 impl<E: node::FloatElement> IVFPQParams<E> {
-    pub fn n_sub(mut self, new_n_sub: usize) -> Self {
+    fn n_sub(mut self, new_n_sub: usize) -> Self {
         self.n_sub = new_n_sub;
         self
     }
 
-    pub fn sub_bits(mut self, new_sub_bits: usize) -> Self {
+    fn sub_bits(mut self, new_sub_bits: usize) -> Self {
         self.sub_bits = new_sub_bits;
         self
     }
 
-    pub fn n_kmeans_center(mut self, new_n_kmeans_center: usize) -> Self {
+    fn n_kmeans_center(mut self, new_n_kmeans_center: usize) -> Self {
         self.n_kmeans_center = new_n_kmeans_center;
         self
     }
 
-    pub fn search_n_center(mut self, new_search_n_center: usize) -> Self {
+    fn search_n_center(mut self, new_search_n_center: usize) -> Self {
         self.search_n_center = new_search_n_center;
         self
     }
 
-    pub fn train_epoch(mut self, new_train_epoch: usize) -> Self {
+    fn train_epoch(mut self, new_train_epoch: usize) -> Self {
         self.train_epoch = new_train_epoch;
         self
     }
@@ -413,7 +413,7 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
         }
     }
 
-    pub fn init_item(&mut self, data: &node::Node<E, T>) -> usize {
+    fn init_item(&mut self, data: &node::Node<E, T>) -> usize {
         let cur_id = self._n_items;
         // self._item2id.insert(item, cur_id);
         self._nodes.push(Box::new(data.clone()));
@@ -421,7 +421,7 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
         cur_id
     }
 
-    pub fn add_item(&mut self, data: &node::Node<E, T>) -> Result<usize, &'static str> {
+    fn add_item(&mut self, data: &node::Node<E, T>) -> Result<usize, &'static str> {
         if data.len() != self._dimension {
             return Err("dimension is different");
         }
@@ -438,7 +438,7 @@ impl<E: node::FloatElement, T: node::IdxType> IVFPQIndex<E, T> {
         Ok(insert_id)
     }
 
-    pub fn train(&mut self) {
+    fn train(&mut self) {
         let n_item = self._n_items;
         let dimension = self._dimension;
         let n_center = self._n_kmeans_center;
