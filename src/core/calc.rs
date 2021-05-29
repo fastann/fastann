@@ -44,9 +44,8 @@ mod tests {
     use super::*;
     use crate::core::simd_metrics::SIMDOptmized;
 
-    use rand::distributions::{Distribution, Standard};
+    use rand::distributions::Standard;
 
-    
     use rand::Rng;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
     fn make_normal_distribution_clustering(
