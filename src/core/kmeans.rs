@@ -219,23 +219,23 @@ pub fn general_kmeans<E: node::FloatElement, T: node::IdxType>(
     nodes: &[Box<node::Node<E, T>>],
     mt: metrics::Metric,
 ) -> Vec<usize> {
-    if nodes.len() == 0 {
+    if nodes.is_empty() {
         return Vec::new();
     }
 
     let mut rng = rand::thread_rng();
     let mut means = Vec::with_capacity(k);
 
-    (0..k).for_each(|i| {
+    (0..k).for_each(|_i| {
         means.push(Box::new(nodes[rng.gen_range(0..nodes.len())].clone()));
     });
 
     (0..epoch).for_each(|_| {
-        let mut cluster_count: Vec<Mutex<usize>> = (0..k).map(|_| Mutex::new(0)).collect();
+        let cluster_count: Vec<Mutex<usize>> = (0..k).map(|_| Mutex::new(0)).collect();
         let mut cluster_features: Vec<Mutex<Vec<E>>> = (0..k)
             .map(|_| Mutex::new(vec![E::zero(); nodes[0].vectors().len()]))
             .collect();
-        nodes.par_iter().zip(0..nodes.len()).for_each(|(node, j)| {
+        nodes.par_iter().zip(0..nodes.len()).for_each(|(node, _j)| {
             let mut idx = 0;
             let mut distance = E::max_value();
             for i in 0..means.len() {
@@ -262,7 +262,7 @@ pub fn general_kmeans<E: node::FloatElement, T: node::IdxType>(
                     .lock()
                     .unwrap()
                     .iter_mut()
-                    .for_each(|f| *f /= (E::from_usize(*cnt.lock().unwrap()).unwrap()))
+                    .for_each(|f| *f /= E::from_usize(*cnt.lock().unwrap()).unwrap())
             });
 
         means
@@ -291,12 +291,12 @@ pub fn general_kmeans<E: node::FloatElement, T: node::IdxType>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::simd_metrics::SIMDOptmized;
+    
 
     use rand::distributions::Standard;
 
     use rand::Rng;
-    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+    
     fn make_normal_distribution_clustering(
         clustering_n: usize,
         node_n: usize,
@@ -315,7 +315,7 @@ mod tests {
             let mut base: Vec<f32> = Vec::with_capacity(dimension);
             for _i in 0..dimension {
                 let n: f64 = rng.gen::<f64>() * range; // base number
-                base.push((n as f32).into());
+                base.push((n as f32));
             }
 
             let v_iter: Vec<f64> = rng
