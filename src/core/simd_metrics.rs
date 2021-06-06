@@ -1,6 +1,6 @@
 use crate::core::calc::same_dimension;
 #[cfg(feature = "simd")]
-use packed_simd::{f32x4, f32x8, f64x4};
+use packed_simd::{f32x16, f32x4, f32x8, f64x4};
 
 pub trait SIMDOptmized<T = Self> {
     fn dot_product(a: &[T], b: &[T]) -> Result<T, &'static str>;
@@ -105,5 +105,5 @@ macro_rules! simd_optimized_impl {
     };
 }
 
-simd_optimized_impl!(f32, f32x8, 8, "simd");
-simd_optimized_impl!(f64, f64x4, 4, "simd");
+simd_optimized_impl!(f32, f32x16, 16, "simd");
+simd_optimized_impl!(f64, f64x8, 8, "simd");

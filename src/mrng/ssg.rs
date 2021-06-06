@@ -15,6 +15,7 @@ use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 use std::collections::LinkedList;
 
+use crate::core::kmeans;
 #[cfg(not(feature = "without_std"))]
 use std::collections::HashSet;
 use std::collections::VecDeque;
@@ -433,6 +434,8 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
 
         self.expand_connectivity();
 
+        self.root_nodes = kmeans::general_kmeans(self.root_size, 256, &self.nodes, self.mt);
+
         let mut max = 0;
         let mut min = self.nodes.len();
         let mut avg: f32 = 0.;
@@ -521,7 +524,7 @@ impl<E: node::FloatElement, T: node::IdxType> SatelliteSystemGraphIndex<E, T> {
         }
 
         // println!("stat_here cnt {:?}", cnt);
-        let mut result = Vec::new();
+        let mut result = Vec::with_capacity(heap.len());
 
         while !heap.is_empty() {
             let tmp = heap.pop().unwrap();

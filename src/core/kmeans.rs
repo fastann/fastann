@@ -3,6 +3,8 @@ use crate::core::metrics;
 use crate::core::node;
 use metrics::metric;
 use rand::prelude::*;
+use rayon::prelude::*;
+use std::sync::Mutex;
 
 #[derive(Default, Debug)]
 pub struct Kmeans<E: node::FloatElement> {
@@ -32,9 +34,7 @@ impl<E: node::FloatElement> Kmeans<E> {
         &self._centers
     }
 
-    pub fn get_distance_from_vec(&self, x: &Vec<E>, y: &[E]) -> E {
-        // println!("demension: {:?}", self._dimension);
-        // println!("begin: {:?}, end: {:?}", self._data_range_begin, self._data_range_end);
+    pub fn get_distance_from_vec(&self, x: &[E], y: &[E]) -> E {
         let mut z = x[self._data_range_begin..self._data_range_end].to_vec();
         if self._has_residual {
             (0..self._data_range_end - self._data_range_begin)
@@ -48,12 +48,11 @@ impl<E: node::FloatElement> Kmeans<E> {
         self._residual = residual;
     }
 
-    pub fn init_center(&mut self, batch_size: usize, batch_data: &Vec<Vec<E>>) {
+    pub fn init_center(&mut self, batch_size: usize, batch_data: &[Vec<E>]) {
         let dimension = self._dimension;
         let n_center = self._n_center;
         let begin = self._data_range_begin;
         let mut mean_center: Vec<E> = vec![E::from_f32(0.0).unwrap(); dimension];
-        // mean_center.resize(dimension, E::from_f32(0.0).unwrap());
 
         (0..batch_size).for_each(|i| {
             let cur_data = &batch_data[i];
@@ -90,7 +89,7 @@ impl<E: node::FloatElement> Kmeans<E> {
     pub fn update_center(
         &mut self,
         batch_size: usize,
-        batch_data: &Vec<Vec<E>>,
+        batch_data: &[Vec<E>],
         assigned_center: &[usize],
     ) -> Vec<usize> {
         let dimension = self._dimension;
@@ -211,5 +210,154 @@ impl<E: node::FloatElement> Kmeans<E> {
         assert!(end - begin == self._dimension);
         self._data_range_begin = begin;
         self._data_range_end = end;
+    }
+}
+
+pub fn general_kmeans<E: node::FloatElement, T: node::IdxType>(
+    k: usize,
+    epoch: usize,
+    nodes: &[Box<node::Node<E, T>>],
+    mt: metrics::Metric,
+) -> Vec<usize> {
+    if nodes.is_empty() {
+        return Vec::new();
+    }
+
+    let mut rng = rand::thread_rng();
+    let mut means = Vec::with_capacity(k);
+
+    (0..k).for_each(|_i| {
+        means.push(Box::new(nodes[rng.gen_range(0..nodes.len())].clone()));
+    });
+
+    (0..epoch).for_each(|_| {
+        let cluster_count: Vec<Mutex<usize>> = (0..k).map(|_| Mutex::new(0)).collect();
+        let mut cluster_features: Vec<Mutex<Vec<E>>> = (0..k)
+            .map(|_| Mutex::new(vec![E::zero(); nodes[0].vectors().len()]))
+            .collect();
+        nodes.par_iter().zip(0..nodes.len()).for_each(|(node, _j)| {
+            let mut idx = 0;
+            let mut distance = E::max_value();
+            for i in 0..means.len() {
+                let _distance = node.metric(&means[i], mt).unwrap();
+                if _distance < distance {
+                    idx = i;
+                    distance = _distance;
+                }
+            }
+            cluster_features[idx]
+                .lock()
+                .unwrap()
+                .iter_mut()
+                .zip(node.vectors())
+                .for_each(|(i, j)| *i += *j);
+            *cluster_count[idx].lock().unwrap() += 1;
+        });
+
+        cluster_features
+            .iter_mut()
+            .zip(cluster_count)
+            .for_each(|(features, cnt)| {
+                features
+                    .lock()
+                    .unwrap()
+                    .iter_mut()
+                    .for_each(|f| *f /= E::from_usize(*cnt.lock().unwrap()).unwrap())
+            });
+
+        means
+            .iter_mut()
+            .zip(cluster_features)
+            .for_each(|(mean, features)| mean.set_vectors(&features.lock().unwrap()));
+    });
+
+    means
+        .iter()
+        .map(|mean| {
+            let mut mean_idx = 0;
+            let mut mean_distance = E::max_value();
+            nodes.iter().zip(0..nodes.len()).for_each(|(node, i)| {
+                let distance = node.metric(&mean, mt).unwrap();
+                if distance < mean_distance {
+                    mean_idx = i;
+                    mean_distance = distance;
+                }
+            });
+            mean_idx
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+
+    use rand::distributions::Standard;
+
+    use rand::Rng;
+    
+    fn make_normal_distribution_clustering(
+        clustering_n: usize,
+        node_n: usize,
+        dimension: usize,
+        range: f64,
+    ) -> (
+        Vec<Vec<f32>>, // center of cluster
+        Vec<Vec<f32>>, // cluster data
+    ) {
+        let _rng = rand::thread_rng();
+
+        let mut bases: Vec<Vec<f32>> = Vec::new();
+        let mut ns: Vec<Vec<f32>> = Vec::new();
+        for _i in 0..clustering_n {
+            let mut rng = rand::thread_rng();
+            let mut base: Vec<f32> = Vec::with_capacity(dimension);
+            for _i in 0..dimension {
+                let n: f64 = rng.gen::<f64>() * range; // base number
+                base.push((n as f32));
+            }
+
+            let v_iter: Vec<f64> = rng
+                .sample_iter(&Standard)
+                .take(dimension * node_n)
+                .collect::<Vec<f64>>()
+                .clone();
+            for _i in 0..node_n {
+                let mut vec_item = Vec::with_capacity(dimension);
+                for i in 0..dimension {
+                    let vv = (v_iter[_i * dimension..(_i + 1) * dimension][i] as f32) + base[i]; // add normal distribution noise
+                    vec_item.push(vv);
+                }
+                ns.push(vec_item);
+            }
+            bases.push(base);
+        }
+
+        (bases, ns)
+    }
+
+    #[test]
+    fn test_general_kmeans() {
+        let dimension = 2;
+        let nodes_every_cluster = 10;
+        let node_n = 10;
+        let (_, nso) =
+            make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 100000.0);
+        println!("{:?}", nso);
+        let ns: Vec<Vec<f32>> = nso
+            .iter()
+            .map(|x| x.iter().map(|p| *p as f32).collect())
+            .collect();
+
+        let nodes: Vec<Box<node::Node<f32, usize>>> = ns
+            .iter()
+            .zip(0..ns.len())
+            .map(|(vs, idx)| Box::new(node::Node::new_with_idx(vs, idx)))
+            .collect();
+        println!(
+            "{:?}",
+            general_kmeans(node_n, 30, &nodes, metrics::Metric::Euclidean)
+        );
     }
 }

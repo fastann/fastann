@@ -17,7 +17,8 @@ struct StatMetrics {
     TestSize: usize,
 }
 
-const data_path: &str = "fashion-mnist-784-euclidean.hdf5";
+const data_path: &str =
+    "/Users/chenyangyang/rust/fastann/example/src/fashion-mnist-784-euclidean.hdf5";
 const dimension: usize = 784;
 const K: usize = 10;
 
@@ -75,8 +76,8 @@ pub fn ann_bench() {
     println!("train len: {:?}", train.len());
     println!("test len: {:?}", test.len());
     // bench_hnsw(&train, &test, &neighbors);
-    // bench_ssg(&train, &test, &neighbors);
-    bench_ivfpq(&train, &test, &neighbors);
+    bench_ssg(&train, &test, &neighbors);
+    // bench_ivfpq(&train, &test, &neighbors);
 }
 
 fn bench_ssg<E: core::node::FloatElement>(

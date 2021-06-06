@@ -50,7 +50,7 @@ fn make_normal_distribution_clustering(
     for _i in 0..clustering_n {
         let mut base: Vec<f64> = Vec::with_capacity(dimension);
         for _i in 0..dimension {
-            let n: f64 = rng.gen_range(-range..range); // base number
+            let n: f64 = rng.gen_range(-range, range); // base number
             base.push(n);
         }
 
@@ -78,7 +78,7 @@ pub fn run_similarity_profile(test_time: usize) {
 
     let (_, ns) =
         make_normal_distribution_clustering(node_n, nodes_every_cluster, dimension, 100.0);
-    let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new());
+    let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f64, usize>::new(dimension));
     let _bpforest_idx = Box::new(
         bpforest::bpforest::BinaryProjectionForestIndex::<f64, usize>::new(dimension, 6, -1),
     );
@@ -226,7 +226,7 @@ pub fn run_word_emb_demo() {
         }
     }
 
-    let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f32, usize>::new());
+    let mut bf_idx = Box::new(bf::bf::BruteForceIndex::<f32, usize>::new(DIMENSION));
     let _bpforest_idx = Box::new(
         bpforest::bpforest::BinaryProjectionForestIndex::<f32, usize>::new(DIMENSION, 6, -1),
     );
